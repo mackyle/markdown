@@ -192,14 +192,19 @@ else {
 		use Getopt::Long;
 		Getopt::Long::Configure('pass_through');
 		GetOptions(\%cli_opts,
+			'h',
+			'help',
 			'version',
 			'shortversion',
 			'html4tags',
 		);
+		if ($cli_opts{'help'} || $cli_opts{'h'}) {
+			exec 'perldoc', $0;
+		}
 		if ($cli_opts{'version'}) {		# Version info
 			print "\nThis is Markdown, version $VERSION.\n";
-			print "Copyright 2004 John Gruber\n";
-			print "http://daringfireball.net/projects/markdown/\n\n";
+			print "Copyright (C) 2004 John Gruber\n";
+			print "Copyright (C) 2015 Kyle J. McKay\n";
 			exit 0;
 		}
 		if ($cli_opts{'shortversion'}) {		# Just the version number string.
@@ -1330,7 +1335,7 @@ B<Markdown>
 
 =head1 SYNOPSIS
 
-B<Markdown.pl> [ B<--html4tags> ] [ B<--version> ] [ B<-shortversion> ]
+B<Markdown.pl> [ B<--html4tags> ] [ B<--version> ] [ B<--shortversion> ] [ B<--help> ]
     [ I<file> ... ]
 
 
@@ -1381,6 +1386,11 @@ Display Markdown's version number and copyright information.
 Display the short-form version number.
 
 
+=item B<-h>, B<--help>
+
+Display Markdown's help.
+
+
 =back
 
 
@@ -1405,18 +1415,23 @@ See the readme file for detailed release notes for this version.
 1.0 - 28 Aug 2004
 
 
-=head1 AUTHOR
+=head1 AUTHORS
 
     John Gruber
     http://daringfireball.net
+    http://daringfireball.net/projects/markdown/
 
     PHP port and other contributions by Michel Fortin
     http://michelf.com
 
+    Additional enhancements and tweaks by Kyle J. McKay
+    mackyle<at>gmail.com
+
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (c) 2003-2004 John Gruber
+Copyright (C) 2003-2004 John Gruber
+Copyright (C) 2015 Kyle J. McKay
 <http://daringfireball.net/>
 All rights reserved.
 
