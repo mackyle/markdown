@@ -38,9 +38,9 @@ my $g_tab_width = 4;
 # "Mastering Regular Expressions", 2nd Ed., pp. 328-331.
 my $g_nested_brackets;
 $g_nested_brackets = qr{
-	(?> 								# Atomic matching
+	(?>								# Atomic matching
 	   [^\[\]]+							# Anything other than brackets
-	 | 
+	 |
 	   \[
 		 (??{ $g_nested_brackets })		# Recursive set of nested brackets
 	   \]
@@ -129,7 +129,7 @@ unless ($@) {
 			my $ctx  = shift;
 			my $raw  = 0;
 		    if (defined $ctx) {
-		    	my $output = $ctx->stash('markdown_output'); 
+			my $output = $ctx->stash('markdown_output');
 				if (defined $output  &&  $output =~ m/^html/i) {
 					$g_empty_element_suffix = ">";
 					$ctx->stash('markdown_output', '');
@@ -164,7 +164,7 @@ unless ($@) {
 				my $text = shift;
 				my $ctx  = shift;
 				if (defined $ctx) {
-					my $output = $ctx->stash('markdown_output'); 
+					my $output = $ctx->stash('markdown_output');
 					if (defined $output  &&  $output eq 'html') {
 						$g_empty_element_suffix = ">";
 					}
@@ -242,8 +242,8 @@ sub Markdown {
 
 
 	# Standardize line endings:
-	$text =~ s{\r\n}{\n}g; 	# DOS to Unix
-	$text =~ s{\r}{\n}g; 	# Mac to Unix
+	$text =~ s{\r\n}{\n}g;	# DOS to Unix
+	$text =~ s{\r}{\n}g;	# Mac to Unix
 
 	# Make sure $text ends with a couple of newlines:
 	$text .= "\n\n";
@@ -324,11 +324,11 @@ sub _HashHTMLBlocks {
 	my $block_tags_b = qr/p|div|h[1-6]|blockquote|pre|table|dl|ol|ul|script|noscript|form|fieldset|iframe|math/;
 
 	# First, look for nested blocks, e.g.:
-	# 	<div>
-	# 		<div>
-	# 		tags for inner block must be indented.
-	# 		</div>
-	# 	</div>
+	#	<div>
+	#		<div>
+	#		tags for inner block must be indented.
+	#		</div>
+	#	</div>
 	#
 	# The outermost tags must start at the left margin for this to match, and
 	# the inner nested divs must be indented.
@@ -370,7 +370,7 @@ sub _HashHTMLBlocks {
 				"\n\n" . $key . "\n\n";
 			}egmx;
 	# Special case just for <hr />. It was easier to make a special case than
-	# to make the other regex more complicated.	
+	# to make the other regex more complicated.
 	$text =~ s{
 				(?:
 					(?<=\n\n)		# Starting after a blank line
@@ -381,7 +381,7 @@ sub _HashHTMLBlocks {
 					[ ]{0,$less_than_tab}
 					<(hr)				# start tag = $2
 					\b					# word break
-					([^<>])*?			# 
+					([^<>])*?			#
 					/?>					# the matching end tag
 					[ \t]*
 					(?=\n{2,}|\Z)		# followed by a blank line or end of document
@@ -489,8 +489,8 @@ sub _EscapeSpecialChars {
 	my $tokens ||= _TokenizeHTML($text);
 
 	$text = '';   # rebuild $text from the tokens
-# 	my $in_pre = 0;	 # Keep track of when we're inside <pre> or <code> tags.
-# 	my $tags_to_skip = qr!<(/?)(?:pre|code|kbd|script|math)[\s>]!;
+#	my $in_pre = 0;	 # Keep track of when we're inside <pre> or <code> tags.
+#	my $tags_to_skip = qr!<(/?)(?:pre|code|kbd|script|math)[\s>]!;
 
 	foreach my $cur_token (@$tokens) {
 		if ($cur_token->[0] eq "tag") {
@@ -573,9 +573,9 @@ sub _DoAnchors {
 		    ($g_nested_brackets)	# link text = $2
 		  \]
 		  \(			# literal paren
-		  	[ \t]*
+			[ \t]*
 			<?(.*?)>?	# href = $3
-		  	[ \t]*
+			[ \t]*
 			(			# $4
 			  (['"])	# quote char = $5
 			  (.*?)		# Title = $6
@@ -587,8 +587,8 @@ sub _DoAnchors {
 		my $result;
 		my $whole_match = $1;
 		my $link_text   = $2;
-		my $url	  		= $3;
-		my $title		= $6;
+		my $url		= $3;
+		my $title	= $6;
 
 		$url =~ s! \* !$g_escape_table{'*'}!gx;		# We've got to encode these to avoid
 		$url =~ s!  _ !$g_escape_table{'_'}!gx;		# conflicting with italics/bold.
@@ -675,9 +675,9 @@ sub _DoImages {
 		    (.*?)		# alt text = $2
 		  \]
 		  \(			# literal paren
-		  	[ \t]*
+			[ \t]*
 			<?(\S+?)>?	# src url = $3
-		  	[ \t]*
+			[ \t]*
 			(			# $4
 			  (['"])	# quote char = $5
 			  (.*?)		# title = $6
@@ -690,10 +690,10 @@ sub _DoImages {
 		my $result;
 		my $whole_match = $1;
 		my $alt_text    = $2;
-		my $url	  		= $3;
-		my $title		= '';
+		my $url		= $3;
+		my $title	= '';
 		if (defined($6)) {
-			$title		= $6;
+			$title	= $6;
 		}
 
 		$alt_text =~ s/"/&quot;/g;
@@ -721,7 +721,7 @@ sub _DoHeaders {
 	# Setext-style headers:
 	#	  Header 1
 	#	  ========
-	#  
+	#
 	#	  Header 2
 	#	  --------
 	#
@@ -916,7 +916,7 @@ sub _ProcessListItems {
 sub _DoCodeBlocks {
 #
 #	Process Markdown `<pre><code>` blocks.
-#	
+#
 
 	my $text = shift;
 
@@ -949,27 +949,27 @@ sub _DoCodeBlocks {
 
 sub _DoCodeSpans {
 #
-# 	*	Backtick quotes are used for <code></code> spans.
-# 
-# 	*	You can use multiple backticks as the delimiters if you want to
-# 		include literal backticks in the code span. So, this input:
-#     
+#	*	Backtick quotes are used for <code></code> spans.
+#
+#	*	You can use multiple backticks as the delimiters if you want to
+#		include literal backticks in the code span. So, this input:
+#
 #         Just type ``foo `bar` baz`` at the prompt.
-#     
-#     	Will translate to:
-#     
+#
+#	Will translate to:
+#
 #         <p>Just type <code>foo `bar` baz</code> at the prompt.</p>
-#     
+#
 #		There's no arbitrary limit to the number of backticks you
 #		can use as delimters. If you need three consecutive backticks
 #		in your code, use four for delimiters, etc.
 #
 #	*	You can use spaces to get literal backticks at the edges:
-#     
+#
 #         ... type `` `bar` `` ...
-#     
-#     	Turns to:
-#     
+#
+#	Turns to:
+#
 #         ... type <code>`bar`</code> ...
 #
 
@@ -982,10 +982,10 @@ sub _DoCodeSpans {
 			\1			# Matching closer
 			(?!`)
 		@
- 			my $c = "$2";
- 			$c =~ s/^[ \t]*//g; # leading whitespace
- 			$c =~ s/[ \t]*$//g; # trailing whitespace
- 			$c = _EncodeCode($c);
+			my $c = "$2";
+			$c =~ s/^[ \t]*//g; # leading whitespace
+			$c =~ s/[ \t]*$//g; # trailing whitespace
+			$c = _EncodeCode($c);
 			"<code>$c</code>";
 		@egsx;
 
@@ -1009,9 +1009,9 @@ sub _EncodeCode {
 	# (Blosxom interpolates Perl variables in article bodies.)
 	{
 		no warnings 'once';
-    	if (defined($blosxom::version)) {
-    		s/\$/&#036;/g;	
-    	}
+	if (defined($blosxom::version)) {
+		s/\$/&#036;/g;
+	}
     }
 
 
@@ -1126,10 +1126,10 @@ sub _EncodeAmpsAndAngles {
 
 	# Ampersand-encoding based entirely on Nat Irons's Amputator MT plugin:
 	#   http://bumppo.net/projects/amputator/
- 	$text =~ s/&(?!#?[xX]?(?:[0-9a-fA-F]+|\w+);)/&amp;/g;
+	$text =~ s/&(?!#?[xX]?(?:[0-9a-fA-F]+|\w+);)/&amp;/g;
 
 	# Encode naked <'s
- 	$text =~ s{<(?![a-z/?\$!])}{&lt;}gi;
+	$text =~ s{<(?![a-z/?\$!])}{&lt;}gi;
 
 	return $text;
 }
@@ -1416,8 +1416,8 @@ See the readme file for detailed release notes for this version.
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (c) 2003-2004 John Gruber   
-<http://daringfireball.net/>   
+Copyright (c) 2003-2004 John Gruber
+<http://daringfireball.net/>
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
