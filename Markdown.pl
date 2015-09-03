@@ -1048,11 +1048,15 @@ sub _DoItalicsAndBold {
 	my $text = shift;
 
 	# <strong> must go first:
-	$text =~ s{ (\*\*|__) (?=\S) (.+?[*_]*) (?<=\S) \1 }
-		{<strong>$2</strong>}gsx;
+	$text =~ s{ \*\* (?=\S) (.+?[*_]*) (?<=\S) \*\* }
+		{<strong>$1</strong>}gsx;
+	$text =~ s{ (?<!\w) __ (?=\S) (.+?[*_]*) (?<=\S) __ (?!\w) }
+		{<strong>$1</strong>}gsx;
 
-	$text =~ s{ (\*|_) (?=\S) (.+?) (?<=\S) \1 }
-		{<em>$2</em>}gsx;
+	$text =~ s{ \* (?=\S) (.+?) (?<=\S) \* }
+		{<em>$1</em>}gsx;
+	$text =~ s{ (?<!\w) _ (?=\S) (.+?) (?<=\S) _ (?!\w) }
+		{<em>$1</em>}gsx;
 
 	return $text;
 }

@@ -740,8 +740,9 @@ will produce:
 
 You can use whichever style you prefer; the lone restriction is that
 the same character must be used to open and close an emphasis span.
+Additionally `_` and double `_` are not recognized within words.
 
-Emphasis can be used in the middle of a word:
+Emphasis using `*` can be used in the middle of a word:
 
     un*frigging*believable
 
