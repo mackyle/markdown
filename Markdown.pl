@@ -730,12 +730,19 @@ sub _DoHeaders {
 	#	  Header 2
 	#	  --------
 	#
-	$text =~ s{ ^(.+)[ \t]*\n=+[ \t]*\n+ }{
+	#	  Header 3
+	#	  ~~~~~~~~
+	#
+	$text =~ s{ ^(?:=+[ \t]*\n)?(.+)[ \t]*\n=+[ \t]*\n+ }{
 		"<h1>"  .  _RunSpanGamut($1)  .  "</h1>\n\n";
 	}egmx;
 
-	$text =~ s{ ^(.+)[ \t]*\n-+[ \t]*\n+ }{
+	$text =~ s{ ^(?:-+[ \t]*\n)?(.+)[ \t]*\n-+[ \t]*\n+ }{
 		"<h2>"  .  _RunSpanGamut($1)  .  "</h2>\n\n";
+	}egmx;
+
+	$text =~ s{ ^(?:~+[ \t]*\n)?(.+)[ \t]*\n~+[ \t]*\n+ }{
+		"<h3>"  .  _RunSpanGamut($1)  .  "</h3>\n\n";
 	}egmx;
 
 
