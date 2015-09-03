@@ -2,11 +2,9 @@ Markdown: Syntax
 ================
 
 <ul id="ProjectSubmenu">
-    <li><a href="/projects/markdown/" title="Markdown Project Page">Main</a></li>
-    <li><a href="/projects/markdown/basics" title="Markdown Basics">Basics</a></li>
+    <li><a href="basics.html" title="Markdown Basics">Basics</a></li>
     <li><a class="selected" title="Markdown Syntax Documentation">Syntax</a></li>
-    <li><a href="/projects/markdown/license" title="Pricing and License Information">License</a></li>
-    <li><a href="/projects/markdown/dingus" title="Online Markdown Web Form">Dingus</a></li>
+    <li><a href="License.html" title="License Information">License</a></li>
 </ul>
 
 
@@ -34,7 +32,8 @@ Markdown: Syntax
 **Note:** This document is itself written using Markdown; you
 can [see the source for it by adding '.text' to the URL][src].
 
-  [src]: /projects/markdown/syntax.text
+  [b]: basics.html  "Markdown Basics"
+  [src]: syntax.text
 
 * * *
 
@@ -639,7 +638,7 @@ The following three link definitions are equivalent:
 	[foo]: http://example.com/  'Optional Title Here'
 	[foo]: http://example.com/  (Optional Title Here)
 
-**Note:** There is a known bug in Markdown.pl 1.0.1 which prevents
+**Note:** There is a known bug in Markdown.pl 1.0.2 which prevents
 single quotes from being used to delimit link titles.
 
 The link URL may, optionally, be surrounded by angle brackets:

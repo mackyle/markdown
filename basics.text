@@ -2,11 +2,9 @@ Markdown: Basics
 ================
 
 <ul id="ProjectSubmenu">
-    <li><a href="/projects/markdown/" title="Markdown Project Page">Main</a></li>
     <li><a class="selected" title="Markdown Basics">Basics</a></li>
-    <li><a href="/projects/markdown/syntax" title="Markdown Syntax Documentation">Syntax</a></li>
-    <li><a href="/projects/markdown/license" title="Pricing and License Information">License</a></li>
-    <li><a href="/projects/markdown/dingus" title="Online Markdown Web Form">Dingus</a></li>
+    <li><a href="syntax.html" title="Markdown Syntax Documentation">Syntax</a></li>
+    <li><a href="License.html" title="License Information">License</a></li>
 </ul>
 
 
@@ -27,9 +25,8 @@ and translate it to XHTML.
 **Note:** This document is itself written using Markdown; you
 can [see the source for it by adding '.text' to the URL] [src].
 
-  [s]: /projects/markdown/syntax  "Markdown Syntax"
-  [d]: /projects/markdown/dingus  "Markdown Dingus"
-  [src]: /projects/markdown/basics.text
+  [s]: syntax.html  "Markdown Syntax"
+  [src]: basics.text
 
 
 ## Paragraphs, Headers, Blockquotes ##

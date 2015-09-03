@@ -1,10 +1,10 @@
 Markdown
 ========
 
-Version 1.0.1 - Tue 14 Dec 2004
+Version 1.0.2 - Thu 03 Sep 2015
 
-by John Gruber  
-<http://daringfireball.net/>
+John Gruber  
+Kyle J. McKay  
 
 
 Introduction
@@ -23,8 +23,9 @@ script -- which means it can also be used as a text filter in BBEdit
 (or any other application that supporst filters written in Perl).
 
 Full documentation of Markdown's syntax and configuration options is
-available on the web: <http://daringfireball.net/projects/markdown/>.
-(Note: this readme file is formatted in Markdown.)
+available in the basics.text and syntax.text files.
+(Note: this readme file and the basics and syntax files are formatted
+in Markdown.)
 
 
 
@@ -158,16 +159,28 @@ Markdown.pl source code for more information.
 
 
 
-Bugs
-----
-
-To file bug reports or feature requests please send email to:
-<markdown@daringfireball.net>.
-
-
-
 Version History
 ---------------
+
+1.0.2 (03 Sep 2015):
+
++	Added support for -h and --help to display Markdown.pl help.
+
++	Added support for third-level headers using setext-like
+	underlining using tildes (`~`'s).
+
++	Added support for an optional overline using the same character
+	as the underline when using setext-style headers.
+
++	Stopped recognizing `_` within words.  The `*` character is still
+	recognized within words.
+
++	Added support for strike through text using `~~` similarly to the
+	way strong works using `**`.
+
++	Added support for non-indended code blocks by preceding and following
+	them with a line consisting of 3 backtick quotes (`` ` ``) or more.
+
 
 1.0.1 (14 Dec 2004):
 
@@ -298,19 +311,11 @@ Version History
 
 
 
-Donations
----------
-
-Donations to support Markdown's development are happily accepted. See:
-<http://daringfireball.net/projects/markdown/> for details.
-
-
-
 Copyright and License
 ---------------------
 
-Copyright (c) 2003-2004 John Gruber   
-<http://daringfireball.net/>   
+Copyright (C) 2003-2004 John Gruber  
+Copyright (C) 2015 Kyle J. McKay  
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

@@ -15,8 +15,8 @@ use warnings;
 
 use Digest::MD5 qw(md5_hex);
 use vars qw($VERSION);
-$VERSION = '1.0.1';
-# Tue 14 Dec 2004
+$VERSION = '1.0.2';
+# Thu 03 Sep 2015
 
 ## Disabled; causes problems under Perl 5.6.1:
 # use utf8;
@@ -1399,9 +1399,8 @@ specifically to serve as a front-end to (X)HTML. You can  use span-level
 HTML tags anywhere in a Markdown document, and you can use block level
 HTML tags (like <div> and <table> as well).
 
-For more information about Markdown's syntax, see:
-
-    http://daringfireball.net/projects/markdown/
+For more information about Markdown's syntax, see the `basics.text`
+and `syntax.text` files included with `Markdown.pl`.
 
 
 =head1 OPTIONS
@@ -1442,21 +1441,11 @@ Display Markdown's help.
 =back
 
 
-
-=head1 BUGS
-
-To file bug reports or feature requests (other than topics listed in the
-Caveats section above) please send email to:
-
-    support@daringfireball.net
-
-Please include with your report: (1) the example input; (2) the output
-you expected; (3) the output Markdown actually produced.
-
-
 =head1 VERSION HISTORY
 
 See the readme file for detailed release notes for this version.
+
+1.0.2 - 03 Sep 2015
 
 1.0.1 - 14 Dec 2004
 
@@ -1478,17 +1467,16 @@ See the readme file for detailed release notes for this version.
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2003-2004 John Gruber
-Copyright (C) 2015 Kyle J. McKay
-<http://daringfireball.net/>
-All rights reserved.
+ Copyright (C) 2003-2004 John Gruber
+ Copyright (C) 2015 Kyle J. McKay
+ All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
 met:
 
-* Redistributions of source code must retain the above copyright notice,
-  this list of conditions and the following disclaimer.
+* Redistributions of source code must retain the above copyright
+  notice, this list of conditions and the following disclaimer.
 
 * Redistributions in binary form must reproduce the above copyright
   notice, this list of conditions and the following disclaimer in the
