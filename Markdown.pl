@@ -964,6 +964,29 @@ sub _DoCodeBlocks {
 	    $result;
 	}egmx;
 
+    $text =~ s{
+	    (?:\n|\A)
+		``(`+)\w*\n
+	    (		    # $1 = the code block -- one or more lines, starting with ```
+	      (?:
+		.*\n+
+	      )+?
+	    )
+	    (?:(?:``\1(?:\n|\Z))|\Z) # and ending with ``` or end of document
+	}{
+	    my $codeblock = $2;
+	    my $result; # return value
+
+	    $codeblock = _EncodeCode($codeblock);
+	    $codeblock = _Detab($codeblock);
+	    $codeblock =~ s/\A\n+//; # trim leading newlines
+	    $codeblock =~ s/\s+\z//; # trim trailing whitespace
+
+	    $result = "\n\n<pre><code>" . $codeblock . "\n</code></pre>\n\n";
+
+	    $result;
+	}egmx;
+
     return $text;
 }
 
