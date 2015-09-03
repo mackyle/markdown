@@ -50,7 +50,7 @@ $g_nested_brackets = qr{
 
 # Table of hash values for escaped characters:
 my %g_escape_table;
-foreach my $char (split //, '\\`*_{}[]()>#+-.!') {
+foreach my $char (split //, '\\`*_{}[]()>#+-.!~') {
 	$g_escape_table{$char} = md5_hex($char);
 }
 
@@ -480,7 +480,7 @@ sub _RunSpanGamut {
 
 	$text = _EncodeAmpsAndAngles($text);
 
-	$text = _DoItalicsAndBold($text);
+	$text = _DoItalicsAndBoldAndStrike($text);
 
 	# Do hard breaks:
 	$text =~ s/ {2,}\n/ <br$g_empty_element_suffix\n/g;
@@ -499,7 +499,7 @@ sub _EscapeSpecialChars {
 
 	foreach my $cur_token (@$tokens) {
 		if ($cur_token->[0] eq "tag") {
-			# Within tags, encode * and _ so they don't conflict
+			# Within tags, encode *, _ and ~ so they don't conflict
 			# with their use in Markdown for italics and strong.
 			# We're replacing each such character with its
 			# corresponding MD5 checksum value; this is likely
@@ -507,6 +507,7 @@ sub _EscapeSpecialChars {
 			# with the escape values by accident.
 			$cur_token->[1] =~  s! \* !$g_escape_table{'*'}!gx;
 			$cur_token->[1] =~  s! _  !$g_escape_table{'_'}!gx;
+			$cur_token->[1] =~  s! ~  !$g_escape_table{'~'}!gx;
 			$text .= $cur_token->[1];
 		} else {
 			my $t = $cur_token->[1];
@@ -553,12 +554,14 @@ sub _DoAnchors {
 		if (defined $g_urls{$link_id}) {
 			my $url = $g_urls{$link_id};
 			$url =~ s! \* !$g_escape_table{'*'}!gx;		# We've got to encode these to avoid
-			$url =~ s!  _ !$g_escape_table{'_'}!gx;		# conflicting with italics/bold.
+			$url =~ s!  _ !$g_escape_table{'_'}!gx;		# conflicting with italics, bold
+			$url =~ s!  ~ !$g_escape_table{'~'}!gx;		# and strike through.
 			$result = "<a href=\"$url\"";
 			if ( defined $g_titles{$link_id} ) {
 				my $title = $g_titles{$link_id};
 				$title =~ s! \* !$g_escape_table{'*'}!gx;
 				$title =~ s!  _ !$g_escape_table{'_'}!gx;
+				$title =~ s!  ~ !$g_escape_table{'~'}!gx;
 				$result .=  " title=\"$title\"";
 			}
 			$result .= ">$link_text</a>";
@@ -596,13 +599,15 @@ sub _DoAnchors {
 		my $title	= $6;
 
 		$url =~ s! \* !$g_escape_table{'*'}!gx;		# We've got to encode these to avoid
-		$url =~ s!  _ !$g_escape_table{'_'}!gx;		# conflicting with italics/bold.
+		$url =~ s!  _ !$g_escape_table{'_'}!gx;		# conflicting with italics, bold
+		$url =~ s!  ~ !$g_escape_table{'~'}!gx;		# and strike through.
 		$result = "<a href=\"$url\"";
 
 		if (defined $title) {
 			$title =~ s/"/&quot;/g;
 			$title =~ s! \* !$g_escape_table{'*'}!gx;
 			$title =~ s!  _ !$g_escape_table{'_'}!gx;
+			$title =~ s!  ~ !$g_escape_table{'~'}!gx;
 			$result .=  " title=\"$title\"";
 		}
 
@@ -652,12 +657,14 @@ sub _DoImages {
 		if (defined $g_urls{$link_id}) {
 			my $url = $g_urls{$link_id};
 			$url =~ s! \* !$g_escape_table{'*'}!gx;		# We've got to encode these to avoid
-			$url =~ s!  _ !$g_escape_table{'_'}!gx;		# conflicting with italics/bold.
+			$url =~ s!  _ !$g_escape_table{'_'}!gx;		# conflicting with italics, bold
+			$url =~ s!  ~ !$g_escape_table{'~'}!gx;		# and strike through.
 			$result = "<img src=\"$url\" alt=\"$alt_text\"";
 			if (defined $g_titles{$link_id}) {
 				my $title = $g_titles{$link_id};
 				$title =~ s! \* !$g_escape_table{'*'}!gx;
 				$title =~ s!  _ !$g_escape_table{'_'}!gx;
+				$title =~ s!  ~ !$g_escape_table{'~'}!gx;
 				$result .=  " title=\"$title\"";
 			}
 			$result .= $g_empty_element_suffix;
@@ -704,11 +711,13 @@ sub _DoImages {
 		$alt_text =~ s/"/&quot;/g;
 		$title    =~ s/"/&quot;/g;
 		$url =~ s! \* !$g_escape_table{'*'}!gx;		# We've got to encode these to avoid
-		$url =~ s!  _ !$g_escape_table{'_'}!gx;		# conflicting with italics/bold.
+		$url =~ s!  _ !$g_escape_table{'_'}!gx;		# conflicting with italics, bold
+		$url =~ s!  ~ !$g_escape_table{'~'}!gx;		# and strike through.
 		$result = "<img src=\"$url\" alt=\"$alt_text\"";
 		if (defined $title) {
 			$title =~ s! \* !$g_escape_table{'*'}!gx;
 			$title =~ s!  _ !$g_escape_table{'_'}!gx;
+			$title =~ s!  ~ !$g_escape_table{'~'}!gx;
 			$result .=  " title=\"$title\"";
 		}
 		$result .= $g_empty_element_suffix;
@@ -1034,6 +1043,7 @@ sub _EncodeCode {
 	# Now, escape characters that are magic in Markdown:
 	s! \* !$g_escape_table{'*'}!gx;
 	s! _  !$g_escape_table{'_'}!gx;
+	s! ~  !$g_escape_table{'~'}!gx;
 	s! {  !$g_escape_table{'{'}!gx;
 	s! }  !$g_escape_table{'}'}!gx;
 	s! \[ !$g_escape_table{'['}!gx;
@@ -1044,7 +1054,7 @@ sub _EncodeCode {
 }
 
 
-sub _DoItalicsAndBold {
+sub _DoItalicsAndBoldAndStrike {
 	my $text = shift;
 
 	# <strong> must go first:
@@ -1052,6 +1062,9 @@ sub _DoItalicsAndBold {
 		{<strong>$1</strong>}gsx;
 	$text =~ s{ (?<!\w) __ (?=\S) (.+?[*_]*) (?<=\S) __ (?!\w) }
 		{<strong>$1</strong>}gsx;
+
+	$text =~ s{ ~~ (?=\S) (.+?[*_]*) (?<=\S) ~~ }
+		{<strike>$1</strike>}gsx;
 
 	$text =~ s{ \* (?=\S) (.+?) (?<=\S) \* }
 		{<em>$1</em>}gsx;
@@ -1163,6 +1176,7 @@ sub _EncodeBackslashEscapes {
     s! \\`   !$g_escape_table{'`'}!gx;
     s! \\\*  !$g_escape_table{'*'}!gx;
     s! \\_   !$g_escape_table{'_'}!gx;
+    s! \\~   !$g_escape_table{'~'}!gx;
     s! \\\{  !$g_escape_table{'{'}!gx;
     s! \\\}  !$g_escape_table{'}'}!gx;
     s! \\\[  !$g_escape_table{'['}!gx;

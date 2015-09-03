@@ -718,7 +718,8 @@ prose.
 Markdown treats asterisks (`*`) and underscores (`_`) as indicators of
 emphasis. Text wrapped with one `*` or `_` will be wrapped with an
 HTML `<em>` tag; double `*`'s or `_`'s will be wrapped with an HTML
-`<strong>` tag. E.g., this input:
+`<strong>` tag. Double `~`'s will be wrapped with an HTML `<strike>` tag.
+E.g., this input:
 
     *single asterisks*
 
@@ -727,6 +728,8 @@ HTML `<em>` tag; double `*`'s or `_`'s will be wrapped with an HTML
     **double asterisks**
 
     __double underscores__
+
+    ~~strike through~~
 
 will produce:
 
@@ -738,18 +741,20 @@ will produce:
 
     <strong>double underscores</strong>
 
+    <strike>strike through</strike>
+
 You can use whichever style you prefer; the lone restriction is that
 the same character must be used to open and close an emphasis span.
 Additionally `_` and double `_` are not recognized within words.
 
-Emphasis using `*` can be used in the middle of a word:
+Emphasis using `*`'s or `~`'s can be used in the middle of a word:
 
-    un*frigging*believable
+    un*frigging*believable fan~~frigging~~tastic
 
-But if you surround an `*` or `_` with spaces, it'll be treated as a
-literal asterisk or underscore.
+But if you surround an `*`, `_` or `~` with spaces, it'll be treated as a
+literal asterisk, underscore or tilde.
 
-To produce a literal asterisk or underscore at a position where it
+To produce a literal asterisk, underscore or tilde at a position where it
 would otherwise be used as an emphasis delimiter, you can backslash
 escape it:
 

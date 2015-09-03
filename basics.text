@@ -116,6 +116,7 @@ Markdown:
     
     Use two asterisks for **strong emphasis**.
     Or, if you prefer, __use two underscores instead__.
+    Or, even, ~~strike through instead~~.
 
 Output:
 
@@ -123,7 +124,8 @@ Output:
     Some of these words <em>are emphasized also</em>.</p>
     
     <p>Use two asterisks for <strong>strong emphasis</strong>.
-    Or, if you prefer, <strong>use two underscores instead</strong>.</p>
+    Or, if you prefer, <strong>use two underscores instead</strong>.
+    Or, even, <strke>strike through instead</strike>.</p>
    
 
 
