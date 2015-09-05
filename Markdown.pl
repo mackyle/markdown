@@ -27,6 +27,7 @@ $VERSION = '1.0.2';
 # Global default settings:
 #
 my $g_empty_element_suffix = " />";	# Change to ">" for HTML output
+my $g_url_prefix = "";			# Prefixed to non-absolute URLs
 my $g_tab_width = 4;
 
 
@@ -192,13 +193,13 @@ else {
 	use Getopt::Long;
 	Getopt::Long::Configure('pass_through');
 	GetOptions(\%cli_opts,
-	    'h',
-	    'help',
-	    'version',
-	    'shortversion',
+	    'help|h',
+	    'version|V|v',
+	    'shortversion|short-version|s',
 	    'html4tags',
+	    'htmlroot|r=s'
 	);
-	if ($cli_opts{'help'} || $cli_opts{'h'}) {
+	if ($cli_opts{'help'}) {
 	    exec 'perldoc', $0;
 	}
 	if ($cli_opts{'version'}) {	# Version info
@@ -213,6 +214,9 @@ else {
 	}
 	if ($cli_opts{'html4tags'}) {		# Use HTML tag style instead of XHTML
 	    $g_empty_element_suffix = ">";
+	}
+	if ($cli_opts{'htmlroot'}) {		# Use URL prefix
+	    $g_url_prefix = $cli_opts{'htmlroot'};
 	}
 
 
@@ -552,7 +556,7 @@ sub _DoAnchors {
 	}
 
 	if (defined $g_urls{$link_id}) {
-	    my $url = $g_urls{$link_id};
+	    my $url = _PrefixURL($g_urls{$link_id});
 	    $url =~ s! \* !$g_escape_table{'*'}!gx;	# We've got to encode these to avoid
 	    $url =~ s!	_ !$g_escape_table{'_'}!gx;	# conflicting with italics, bold
 	    $url =~ s!	~ !$g_escape_table{'~'}!gx;	# and strike through.
@@ -598,6 +602,7 @@ sub _DoAnchors {
 	my $url	    = $3;
 	my $title   = $6;
 
+	$url = _PrefixURL($url);
 	$url =~ s! \* !$g_escape_table{'*'}!gx;	    # We've got to encode these to avoid
 	$url =~ s!  _ !$g_escape_table{'_'}!gx;	    # conflicting with italics, bold
 	$url =~ s!  ~ !$g_escape_table{'~'}!gx;	    # and strike through.
@@ -655,7 +660,7 @@ sub _DoImages {
 
 	$alt_text =~ s/"/&quot;/g;
 	if (defined $g_urls{$link_id}) {
-	    my $url = $g_urls{$link_id};
+	    my $url = _PrefixURL($g_urls{$link_id});
 	    $url =~ s! \* !$g_escape_table{'*'}!gx;	# We've got to encode these to avoid
 	    $url =~ s!	_ !$g_escape_table{'_'}!gx;	# conflicting with italics, bold
 	    $url =~ s!	~ !$g_escape_table{'~'}!gx;	# and strike through.
@@ -708,6 +713,7 @@ sub _DoImages {
 	    $title  = $6;
 	}
 
+	$url = _PrefixURL($url);
 	$alt_text =~ s/"/&quot;/g;
 	$title	  =~ s/"/&quot;/g;
 	$url =~ s! \* !$g_escape_table{'*'}!gx;	    # We've got to encode these to avoid
@@ -1369,6 +1375,21 @@ sub _Detab {
 }
 
 
+sub _PrefixURL {
+#
+# Add URL prefix if needed
+#
+    my $url = shift;
+
+    return $url unless $g_url_prefix;
+    return $url if $url =~ m,^//, || $url =~ /^[A-Za-z][A-Za-z0-9+.-]*:/;
+    my $ans = $g_url_prefix;
+    $ans .= '/' if substr($ans, -1, 1) ne '/';
+    $ans .= substr($url, 0, 1) eq '/' ? substr($url, 1) : $url;
+    return $ans;
+}
+
+
 1;
 
 __END__
@@ -1383,7 +1404,8 @@ B<Markdown>
 
 =head1 SYNOPSIS
 
-B<Markdown.pl> [ B<--html4tags> ] [ B<--version> ] [ B<--shortversion> ] [ B<--help> ]
+B<Markdown.pl> [ B<--html4tags> ] [ B<--htmlroot>=I<prefix> ]
+    [ B<--version> ] [ B<--shortversion> ] [ B<--help> ]
     [ I<file> ... ]
 
 
@@ -1423,7 +1445,12 @@ instead of Markdown's default XHTML style tags, e.g.:
     <br />
 
 
-=item B<-v>, B<--version>
+=item B<-r> I<prefix>, B<--htmlroot>=I<prefix>
+
+Any non-absolute URLs have I<prefix> prepended.
+
+
+=item B<-V>, B<--version>
 
 Display Markdown's version number and copyright information.
 
