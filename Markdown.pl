@@ -972,13 +972,13 @@ sub _DoCodeBlocks {
 
     $text =~ s{
 	    (?:\n|\A)
-		``(`+)\w*\n
+		``(`+)[ \t]*(?:[\w.-]+[ \t]*)?\n
 	    (		    # $1 = the code block -- one or more lines, starting with ```
 	      (?:
 		.*\n+
 	      )+?
 	    )
-	    (?:(?:``\1(?:\n|\Z))|\Z) # and ending with ``` or end of document
+	    (?:(?:``\1[ \t]*(?:\n|\Z))|\Z) # and ending with ``` or end of document
 	}{
 	    my $codeblock = $2;
 	    my $result; # return value
