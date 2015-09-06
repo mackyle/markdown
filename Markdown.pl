@@ -28,6 +28,7 @@ $VERSION = '1.0.2';
 #
 my $g_empty_element_suffix = " />";	# Change to ">" for HTML output
 my $g_url_prefix = "";			# Prefixed to non-absolute URLs
+my $g_img_prefix = "";			# Prefixed to non-absolute image URLs
 my $g_tab_width = 4;
 
 
@@ -197,7 +198,8 @@ else {
 	    'version|V|v',
 	    'shortversion|short-version|s',
 	    'html4tags',
-	    'htmlroot|r=s'
+	    'htmlroot|r=s',
+	    'imageroot|i=s',
 	);
 	if ($cli_opts{'help'}) {
 	    exec 'perldoc', $0;
@@ -217,6 +219,9 @@ else {
 	}
 	if ($cli_opts{'htmlroot'}) {		# Use URL prefix
 	    $g_url_prefix = $cli_opts{'htmlroot'};
+	}
+	if ($cli_opts{'imageroot'}) {		# Use image URL prefix
+	    $g_img_prefix = $cli_opts{'imageroot'};
 	}
 
 
@@ -1381,9 +1386,12 @@ sub _PrefixURL {
 #
     my $url = shift;
 
-    return $url unless $g_url_prefix;
+    return $url unless $g_url_prefix ne '' || $g_img_prefix ne '';
     return $url if $url =~ m,^//, || $url =~ /^[A-Za-z][A-Za-z0-9+.-]*:/;
     my $ans = $g_url_prefix;
+    $ans = $g_img_prefix
+        if $g_img_prefix ne '' && $url =~ /\.(?:png|gif|jpe?g|svg?z)$/i;
+    return $url unless $ans ne '';
     $ans .= '/' if substr($ans, -1, 1) ne '/';
     $ans .= substr($url, 0, 1) eq '/' ? substr($url, 1) : $url;
     return $ans;
@@ -1404,8 +1412,8 @@ B<Markdown>
 
 =head1 SYNOPSIS
 
-B<Markdown.pl> [ B<--html4tags> ] [ B<--htmlroot>=I<prefix> ]
-    [ B<--version> ] [ B<--shortversion> ] [ B<--help> ]
+B<Markdown.pl> [ B<--help> ] [ B<--html4tags> ] [ B<--htmlroot>=I<prefix> ]
+    [ B<--imageroot>=I<prefix> ] [ B<--version> ] [ B<--shortversion> ]
     [ I<file> ... ]
 
 
@@ -1448,6 +1456,12 @@ instead of Markdown's default XHTML style tags, e.g.:
 =item B<-r> I<prefix>, B<--htmlroot>=I<prefix>
 
 Any non-absolute URLs have I<prefix> prepended.
+
+
+=item B<-i> I<prefix>, B<--imageroot>=I<prefix>
+
+Any non-absolute URLs have I<prefix> prepended (overriding the B<-r> prefix
+if any) but only if they end in an image suffix.
 
 
 =item B<-V>, B<--version>
