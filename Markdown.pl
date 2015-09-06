@@ -15,8 +15,8 @@ use warnings;
 
 use Digest::MD5 qw(md5_hex);
 use vars qw($VERSION);
-$VERSION = '1.0.2';
-# Thu 03 Sep 2015
+$VERSION = '1.0.3';
+# Sun 06 Sep 2015
 
 ## Disabled; causes problems under Perl 5.6.1:
 # use utf8;
@@ -1485,6 +1485,8 @@ Display Markdown's help.
 =head1 VERSION HISTORY
 
 See the readme file for detailed release notes for this version.
+
+1.0.3 - 06 Sep 2015
 
 1.0.2 - 03 Sep 2015
 

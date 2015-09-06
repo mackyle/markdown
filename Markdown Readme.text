@@ -1,7 +1,7 @@
 Markdown
 ========
 
-Version 1.0.2 - Thu 03 Sep 2015
+Version 1.0.3 - Sun 06 Sep 2015
 
 John Gruber  
 Kyle J. McKay  
@@ -161,6 +161,15 @@ Markdown.pl source code for more information.
 
 Version History
 ---------------
+
+1.0.3 (06 Sep 2015):
+
++	Added support for --htmlroot option to set a URL prefix.
+
++	Relaxed matching rule for non-indented code blocks.
+
++	Added support for --imageroot option to set an img URL prefix.
+
 
 1.0.2 (03 Sep 2015):
 
