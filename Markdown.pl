@@ -196,7 +196,7 @@ elsif (!caller) {
 	Getopt::Long::Configure('pass_through');
 	GetOptions(\%cli_opts,
 	    'help|h',
-	    'version|V|v',
+	    'version|V',
 	    'shortversion|short-version|s',
 	    'html4tags',
 	    'htmlroot|r=s',
