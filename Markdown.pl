@@ -181,7 +181,7 @@ unless ($@) {
 	});
     }
 }
-else {
+elsif (!caller) {
 #### BBEdit/command-line text filter interface ##########################
 # Needs to be hidden from MT (and Blosxom when running in static mode).
 
