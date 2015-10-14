@@ -12,6 +12,7 @@ package Markdown;
 require 5.006_000;
 use strict;
 use warnings;
+close(DATA) if fileno(DATA);
 
 use Digest::MD5 qw(md5_hex);
 use vars qw($VERSION);
@@ -52,7 +53,7 @@ $g_nested_brackets = qr{
 
 # Table of hash values for escaped characters:
 my %g_escape_table;
-foreach my $char (split //, '\\`*_{}[]()>#+-.!~') {
+foreach my $char (split //, "\\\`*_{}[]()>#+-.!~") {
     $g_escape_table{$char} = md5_hex($char);
 }
 
@@ -316,7 +317,7 @@ sub _StripLinkDefinitions {
 	$g_urls{lc $1} = _EncodeAmpsAndAngles( $2 );	# Link IDs are case-insensitive
 	if ($3) {
 	    $g_titles{lc $1} = $3;
-	    $g_titles{lc $1} =~ s/"/&quot;/g;
+	    $g_titles{lc $1} =~ s/\042/&quot;/g;
 	}
     }
 
@@ -594,7 +595,7 @@ sub _DoAnchors {
 	    <?(.*?)>?	# href = $3
 	    [ \t]*
 	    (		# $4
-	      (['"])	# quote char = $5
+	      (['\042])	# quote char = $5
 	      (.*?)	# Title = $6
 	      \5	# matching quote
 	    )?		# title is optional
@@ -614,7 +615,7 @@ sub _DoAnchors {
 	$result = "<a href=\"$url\"";
 
 	if (defined $title) {
-	    $title =~ s/"/&quot;/g;
+	    $title =~ s/\042/&quot;/g;
 	    $title =~ s! \* !$g_escape_table{'*'}!gx;
 	    $title =~ s!  _ !$g_escape_table{'_'}!gx;
 	    $title =~ s!  ~ !$g_escape_table{'~'}!gx;
@@ -701,7 +702,7 @@ sub _DoImages {
 	    <?(\S+?)>?	# src url = $3
 	    [ \t]*
 	    (		# $4
-	      (['"])	# quote char = $5
+	      (['\042])	# quote char = $5
 	      (.*?)	# title = $6
 	      \5	# matching quote
 	      [ \t]*
@@ -1231,7 +1232,7 @@ sub _EncodeBackslashEscapes {
 sub _DoAutoLinks {
     my $text = shift;
 
-    $text =~ s{<((https?|ftp):[^'">\s]+)>}{<a href="$1">$1</a>}gi;
+    $text =~ s{<((https?|ftp):[^'\042>\s]+)>}{<a href="$1">$1</a>}gi;
 
     # Email addresses: <address@domain.foo>
     $text =~ s{
@@ -1400,7 +1401,7 @@ sub _PrefixURL {
 
 1;
 
-__END__
+__DATA__
 
 
 =pod
