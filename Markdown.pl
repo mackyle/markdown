@@ -14,10 +14,17 @@ use strict;
 use warnings;
 close(DATA) if fileno(DATA);
 
+require Exporter;
 use Digest::MD5 qw(md5_hex);
-use vars qw($VERSION);
+use File::Basename qw(basename);
+use vars qw($VERSION @ISA @EXPORT_OK);
+@ISA = qw(Exporter);
+@EXPORT_OK = qw(Markdown);
+$INC{__PACKAGE__.'.pm'} = $INC{basename(__FILE__)} unless exists $INC{__PACKAGE__.'.pm'};
+
 $VERSION = '1.0.3';
 # Sun 06 Sep 2015
+
 
 ## Disabled; causes problems under Perl 5.6.1:
 # use utf8;
@@ -28,8 +35,6 @@ $VERSION = '1.0.3';
 # Global default settings:
 #
 my $g_empty_element_suffix = " />";	# Change to ">" for HTML output
-my $g_url_prefix = "";			# Prefixed to non-absolute URLs
-my $g_img_prefix = "";			# Prefixed to non-absolute image URLs
 my $g_tab_width = 4;
 
 
@@ -62,6 +67,7 @@ foreach my $char (split //, "\\\`*_{}[]()>#+-.!~") {
 my %g_urls;
 my %g_titles;
 my %g_html_blocks;
+my %opt;
 
 # Used to track when we're inside an ordered or unordered list
 # (see _ProcessListItems() for details):
@@ -191,6 +197,7 @@ elsif (!caller) {
 	use warnings;
 
 	#### Check for command-line switches: #################
+	my %options = ();
 	my %cli_opts;
 	use Getopt::Long;
 	Getopt::Long::Configure('pass_through');
@@ -216,13 +223,13 @@ elsif (!caller) {
 	    exit 0;
 	}
 	if ($cli_opts{'html4tags'}) {		# Use HTML tag style instead of XHTML
-	    $g_empty_element_suffix = ">";
+	    $options{empty_element_suffix} = ">";
 	}
 	if ($cli_opts{'htmlroot'}) {		# Use URL prefix
-	    $g_url_prefix = $cli_opts{'htmlroot'};
+	    $options{url_prefix} = $cli_opts{'htmlroot'};
 	}
 	if ($cli_opts{'imageroot'}) {		# Use image URL prefix
-	    $g_img_prefix = $cli_opts{'imageroot'};
+	    $options{img_prefix} = $cli_opts{'imageroot'};
 	}
 
 
@@ -232,7 +239,7 @@ elsif (!caller) {
 	    local $/;		    # Slurp the whole file
 	    $text = <>;
 	}
-	print Markdown($text);
+	print Markdown($text, \%options);
     }
 }
 
@@ -246,15 +253,35 @@ sub Markdown {
 # and <img> tags get encoded.
 #
     my $text = shift;
+    defined $text or $text='';
 
-    # Clear the global hashes. If we don't clear these, you get conflicts
+    # Any remaining arguments after the first are options; either a single
+    # hashref or a list of name, value paurs.
+    %opt = (
+	# set initial defaults
+	empty_element_suffix	=> $g_empty_element_suffix,
+	tab_width		=> $g_tab_width,
+	url_prefix		=> "",	# Prefixed to non-absolute URLs
+	img_prefix		=> "",	# Prefixed to non-absolute image URLs
+    );
+    my %args = ();
+    if (ref($_[0]) eq "HASH") {
+	%args = %{$_[0]};
+    } else {
+	%args = @_;
+    }
+    while (my ($k,$v) = each %args) {
+	$opt{$k} = $v;
+    }
+
+    # Clear the globals. If we don't clear these, you get conflicts
     # from other articles when generating a page which contains more than
     # one article (e.g. an index page that shows the N most recent
     # articles):
     %g_urls = ();
     %g_titles = ();
     %g_html_blocks = ();
-
+    $g_list_level = 0;
 
     # Standardize line endings:
     $text =~ s{\r\n}{\n}g;  # DOS to Unix
@@ -292,7 +319,7 @@ sub _StripLinkDefinitions {
 # hash references.
 #
     my $text = shift;
-    my $less_than_tab = $g_tab_width - 1;
+    my $less_than_tab = $opt{tab_width} - 1;
 
     # Link defs are in the form: ^[id]: url "optional title"
     while ($text =~ s{
@@ -327,7 +354,7 @@ sub _StripLinkDefinitions {
 
 sub _HashHTMLBlocks {
     my $text = shift;
-    my $less_than_tab = $g_tab_width - 1;
+    my $less_than_tab = $opt{tab_width} - 1;
 
     # Hashify HTML blocks:
     # We only want to do this for block-level HTML tags, such as headers,
@@ -445,9 +472,9 @@ sub _RunBlockGamut {
     $text = _DoHeaders($text);
 
     # Do Horizontal Rules:
-    $text =~ s{^[ ]{0,2}([ ]?\*[ ]?){3,}[ \t]*$}{\n<hr$g_empty_element_suffix\n}gmx;
-    $text =~ s{^[ ]{0,2}([ ]? -[ ]?){3,}[ \t]*$}{\n<hr$g_empty_element_suffix\n}gmx;
-    $text =~ s{^[ ]{0,2}([ ]? _[ ]?){3,}[ \t]*$}{\n<hr$g_empty_element_suffix\n}gmx;
+    $text =~ s{^[ ]{0,2}([ ]?\*[ ]?){3,}[ \t]*$}{\n<hr$opt{empty_element_suffix}\n}gmx;
+    $text =~ s{^[ ]{0,2}([ ]? -[ ]?){3,}[ \t]*$}{\n<hr$opt{empty_element_suffix}\n}gmx;
+    $text =~ s{^[ ]{0,2}([ ]? _[ ]?){3,}[ \t]*$}{\n<hr$opt{empty_element_suffix}\n}gmx;
 
     $text = _DoLists($text);
 
@@ -493,7 +520,7 @@ sub _RunSpanGamut {
     $text = _DoItalicsAndBoldAndStrike($text);
 
     # Do hard breaks:
-    $text =~ s/ {2,}\n/ <br$g_empty_element_suffix\n/g;
+    $text =~ s/ {2,}\n/ <br$opt{empty_element_suffix}\n/g;
 
     return $text;
 }
@@ -678,7 +705,7 @@ sub _DoImages {
 		$title =~ s!  ~ !$g_escape_table{'~'}!gx;
 		$result .=  " title=\"$title\"";
 	    }
-	    $result .= $g_empty_element_suffix;
+	    $result .= $opt{empty_element_suffix};
 	}
 	else {
 	    # If there's no such link ID, leave intact:
@@ -732,7 +759,7 @@ sub _DoImages {
 	    $title =~ s!  ~ !$g_escape_table{'~'}!gx;
 	    $result .=	" title=\"$title\"";
 	}
-	$result .= $g_empty_element_suffix;
+	$result .= $opt{empty_element_suffix};
 
 	$result;
     }xsge;
@@ -795,7 +822,7 @@ sub _DoLists {
 # Form HTML ordered (numbered) and unordered (bulleted) lists.
 #
     my $text = shift;
-    my $less_than_tab = $g_tab_width - 1;
+    my $less_than_tab = $opt{tab_width} - 1;
 
     # Re-usable patterns to match list item bullets and number markers:
     my $marker_ul  = qr/[*+-]/;
@@ -957,11 +984,11 @@ sub _DoCodeBlocks {
 	    (?:\n\n|\A)
 	    (		    # $1 = the code block -- one or more lines, starting with a space/tab
 	      (?:
-		(?:[ ]{$g_tab_width} | \t)  # Lines must start with a tab or a tab-width of spaces
+		(?:[ ]{$opt{tab_width}} | \t)  # Lines must start with a tab or a tab-width of spaces
 		.*\n+
 	      )+
 	    )
-	    ((?=^[ ]{0,$g_tab_width}\S)|\Z) # Lookahead for non-space at line-start, or end of doc
+	    ((?=^[ ]{0,$opt{tab_width}}\S)|\Z) # Lookahead for non-space at line-start, or end of doc
 	}{
 	    my $codeblock = $1;
 	    my $result; # return value
@@ -1364,7 +1391,7 @@ sub _Outdent {
 #
     my $text = shift;
 
-    $text =~ s/^(\t|[ ]{1,$g_tab_width})//gm;
+    $text =~ s/^(\t|[ ]{1,$opt{tab_width}})//gm;
     return $text;
 }
 
@@ -1376,7 +1403,7 @@ sub _Detab {
 #
     my $text = shift;
 
-    $text =~ s{(.*?)\t}{$1.(' ' x ($g_tab_width - length($1) % $g_tab_width))}ge;
+    $text =~ s{(.*?)\t}{$1.(' ' x ($opt{tab_width} - length($1) % $opt{tab_width}))}ge;
     return $text;
 }
 
@@ -1387,11 +1414,11 @@ sub _PrefixURL {
 #
     my $url = shift;
 
-    return $url unless $g_url_prefix ne '' || $g_img_prefix ne '';
+    return $url unless $opt{url_prefix} ne '' || $opt{img_prefix} ne '';
     return $url if $url =~ m,^//, || $url =~ /^[A-Za-z][A-Za-z0-9+.-]*:/;
-    my $ans = $g_url_prefix;
-    $ans = $g_img_prefix
-        if $g_img_prefix ne '' && $url =~ /\.(?:png|gif|jpe?g|svg?z)$/i;
+    my $ans = $opt{url_prefix};
+    $ans = $opt{img_prefix}
+        if $opt{img_prefix} ne '' && $url =~ /\.(?:png|gif|jpe?g|svg?z)$/i;
     return $url unless $ans ne '';
     $ans .= '/' if substr($ans, -1, 1) ne '/';
     $ans .= substr($url, 0, 1) eq '/' ? substr($url, 1) : $url;
