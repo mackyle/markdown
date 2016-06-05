@@ -4,7 +4,7 @@
 # Markdown -- A text-to-HTML conversion tool for web writers
 #
 # Copyright (C) 2004 John Gruber
-# Copyright (C) 2015 Kyle J. McKay
+# Copyright (C) 2015,2016 Kyle J. McKay
 #
 
 
@@ -1398,12 +1398,12 @@ sub _Outdent {
 
 sub _Detab {
 #
-# Cribbed from a post by Bart Lateur:
-# <http://www.nntp.perl.org/group/perl.macperl.anyperl/154>
+# Expand tabs to spaces using $opt{tab_width} if no second argument
 #
     my $text = shift;
-
-    $text =~ s{(.*?)\t}{$1.(' ' x ($opt{tab_width} - length($1) % $opt{tab_width}))}ge;
+    my $ts = shift || $opt{tab_width};
+    # From the Perl camel book "Fluent Perl" section (slightly modified)
+    $text =~ s/(.*?)(\t+)/$1 . ' ' x (length($2) * $ts - length($1) % $ts)/ge;
     return $text;
 }
 
@@ -1539,7 +1539,7 @@ See the readme file for detailed release notes for this version.
 =head1 COPYRIGHT AND LICENSE
 
  Copyright (C) 2003-2004 John Gruber
- Copyright (C) 2015 Kyle J. McKay
+ Copyright (C) 2015,2016 Kyle J. McKay
  All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
