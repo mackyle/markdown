@@ -22,8 +22,8 @@ use vars qw($VERSION @ISA @EXPORT_OK);
 @EXPORT_OK = qw(Markdown);
 $INC{__PACKAGE__.'.pm'} = $INC{basename(__FILE__)} unless exists $INC{__PACKAGE__.'.pm'};
 
-$VERSION = '1.0.3';
-# Sun 06 Sep 2015
+$VERSION = '1.0.4';
+# Sun 05 Jun 2016
 
 
 ## Disabled; causes problems under Perl 5.6.1:
@@ -1527,6 +1527,8 @@ Display Markdown's help.
 =head1 VERSION HISTORY
 
 See the readme file for detailed release notes for this version.
+
+1.0.4 - 05 Jun 2016
 
 1.0.3 - 06 Sep 2015
 

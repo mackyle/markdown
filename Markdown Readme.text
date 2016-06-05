@@ -162,6 +162,15 @@ Markdown.pl source code for more information.
 Version History
 ---------------
 
+1.0.4 (05 Jun 2016):
+
++	Markdown.pl can now be require'd and the Markdown function called
+	repeatedly by external code.
+
++	Backticks (```) delimited code blocks are now handled better and are
+	no longer subject to any further accidental processing.
+
+
 1.0.3 (06 Sep 2015):
 
 +	Added support for --htmlroot option to set a URL prefix.
