@@ -35,7 +35,7 @@ $VERSION = '1.0.3';
 # Global default settings:
 #
 my $g_empty_element_suffix = " />";	# Change to ">" for HTML output
-my $g_tab_width = 4;
+my $g_tab_width = 4;			# Legacy even though it's wrong
 
 
 #
@@ -290,6 +290,9 @@ sub Markdown {
     # Make sure $text ends with a couple of newlines:
     $text .= "\n\n";
 
+    # Handle backticks-delimited code blocks
+    $text = _HashBTCodeBlocks($text);
+
     # Convert all tabs to spaces.
     $text = _Detab($text);
 
@@ -310,6 +313,40 @@ sub Markdown {
     $text = _UnescapeSpecialChars($text);
 
     return $text . "\n";
+}
+
+
+sub _HashBTCodeBlocks {
+#
+#   Process Markdown backticks (```) delimited code blocks
+#
+    my $text = shift;
+
+    $text =~ s{
+	    (?:\n|\A)
+		``(`+)[ \t]*(?:([\w.+-]+)[ \t]*)?\n
+	    (		    # $3 = the code block -- one or more lines, starting with ```
+	      (?:
+		.*\n+
+	      )+?
+	    )
+	    (?:(?:``\1[ \t]*(?:\n|\Z))|\Z) # and ending with ``` or end of document
+	}{
+	    # $2 contains syntax highlighting to use if defined
+	    my $codeblock = $3;
+	    $codeblock =~ s/[ \t]+$//mg; # trim trailing spaces on lines
+	    $codeblock = _Detab($codeblock, 8); # physical tab stops are always 8
+	    $codeblock =~ s/\A\n+//; # trim leading newlines
+	    $codeblock =~ s/\s+\z//; # trim trailing whitespace
+	    $codeblock = _EncodeCode($codeblock); # or run highlighter here
+	    $codeblock = "<pre><code>" . $codeblock . "\n</code></pre>";
+
+	    my $key = md5_hex($codeblock);
+	    $g_html_blocks{$key} = $codeblock;
+	    "\n\n" . $key . "\n\n";
+	}egmx;
+
+    return $text;
 }
 
 
@@ -994,29 +1031,6 @@ sub _DoCodeBlocks {
 	    my $result; # return value
 
 	    $codeblock = _EncodeCode(_Outdent($codeblock));
-	    $codeblock = _Detab($codeblock);
-	    $codeblock =~ s/\A\n+//; # trim leading newlines
-	    $codeblock =~ s/\s+\z//; # trim trailing whitespace
-
-	    $result = "\n\n<pre><code>" . $codeblock . "\n</code></pre>\n\n";
-
-	    $result;
-	}egmx;
-
-    $text =~ s{
-	    (?:\n|\A)
-		``(`+)[ \t]*(?:[\w.-]+[ \t]*)?\n
-	    (		    # $1 = the code block -- one or more lines, starting with ```
-	      (?:
-		.*\n+
-	      )+?
-	    )
-	    (?:(?:``\1[ \t]*(?:\n|\Z))|\Z) # and ending with ``` or end of document
-	}{
-	    my $codeblock = $2;
-	    my $result; # return value
-
-	    $codeblock = _EncodeCode($codeblock);
 	    $codeblock = _Detab($codeblock);
 	    $codeblock =~ s/\A\n+//; # trim leading newlines
 	    $codeblock =~ s/\s+\z//; # trim trailing whitespace
