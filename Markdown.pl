@@ -248,12 +248,16 @@ elsif (!caller) {
 
 
 	#### Process incoming text: ###########################
-	my $text;
-	{
-	    local $/; # Slurp the whole file
-	    $text = <>;
+	for (;;) {
+	    local $_;
+	    {
+		local $/; # Slurp the whole file
+		$_ = <>;
+	    }
+	    defined($_) or last;
+	    print Markdown($_, \%options);
 	}
-	print Markdown($text, \%options);
+	exit 0;
     }
 }
 
