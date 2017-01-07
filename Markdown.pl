@@ -31,6 +31,7 @@ close(DATA) if fileno(DATA);
 require Exporter;
 use Digest::MD5 qw(md5_hex);
 use File::Basename qw(basename);
+use Pod::Usage;
 @ISA = qw(Exporter);
 @EXPORT_OK = qw(Markdown);
 $INC{__PACKAGE__.'.pm'} = $INC{basename(__FILE__)} unless exists $INC{__PACKAGE__.'.pm'};
@@ -210,9 +211,9 @@ elsif (!caller) {
 	my %options = ();
 	my %cli_opts;
 	use Getopt::Long;
-	Getopt::Long::Configure('pass_through');
+	Getopt::Long::Configure(qw(bundling require_order pass_through));
 	GetOptions(\%cli_opts,
-	    'help|h',
+	    'help','h',
 	    'version|V',
 	    'shortversion|short-version|s',
 	    'html4tags',
@@ -220,7 +221,10 @@ elsif (!caller) {
 	    'imageroot|i=s',
 	);
 	if ($cli_opts{'help'}) {
-	    exec 'perldoc', $0;
+	    pod2usage(-verbose => 2, -exitval => 0);
+	}
+	if ($cli_opts{'h'}) {
+	    pod2usage(-verbose => 0, -exitval => 0);
 	}
 	if ($cli_opts{'version'}) { # Version info
 	    print "\nThis is Markdown, version $VERSION.\n", $COPYRIGHT;
@@ -1462,10 +1466,23 @@ Markdown.pl - convert Markdown format text files to HTML
 
 =head1 SYNOPSIS
 
-B<Markdown.pl> [ B<--help> ] [ B<--html4tags> ] [ B<--htmlroot>=I<prefix> ]
-    [ B<--imageroot>=I<prefix> ] [ B<--version> ] [ B<--shortversion> ]
-    [ I<file> ... ]
+B<Markdown.pl> [B<--help>] [B<--html4tags>] [B<--htmlroot>=I<prefix>]
+    [B<--imageroot>=I<prefix>] [B<--version>] [B<--shortversion>] [--]
+    [I<file>...]
 
+ Options:
+   -h                                   show short usage help
+   --help                               show long detailed help
+   --html4tags                          use <br> instead of <br />
+   -r prefix | --htmlroot=prefix        append relative non-img URLs
+                                        to prefix
+   -i prefix | --imageroot=prefix	append relative img URLs to
+                                        prefix
+   -V | --version                       show version, authors, license
+                                        and copyright
+   -s | --shortversion                  show just the version number
+   --                                   end options and treat next
+                                        argument as file
 
 =head1 DESCRIPTION
 
@@ -1526,7 +1543,8 @@ Display the short-form version number.
 
 =item B<-h>, B<--help>
 
-Display Markdown's help.
+Display Markdown's help.  With B<--help> full help is shown, with B<-h> only
+the usage and options are shown.
 
 
 =back
