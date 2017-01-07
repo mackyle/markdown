@@ -4,26 +4,36 @@
 # Markdown -- A text-to-HTML conversion tool for web writers
 #
 # Copyright (C) 2004 John Gruber
-# Copyright (C) 2015,2016 Kyle J. McKay
+# Copyright (C) 2015,2016,2017 Kyle J. McKay
+# All rights reserved.
+# License is Modified BSD (aka 3-clause BSD) License\n";
+# See LICENSE file (or <https://opensource.org/licenses/BSD-3-Clause>)
 #
 
-
 package Markdown;
+
 require 5.006_000;
 use strict;
 use warnings;
+
+use vars qw($COPYRIGHT $VERSION @ISA @EXPORT_OK);
+
+BEGIN {*COPYRIGHT =
+\"Copyright (C) 2004 John Gruber
+Copyright (C) 2015,2016,2017 Kyle J. McKay
+All rights reserved.
+";
+*VERSION = \"1.0.4+" # Sun 05 Jun 2016+
+}
+
 close(DATA) if fileno(DATA);
 
 require Exporter;
 use Digest::MD5 qw(md5_hex);
 use File::Basename qw(basename);
-use vars qw($VERSION @ISA @EXPORT_OK);
 @ISA = qw(Exporter);
 @EXPORT_OK = qw(Markdown);
 $INC{__PACKAGE__.'.pm'} = $INC{basename(__FILE__)} unless exists $INC{__PACKAGE__.'.pm'};
-
-$VERSION = '1.0.4';
-# Sun 05 Jun 2016
 
 
 ## Disabled; causes problems under Perl 5.6.1:
@@ -46,19 +56,19 @@ my $g_tab_width = 4;			# Legacy even though it's wrong
 # "Mastering Regular Expressions", 2nd Ed., pp. 328-331.
 my $g_nested_brackets;
 $g_nested_brackets = qr{
-    (?>				    # Atomic matching
-       [^\[\]]+				# Anything other than brackets
+    (?>					# Atomic matching
+	[^\[\]]+			# Anything other than brackets
      |
-       \[
-	 (??{ $g_nested_brackets })	# Recursive set of nested brackets
-       \]
+	\[
+	    (??{ $g_nested_brackets })	# Recursive set of nested brackets
+	\]
     )*
 }x;
 
 
 # Table of hash values for escaped characters:
 my %g_escape_table;
-foreach my $char (split //, "\\\`*_{}[]()>#+-.!~") {
+foreach my $char (split //, "\\\`*_~{}[]()>#+-.!") {
     $g_escape_table{$char} = md5_hex($char);
 }
 
@@ -86,12 +96,12 @@ sub start { 1; }
 sub story {
     my($pkg, $path, $filename, $story_ref, $title_ref, $body_ref) = @_;
 
-    if ( (! $g_blosxom_use_meta) or
-	 (defined($meta::markup) and ($meta::markup =~ /^\s*markdown\s*$/i))
-	 ){
-	    $$body_ref	= Markdown($$body_ref);
-     }
-     1;
+    if ((! $g_blosxom_use_meta) or
+	(defined($meta::markup) and ($meta::markup =~ /^\s*markdown\s*$/i))
+	 ) {
+	    $$body_ref = Markdown($$body_ref);
+    }
+    1;
 }
 
 
@@ -103,10 +113,10 @@ unless ($@) {
     require MT::Template::Context;
     import  MT::Template::Context;
 
-    eval {require MT::Plugin};	# Test to see if we're running >= MT 3.0.
+    eval {require MT::Plugin}; # Test to see if we're running >= MT 3.0.
     unless ($@) {
 	require MT::Plugin;
-	import	MT::Plugin;
+	import  MT::Plugin;
 	my $plugin = new MT::Plugin({
 	    name => "Markdown",
 	    description => "A plain-text-to-HTML formatting plugin. (Version: $VERSION)",
@@ -116,7 +126,7 @@ unless ($@) {
     }
 
     MT::Template::Context->add_container_tag(MarkdownOptions => sub {
-	my $ctx	 = shift;
+	my $ctx  = shift;
 	my $args = shift;
 	my $builder = $ctx->stash('builder');
 	my $tokens = $ctx->stash('tokens');
@@ -127,23 +137,23 @@ unless ($@) {
 
 	defined (my $str = $builder->build($ctx, $tokens) )
 	    or return $ctx->error($builder->errstr);
-	$str;	    # return value
+	$str; # return value
     });
 
     MT->add_text_filter('markdown' => {
-	label	  => 'Markdown',
-	docs	  => 'http://daringfireball.net/projects/markdown/',
+	label     => 'Markdown',
+	docs      => 'http://daringfireball.net/projects/markdown/',
 	on_format => sub {
 	    my $text = shift;
 	    my $ctx  = shift;
 	    my $raw  = 0;
 	    if (defined $ctx) {
 	    my $output = $ctx->stash('markdown_output');
-		if (defined $output  &&	 $output =~ m/^html/i) {
+		if (defined $output && $output =~ m/^html/i) {
 		    $g_empty_element_suffix = ">";
 		    $ctx->stash('markdown_output', '');
 		}
-		elsif (defined $output	&&  $output eq 'raw') {
+		elsif (defined $output && $output eq 'raw') {
 		    $raw = 1;
 		    $ctx->stash('markdown_output', '');
 		}
@@ -171,10 +181,10 @@ unless ($@) {
 	    docs      => 'http://daringfireball.net/projects/markdown/',
 	    on_format => sub {
 		my $text = shift;
-		my $ctx	 = shift;
+		my $ctx  = shift;
 		if (defined $ctx) {
 		    my $output = $ctx->stash('markdown_output');
-		    if (defined $output	 &&  $output eq 'html') {
+		    if (defined $output && $output eq 'html') {
 			$g_empty_element_suffix = ">";
 		    }
 		    else {
@@ -212,23 +222,23 @@ elsif (!caller) {
 	if ($cli_opts{'help'}) {
 	    exec 'perldoc', $0;
 	}
-	if ($cli_opts{'version'}) {	# Version info
-	    print "\nThis is Markdown, version $VERSION.\n";
-	    print "Copyright (C) 2004 John Gruber\n";
-	    print "Copyright (C) 2015 Kyle J. McKay\n";
+	if ($cli_opts{'version'}) { # Version info
+	    print "\nThis is Markdown, version $VERSION.\n", $COPYRIGHT;
+	    print "License is Modified BSD (aka 3-clause BSD) License\n";
+	    print "<https://opensource.org/licenses/BSD-3-Clause>\n";
 	    exit 0;
 	}
-	if ($cli_opts{'shortversion'}) {	# Just the version number string.
+	if ($cli_opts{'shortversion'}) { # Just the version number string.
 	    print $VERSION;
 	    exit 0;
 	}
-	if ($cli_opts{'html4tags'}) {		# Use HTML tag style instead of XHTML
+	if ($cli_opts{'html4tags'}) {	 # Use HTML tag style instead of XHTML
 	    $options{empty_element_suffix} = ">";
 	}
-	if ($cli_opts{'htmlroot'}) {		# Use URL prefix
+	if ($cli_opts{'htmlroot'}) {	 # Use URL prefix
 	    $options{url_prefix} = $cli_opts{'htmlroot'};
 	}
-	if ($cli_opts{'imageroot'}) {		# Use image URL prefix
+	if ($cli_opts{'imageroot'}) {	 # Use image URL prefix
 	    $options{img_prefix} = $cli_opts{'imageroot'};
 	}
 
@@ -236,7 +246,7 @@ elsif (!caller) {
 	#### Process incoming text: ###########################
 	my $text;
 	{
-	    local $/;		    # Slurp the whole file
+	    local $/; # Slurp the whole file
 	    $text = <>;
 	}
 	print Markdown($text, \%options);
@@ -261,8 +271,8 @@ sub Markdown {
 	# set initial defaults
 	empty_element_suffix	=> $g_empty_element_suffix,
 	tab_width		=> $g_tab_width,
-	url_prefix		=> "",	# Prefixed to non-absolute URLs
-	img_prefix		=> "",	# Prefixed to non-absolute image URLs
+	url_prefix		=> "", # Prefixed to non-absolute URLs
+	img_prefix		=> "", # Prefixed to non-absolute image URLs
     );
     my %args = ();
     if (ref($_[0]) eq "HASH") {
@@ -325,11 +335,11 @@ sub _HashBTCodeBlocks {
     $text =~ s{
 	    (?:\n|\A)
 		``(`+)[ \t]*(?:([\w.+-]+)[ \t]*)?\n
-	    (		    # $3 = the code block -- one or more lines, starting with ```
+	     ( # $3 = the code block -- one or more lines, starting with ```
 	      (?:
 		.*\n+
 	      )+?
-	    )
+	     )
 	    (?:(?:``\1[ \t]*(?:\n|\Z))|\Z) # and ending with ``` or end of document
 	}{
 	    # $2 contains syntax highlighting to use if defined
@@ -378,7 +388,7 @@ sub _StripLinkDefinitions {
 			(?:\n+|\Z)
 		    }
 		    {}mx) {
-	$g_urls{lc $1} = _EncodeAmpsAndAngles( $2 );	# Link IDs are case-insensitive
+	$g_urls{lc $1} = _EncodeAmpsAndAngles( $2 ); # Link IDs are case-insensitive
 	if ($3) {
 	    $g_titles{lc $1} = $3;
 	    $g_titles{lc $1} =~ s/\042/&quot;/g;
@@ -403,11 +413,11 @@ sub _HashHTMLBlocks {
     my $block_tags_b = qr/p|div|h[1-6]|blockquote|pre|table|dl|ol|ul|script|noscript|form|fieldset|iframe|math/;
 
     # First, look for nested blocks, e.g.:
-    #	<div>
-    #	    <div>
-    #	    tags for inner block must be indented.
-    #	    </div>
-    #	</div>
+    #   <div>
+    #       <div>
+    #       tags for inner block must be indented.
+    #       </div>
+    #   </div>
     #
     # The outermost tags must start at the left margin for this to match, and
     # the inner nested divs must be indented.
@@ -415,13 +425,13 @@ sub _HashHTMLBlocks {
     # match will start at the first `<div>` and stop at the first `</div>`.
     $text =~ s{
 		(			# save in $1
-		    ^			# start of line	 (with /m)
+		    ^			# start of line (with /m)
 		    <($block_tags_a)	# start tag = $2
 		    \b			# word break
 		    (.*\n)*?		# any number of lines, minimally matching
 		    </\2>		# the matching end tag
 		    [ \t]*		# trailing spaces/tabs
-		    (?=\n+|\Z)	# followed by a newline or end of document
+		    (?=\n+|\Z) # followed by a newline or end of document
 		)
 	    }{
 		my $key = md5_hex($1);
@@ -435,13 +445,13 @@ sub _HashHTMLBlocks {
     #
     $text =~ s{
 		(			# save in $1
-		    ^			# start of line	 (with /m)
+		    ^			# start of line (with /m)
 		    <($block_tags_b)	# start tag = $2
 		    \b			# word break
 		    (.*\n)*?		# any number of lines, minimally matching
 		    .*</\2>		# the matching end tag
 		    [ \t]*		# trailing spaces/tabs
-		    (?=\n+|\Z)	# followed by a newline or end of document
+		    (?=\n+|\Z) # followed by a newline or end of document
 		)
 	    }{
 		my $key = md5_hex($1);
@@ -478,7 +488,7 @@ sub _HashHTMLBlocks {
 		    |		    # or
 		    \A\n?	    # the beginning of the doc
 		)
-		(			# save in $1
+		(		    # save in $1
 		    [ ]{0,$less_than_tab}
 		    (?s:
 			<!
@@ -486,7 +496,7 @@ sub _HashHTMLBlocks {
 			>
 		    )
 		    [ \t]*
-		    (?=\n{2,}|\Z)	# followed by a blank line or end of document
+		    (?=\n{2,}|\Z)   # followed by a blank line or end of document
 		)
 	    }{
 		my $key = md5_hex($1);
@@ -557,7 +567,7 @@ sub _RunSpanGamut {
     $text = _DoItalicsAndBoldAndStrike($text);
 
     # Do hard breaks:
-    $text =~ s/ {2,}\n/ <br$opt{empty_element_suffix}\n/g;
+    $text =~ s/ {2,}\n/<br$opt{empty_element_suffix}\n/g;
 
     return $text;
 }
@@ -567,7 +577,7 @@ sub _EscapeSpecialChars {
     my $text = shift;
     my $tokens ||= _TokenizeHTML($text);
 
-    $text = '';	  # rebuild $text from the tokens
+    $text = ''; # rebuild $text from the tokens
 #   my $in_pre = 0;  # Keep track of when we're inside <pre> or <code> tags.
 #   my $tags_to_skip = qr!<(/?)(?:pre|code|kbd|script|math)[\s>]!;
 
@@ -579,9 +589,9 @@ sub _EscapeSpecialChars {
 	    # corresponding MD5 checksum value; this is likely
 	    # overkill, but it should prevent us from colliding
 	    # with the escape values by accident.
-	    $cur_token->[1] =~	s! \* !$g_escape_table{'*'}!gx;
-	    $cur_token->[1] =~	s! _  !$g_escape_table{'_'}!gx;
-	    $cur_token->[1] =~	s! ~  !$g_escape_table{'~'}!gx;
+	    $cur_token->[1] =~ s! \* !$g_escape_table{'*'}!gx;
+	    $cur_token->[1] =~ s! _  !$g_escape_table{'_'}!gx;
+	    $cur_token->[1] =~ s! ~  !$g_escape_table{'~'}!gx;
 	    $text .= $cur_token->[1];
 	} else {
 	    my $t = $cur_token->[1];
@@ -605,14 +615,14 @@ sub _DoAnchors {
     $text =~ s{
 	(		    # wrap whole match in $1
 	  \[
-	    ($g_nested_brackets)    # link text = $2
+	    ($g_nested_brackets) # link text = $2
 	  \]
 
 	  [ ]?		    # one optional space
 	  (?:\n[ ]*)?	    # one optional newline followed by spaces
 
 	  \[
-	    (.*?)	# id = $3
+	    (.*?)	    # id = $3
 	  \]
 	)
     }{
@@ -627,9 +637,9 @@ sub _DoAnchors {
 
 	if (defined $g_urls{$link_id}) {
 	    my $url = _PrefixURL($g_urls{$link_id});
-	    $url =~ s! \* !$g_escape_table{'*'}!gx;	# We've got to encode these to avoid
-	    $url =~ s!	_ !$g_escape_table{'_'}!gx;	# conflicting with italics, bold
-	    $url =~ s!	~ !$g_escape_table{'~'}!gx;	# and strike through.
+	    $url =~ s! \* !$g_escape_table{'*'}!gx; # We've got to encode these to avoid
+	    $url =~ s!	_ !$g_escape_table{'_'}!gx; # conflicting with italics, bold
+	    $url =~ s!	~ !$g_escape_table{'~'}!gx; # and strike through.
 	    $result = "<a href=\"$url\"";
 	    if ( defined $g_titles{$link_id} ) {
 		my $title = $g_titles{$link_id};
@@ -652,14 +662,14 @@ sub _DoAnchors {
     $text =~ s{
 	(		# wrap whole match in $1
 	  \[
-	    ($g_nested_brackets)    # link text = $2
+	    ($g_nested_brackets) # link text = $2
 	  \]
 	  \(		# literal paren
 	    [ \t]*
 	    <?(.*?)>?	# href = $3
 	    [ \t]*
 	    (		# $4
-	      (['\042])	# quote char = $5
+	      (['\042]) # quote char = $5
 	      (.*?)	# Title = $6
 	      \5	# matching quote
 	    )?		# title is optional
@@ -669,13 +679,13 @@ sub _DoAnchors {
 	my $result;
 	my $whole_match = $1;
 	my $link_text	= $2;
-	my $url	    = $3;
-	my $title   = $6;
+	my $url		= $3;
+	my $title	= $6;
 
 	$url = _PrefixURL($url);
-	$url =~ s! \* !$g_escape_table{'*'}!gx;	    # We've got to encode these to avoid
-	$url =~ s!  _ !$g_escape_table{'_'}!gx;	    # conflicting with italics, bold
-	$url =~ s!  ~ !$g_escape_table{'~'}!gx;	    # and strike through.
+	$url =~ s! \* !$g_escape_table{'*'}!gx; # We've got to encode these to avoid
+	$url =~ s!  _ !$g_escape_table{'_'}!gx; # conflicting with italics, bold
+	$url =~ s!  ~ !$g_escape_table{'~'}!gx; # and strike through.
 	$result = "<a href=\"$url\"";
 
 	if (defined $title) {
@@ -683,7 +693,7 @@ sub _DoAnchors {
 	    $title =~ s! \* !$g_escape_table{'*'}!gx;
 	    $title =~ s!  _ !$g_escape_table{'_'}!gx;
 	    $title =~ s!  ~ !$g_escape_table{'~'}!gx;
-	    $result .=	" title=\"$title\"";
+	    $result .= " title=\"$title\"";
 	}
 
 	$result .= ">$link_text</a>";
@@ -710,8 +720,8 @@ sub _DoImages {
 	    (.*?)	# alt text = $2
 	  \]
 
-	  [ ]?		    # one optional space
-	  (?:\n[ ]*)?	    # one optional newline followed by spaces
+	  [ ]?		# one optional space
+	  (?:\n[ ]*)?	# one optional newline followed by spaces
 
 	  \[
 	    (.*?)	# id = $3
@@ -725,15 +735,15 @@ sub _DoImages {
 	my $link_id	= lc $3;
 
 	if ($link_id eq "") {
-	    $link_id = lc $alt_text;	 # for shortcut links like ![this][].
+	    $link_id = lc $alt_text; # for shortcut links like ![this][].
 	}
 
 	$alt_text =~ s/"/&quot;/g;
 	if (defined $g_urls{$link_id}) {
 	    my $url = _PrefixURL($g_urls{$link_id});
-	    $url =~ s! \* !$g_escape_table{'*'}!gx;	# We've got to encode these to avoid
-	    $url =~ s!	_ !$g_escape_table{'_'}!gx;	# conflicting with italics, bold
-	    $url =~ s!	~ !$g_escape_table{'~'}!gx;	# and strike through.
+	    $url =~ s! \* !$g_escape_table{'*'}!gx; # We've got to encode these to avoid
+	    $url =~ s!	_ !$g_escape_table{'_'}!gx; # conflicting with italics, bold
+	    $url =~ s!	~ !$g_escape_table{'~'}!gx; # and strike through.
 	    $result = "<img src=\"$url\" alt=\"$alt_text\"";
 	    if (defined $g_titles{$link_id}) {
 		my $title = $g_titles{$link_id};
@@ -766,7 +776,7 @@ sub _DoImages {
 	    <?(\S+?)>?	# src url = $3
 	    [ \t]*
 	    (		# $4
-	      (['\042])	# quote char = $5
+	      (['\042]) # quote char = $5
 	      (.*?)	# title = $6
 	      \5	# matching quote
 	      [ \t]*
@@ -777,24 +787,24 @@ sub _DoImages {
 	my $result;
 	my $whole_match = $1;
 	my $alt_text	= $2;
-	my $url	    = $3;
-	my $title   = '';
+	my $url		= $3;
+	my $title	= '';
 	if (defined($6)) {
-	    $title  = $6;
+	    $title	= $6;
 	}
 
 	$url = _PrefixURL($url);
 	$alt_text =~ s/"/&quot;/g;
 	$title	  =~ s/"/&quot;/g;
-	$url =~ s! \* !$g_escape_table{'*'}!gx;	    # We've got to encode these to avoid
-	$url =~ s!  _ !$g_escape_table{'_'}!gx;	    # conflicting with italics, bold
-	$url =~ s!  ~ !$g_escape_table{'~'}!gx;	    # and strike through.
+	$url =~ s! \* !$g_escape_table{'*'}!gx; # We've got to encode these to avoid
+	$url =~ s!  _ !$g_escape_table{'_'}!gx; # conflicting with italics, bold
+	$url =~ s!  ~ !$g_escape_table{'~'}!gx; # and strike through.
 	$result = "<img src=\"$url\" alt=\"$alt_text\"";
 	if (defined $title) {
 	    $title =~ s! \* !$g_escape_table{'*'}!gx;
 	    $title =~ s!  _ !$g_escape_table{'_'}!gx;
 	    $title =~ s!  ~ !$g_escape_table{'~'}!gx;
-	    $result .=	" title=\"$title\"";
+	    $result .= " title=\"$title\"";
 	}
 	$result .= $opt{empty_element_suffix};
 
@@ -809,34 +819,34 @@ sub _DoHeaders {
     my $text = shift;
 
     # Setext-style headers:
-    #	  Header 1
-    #	  ========
+    #     Header 1
+    #     ========
     #
-    #	  Header 2
-    #	  --------
+    #     Header 2
+    #     --------
     #
-    #	  Header 3
-    #	  ~~~~~~~~
+    #     Header 3
+    #     ~~~~~~~~
     #
     $text =~ s{ ^(?:=+[ \t]*\n)?(.+)[ \t]*\n=+[ \t]*\n+ }{
-	"<h1>"	.  _RunSpanGamut($1)  .	 "</h1>\n\n";
+	"<h1>" . _RunSpanGamut($1) . "</h1>\n\n";
     }egmx;
 
     $text =~ s{ ^(?:-+[ \t]*\n)?(.+)[ \t]*\n-+[ \t]*\n+ }{
-	"<h2>"	.  _RunSpanGamut($1)  .	 "</h2>\n\n";
+	"<h2>" . _RunSpanGamut($1) . "</h2>\n\n";
     }egmx;
 
     $text =~ s{ ^(?:~+[ \t]*\n)?(.+)[ \t]*\n~+[ \t]*\n+ }{
-	"<h3>"	.  _RunSpanGamut($1)  .	 "</h3>\n\n";
+	"<h3>" . _RunSpanGamut($1) . "</h3>\n\n";
     }egmx;
 
 
     # atx-style headers:
-    #	# Header 1
-    #	## Header 2
-    #	## Header 2 with closing hashes ##
-    #	...
-    #	###### Header 6
+    #   # Header 1
+    #   ## Header 2
+    #   ## Header 2 with closing hashes ##
+    #   ...
+    #   ###### Header 6
     #
     $text =~ s{
 	    ^(\#{1,6})	# $1 = string of #'s
@@ -847,7 +857,7 @@ sub _DoHeaders {
 	    \n+
 	}{
 	    my $h_level = length($1);
-	    "<h$h_level>"  .  _RunSpanGamut($2)	 .  "</h$h_level>\n\n";
+	    "<h$h_level>" . _RunSpanGamut($2) . "</h$h_level>\n\n";
 	}egmx;
 
     return $text;
@@ -868,19 +878,19 @@ sub _DoLists {
 
     # Re-usable pattern to match any entirel ul or ol list:
     my $whole_list = qr{
-	(				# $1 = whole list
-	  (				# $2
+	(			    # $1 = whole list
+	  (			    # $2
 	    [ ]{0,$less_than_tab}
-	    (${marker_any})		# $3 = first list item marker
+	    (${marker_any})	    # $3 = first list item marker
 	    [ \t]+
 	  )
 	  (?s:.+?)
-	  (				# $4
+	  (			    # $4
 	      \z
 	    |
 	      \n{2,}
 	      (?=\S)
-	      (?!			# Negative lookahead for another list item marker
+	      (?!		    # Negative lookahead for another list item marker
 		[ \t]*
 		${marker_any}[ \t]+
 	      )
@@ -891,7 +901,7 @@ sub _DoLists {
     # We use a different prefix before nested lists than top-level lists.
     # See extended comment in _ProcessListItems().
     #
-    # Note: There's a bit of duplication here. My original implementation
+    # Note: (jg) There's a bit of duplication here. My original implementation
     # created a scalar regex pattern as the conditional result of the test on
     # $g_list_level, and then only ran the $text =~ s{...}{...}egmx
     # substitution once, using the scalar as the pattern. This worked,
@@ -959,9 +969,9 @@ sub _ProcessListItems {
     # We do this because when we're not inside a list, we want to treat
     # something like this:
     #
-    #	    I recommend upgrading to version
-    #	    8. Oops, now this line is treated
-    #	    as a sub-list.
+    #	I recommend upgrading to version
+    #	8. Oops, now this line is treated
+    #	as a sub-list.
     #
     # As a single paragraph, despite the fact that the second line starts
     # with a digit-period-space sequence.
@@ -1019,7 +1029,7 @@ sub _DoCodeBlocks {
 
     $text =~ s{
 	    (?:\n\n|\A)
-	    (		    # $1 = the code block -- one or more lines, starting with a space/tab
+	    (		# $1 = the code block -- one or more lines, starting with a space/tab
 	      (?:
 		(?:[ ]{$opt{tab_width}} | \t)  # Lines must start with a tab or a tab-width of spaces
 		.*\n+
@@ -1046,28 +1056,28 @@ sub _DoCodeBlocks {
 
 sub _DoCodeSpans {
 #
-#   *	Backtick quotes are used for <code></code> spans.
+# * Backtick quotes are used for <code></code> spans.
 #
-#   *	You can use multiple backticks as the delimiters if you want to
-#	include literal backticks in the code span. So, this input:
+# * You can use multiple backticks as the delimiters if you want to
+#   include literal backticks in the code span. So, this input:
 #
-#	  Just type ``foo `bar` baz`` at the prompt.
+#     Just type ``foo `bar` baz`` at the prompt.
 #
 #   Will translate to:
 #
-#	  <p>Just type <code>foo `bar` baz</code> at the prompt.</p>
+#     <p>Just type <code>foo `bar` baz</code> at the prompt.</p>
 #
-#	There's no arbitrary limit to the number of backticks you
-#	can use as delimters. If you need three consecutive backticks
-#	in your code, use four for delimiters, etc.
+#   There's no arbitrary limit to the number of backticks you
+#   can use as delimters. If you need three consecutive backticks
+#   in your code, use four for delimiters, etc.
 #
-#   *	You can use spaces to get literal backticks at the edges:
+# * You can use spaces to get literal backticks at the edges:
 #
-#	  ... type `` `bar` `` ...
+#     ... type `` `bar` `` ...
 #
 #   Turns to:
 #
-#	  ... type <code>`bar`</code> ...
+#     ... type <code>`bar`</code> ...
 #
 
     my $text = shift;
@@ -1155,28 +1165,28 @@ sub _DoBlockQuotes {
     my $text = shift;
 
     $text =~ s{
-	  (				# Wrap whole match in $1
+	  (			# Wrap whole match in $1
 	    (
-	      ^[ \t]*>[ \t]?		# '>' at the start of a line
-		.+\n			# rest of the first line
-	      (.+\n)*			# subsequent consecutive lines
-	      \n*			# blanks
+	      ^[ \t]*>[ \t]?	# '>' at the start of a line
+		.+\n		# rest of the first line
+	      (.+\n)*		# subsequent consecutive lines
+	      \n*		# blanks
 	    )+
 	  )
 	}{
 	    my $bq = $1;
-	    $bq =~ s/^[ \t]*>[ \t]?//gm;    # trim one level of quoting
-	    $bq =~ s/^[ \t]+$//mg;	    # trim whitespace-only lines
-	    $bq = _RunBlockGamut($bq);	    # recurse
+	    $bq =~ s/^[ \t]*>[ \t]?//gm; # trim one level of quoting
+	    $bq =~ s/^[ \t]+$//mg;	 # trim whitespace-only lines
+	    $bq = _RunBlockGamut($bq);	 # recurse
 
-	    $bq =~ s/^/	 /g;
+	    $bq =~ s/^/  /mg;
 	    # These leading spaces screw with <pre> content, so we need to fix that:
 	    $bq =~ s{
-		    (\s*<pre>.+?</pre>)
+		    (\s*)(<pre>.+?</pre>)
 		}{
-		    my $pre = $1;
-		    $pre =~ s/^	 //mg;
-		    $pre;
+		    my ($indent, $pre) = ($1, $2);
+		    $pre =~ s/^  //mg;
+		    $indent.$pre;
 		}egsx;
 
 	    "<blockquote>\n$bq\n</blockquote>\n\n";
@@ -1189,8 +1199,8 @@ sub _DoBlockQuotes {
 
 sub _FormParagraphs {
 #
-#   Params:
-#	$text - string to process with html <p> tags
+# Params:
+#   $text - string to process with html <p> tags
 #
     my $text = shift;
 
@@ -1230,7 +1240,7 @@ sub _EncodeAmpsAndAngles {
     my $text = shift;
 
     # Ampersand-encoding based entirely on Nat Irons's Amputator MT plugin:
-    #	http://bumppo.net/projects/amputator/
+    #   http://bumppo.net/projects/amputator/
     $text =~ s/&(?!#?[xX]?(?:[0-9a-fA-F]+|\w+);)/&amp;/g;
 
     # Encode naked <'s
@@ -1242,13 +1252,12 @@ sub _EncodeAmpsAndAngles {
 
 sub _EncodeBackslashEscapes {
 #
-#   Parameter:	String.
-#   Returns:	The string, with after processing the following backslash
-#		escape sequences.
+# Parameter: String.
+# Returns:   String after processing the following backslash escape sequences.
 #
     local $_ = shift;
 
-    s! \\\\  !$g_escape_table{'\\'}!gx;	    # Must process escaped backslashes first.
+    s! \\\\  !$g_escape_table{'\\'}!gx; # Must process escaped backslashes first.
     s! \\`   !$g_escape_table{'`'}!gx;
     s! \\\*  !$g_escape_table{'*'}!gx;
     s! \\_   !$g_escape_table{'_'}!gx;
@@ -1273,7 +1282,7 @@ sub _EncodeBackslashEscapes {
 sub _DoAutoLinks {
     my $text = shift;
 
-    $text =~ s{<((https?|ftp):[^'\042>\s]+)>}{<a href="$1">$1</a>}gi;
+    $text =~ s{<((https?|ftp):[^'\042>\s]+)>}{&lt;<a href="$1">$1</a>&gt;}gi;
 
     # Email addresses: <address@domain.foo>
     $text =~ s{
@@ -1286,7 +1295,7 @@ sub _DoAutoLinks {
 	)
 	>
     }{
-	_EncodeEmailAddress( _UnescapeSpecialChars($1) );
+	"&lt;"._EncodeEmailAddress( _UnescapeSpecialChars($1) )."&gt;";
     }egix;
 
     return $text;
@@ -1295,18 +1304,18 @@ sub _DoAutoLinks {
 
 sub _EncodeEmailAddress {
 #
-#   Input: an email address, e.g. "foo@example.com"
+# Input: an email address, e.g. "foo@example.com"
 #
-#   Output: the email address as a mailto link, with each character
-#	of the address encoded as either a decimal or hex entity, in
-#	the hopes of foiling most address harvesting spam bots. E.g.:
+# Output: the email address as a mailto link, with each character
+#         of the address encoded as either a decimal or hex entity, in
+#         the hopes of foiling most address harvesting spam bots. E.g.:
 #
-#     <a href="&#x6D;&#97;&#105;&#108;&#x74;&#111;:&#102;&#111;&#111;&#64;&#101;
-#	x&#x61;&#109;&#x70;&#108;&#x65;&#x2E;&#99;&#111;&#109;">&#102;&#111;&#111;
-#	&#64;&#101;x&#x61;&#109;&#x70;&#108;&#x65;&#x2E;&#99;&#111;&#109;</a>
+#   <a href="&#x6D;&#97;&#105;&#108;&#x74;&#111;:&#102;&#111;&#111;&#64;&#101;
+#   x&#x61;&#109;&#x70;&#108;&#x65;&#x2E;&#99;&#111;&#109;">&#102;&#111;&#111;
+#   &#64;&#101;x&#x61;&#109;&#x70;&#108;&#x65;&#x2E;&#99;&#111;&#109;</a>
 #
-#   Based on a filter by Matthew Wickline, posted to the BBEdit-Talk
-#   mailing list: <http://tinyurl.com/yu7ue>
+# Based on a filter by Matthew Wickline, posted to the BBEdit-Talk
+# mailing list: <http://tinyurl.com/yu7ue>
 #
 
     my $addr = shift;
@@ -1360,17 +1369,17 @@ sub _UnescapeSpecialChars {
 
 sub _TokenizeHTML {
 #
-#   Parameter:	String containing HTML markup.
-#   Returns:	Reference to an array of the tokens comprising the input
-#		string. Each token is either a tag (possibly with nested,
-#		tags contained therein, such as <a href="<MTFoo>">, or a
-#		run of text between tags. Each element of the array is a
-#		two-element array; the first is either 'tag' or 'text';
-#		the second is the actual value.
+# Parameter: String containing HTML markup.
+# Returns:   Reference to an array of the tokens comprising the input
+#            string. Each token is either a tag (possibly with nested,
+#            tags contained therein, such as <a href="<MTFoo>">, or a
+#            run of text between tags. Each element of the array is a
+#            two-element array; the first is either 'tag' or 'text';
+#            the second is the actual value.
 #
 #
-#   Derived from the _tokenize() subroutine from Brad Choate's MTRegex plugin.
-#	<http://www.bradchoate.com/past/mtregex.php>
+# Derived from the _tokenize() subroutine from Brad Choate's MTRegex plugin.
+#   <http://www.bradchoate.com/past/mtregex.php>
 #
 
     my $str = shift;
@@ -1379,10 +1388,10 @@ sub _TokenizeHTML {
     my @tokens;
 
     my $depth = 6;
-    my $nested_tags = join('|', ('(?:<[a-z/!$](?:[^<>]') x $depth) . (')*>)' x	$depth);
-    my $match = qr/(?s: <! ( -- .*? -- \s* )+ > ) |  # comment
-		   (?s: <\? .*? \?> ) |		     # processing instruction
-		   $nested_tags/ix;		      # nested tags
+    my $nested_tags = join('|', ('(?:<[a-z/!$](?:[^<>]') x $depth) . (')*>)' x $depth);
+    my $match = qr/(?s: <! ( -- .*? -- \s* )+ > ) | # comment
+		   (?s: <\? .*? \?> ) |		    # processing instruction
+		   $nested_tags/ix;		    # nested tags
 
     while ($str =~ m/($match)/g) {
 	my $whole_tag = $1;
@@ -1449,8 +1458,7 @@ __DATA__
 
 =head1 NAME
 
-B<Markdown>
-
+Markdown.pl - convert Markdown format text files to HTML
 
 =head1 SYNOPSIS
 
@@ -1471,8 +1479,8 @@ specifically to serve as a front-end to (X)HTML. You can  use span-level
 HTML tags anywhere in a Markdown document, and you can use block level
 HTML tags (like <div> and <table> as well).
 
-For more information about Markdown's syntax, see the `basics.text`
-and `syntax.text` files included with `Markdown.pl`.
+For more information about Markdown's syntax, see the F<basics.md>
+and F<syntax.md> files included with F<Markdown.pl>.
 
 
 =head1 OPTIONS
@@ -1481,7 +1489,7 @@ Use "--" to end switch parsing. For example, to open a file named "-z", use:
 
     Markdown.pl -- -z
 
-=over 4
+=over
 
 
 =item B<--html4tags>
@@ -1526,52 +1534,90 @@ Display Markdown's help.
 
 =head1 VERSION HISTORY
 
-See the readme file for detailed release notes for this version.
+Z<> See the F<README> file for detailed release notes for this version.
 
-1.0.4 - 05 Jun 2016
+=over
 
-1.0.3 - 06 Sep 2015
+=item Z<> 1.0.4 - 05 Jun 2016
 
-1.0.2 - 03 Sep 2015
+=item Z<> 1.0.3 - 06 Sep 2015
 
-1.0.1 - 14 Dec 2004
+=item Z<> 1.0.2 - 03 Sep 2015
 
-1.0 - 28 Aug 2004
+=item Z<> 1.0.1 - 14 Dec 2004
 
+=item Z<> 1.0.0 - 28 Aug 2004
+
+=back
 
 =head1 AUTHORS
 
-    John Gruber
-    http://daringfireball.net
-    http://daringfireball.net/projects/markdown/
+=over
 
-    PHP port and other contributions by Michel Fortin
-    http://michelf.com
+=item John Gruber
 
-    Additional enhancements and tweaks by Kyle J. McKay
-    mackyle<at>gmail.com
+=item L<http://daringfireball.net>
 
+=item L<http://daringfireball.net/projects/markdown/>
+
+=item E<160>
+
+=back
+
+=over
+
+=item PHP port and other contributions by Michel Fortin
+
+=item L<http://michelf.com>
+
+=item E<160>
+
+=back
+
+=over
+
+=item Additional enhancements and tweaks by Kyle J. McKay
+
+=item mackyle<at>gmail.com
+
+=back
 
 =head1 COPYRIGHT AND LICENSE
 
- Copyright (C) 2003-2004 John Gruber
- Copyright (C) 2015,2016 Kyle J. McKay
- All rights reserved.
+=over
+
+=item Copyright (C) 2003-2004 John Gruber
+
+=item Copyright (C) 2015,2016 Kyle J. McKay
+
+=item All rights reserved.
+
+=back
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
 met:
 
-* Redistributions of source code must retain the above copyright
-  notice, this list of conditions and the following disclaimer.
+=over
 
-* Redistributions in binary form must reproduce the above copyright
-  notice, this list of conditions and the following disclaimer in the
-  documentation and/or other materials provided with the distribution.
+=item *
 
-* Neither the name "Markdown" nor the names of its contributors may
-  be used to endorse or promote products derived from this software
-  without specific prior written permission.
+Redistributions of source code must retain the above copyright
+notice, this list of conditions and the following disclaimer.
+
+=item *
+
+Redistributions in binary form must reproduce the above copyright
+notice, this list of conditions and the following disclaimer in the
+documentation and/or other materials provided with the distribution.
+
+=item *
+
+Neither the name "Markdown" nor the names of its contributors may
+be used to endorse or promote products derived from this software
+without specific prior written permission.
+
+=back
 
 This software is provided by the copyright holders and contributors "as
 is" and any express or implied warranties, including, but not limited

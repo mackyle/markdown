@@ -4,7 +4,7 @@ Markdown
 Version 1.0.4 - Sun 05 Jun 2016
 
 John Gruber  
-Kyle J. McKay  
+Kyle J. McKay
 
 
 Introduction
@@ -15,7 +15,7 @@ allows you to write using an easy-to-read, easy-to-write plain text
 format, then convert it to structurally valid XHTML (or HTML).
 
 Thus, "Markdown" is two things: a plain text markup syntax, and a
-software tool, written in Perl, that converts the plain text markup 
+software tool, written in Perl, that converts the plain text markup
 to HTML.
 
 Markdown works both as a Movable Type plug-in and as a standalone Perl
@@ -23,7 +23,7 @@ script -- which means it can also be used as a text filter in BBEdit
 (or any other application that supporst filters written in Perl).
 
 Full documentation of Markdown's syntax and configuration options is
-available in the basics.text and syntax.text files.
+available in the `basics.md` and `syntax.md` files.
 (Note: this readme file and the basics and syntax files are formatted
 in Markdown.)
 
@@ -33,12 +33,12 @@ Installation and Requirements
 -----------------------------
 
 Markdown requires Perl 5.6.0 or later. Welcome to the 21st Century.
-Markdown also requires the standard Perl library module `Digest::MD5`. 
+Markdown also requires the standard Perl library module `Digest::MD5`.
 
 
 ### Movable Type ###
 
-Markdown works with Movable Type version 2.6 or later (including 
+Markdown works with Movable Type version 2.6 or later (including
 MT 3.0 or later).
 
 1.  Copy the "Markdown.pl" file into your Movable Type "plugins"
@@ -87,7 +87,7 @@ Markdown works with Blosxom version 2.x.
 4.  If you'd like to apply Markdown formatting only to certain posts,
     rather than all of them, see Jason Clark's instructions for using
     Markdown in conjunction with Blosxom's Meta plugin:
-    
+
     <http://jclark.org/weblog/WebDev/Blosxom/Markdown.html>
 
 
@@ -118,11 +118,11 @@ Configuration
 By default, Markdown produces XHTML output for tags with empty elements.
 E.g.:
 
-    <br />
+      <br />
 
 Markdown can be configured to produce HTML-style tags; e.g.:
 
-    <br>
+      <br>
 
 
 ### Movable Type ###
@@ -152,7 +152,7 @@ publish the raw Markdown-formatted text without translation into
 Use the `--html4tags` command-line switch to produce HTML output from a
 Unix-style command line. E.g.:
 
-    % perl Markdown.pl --html4tags foo.text
+    % perl Markdown.pl --html4tags foo.txt
 
 Type `perldoc Markdown.pl`, or read the POD documentation within the
 Markdown.pl source code for more information.
@@ -164,168 +164,168 @@ Version History
 
 1.0.4 (05 Jun 2016):
 
-+	Markdown.pl can now be require'd and the Markdown function called
-	repeatedly by external code.
++ Markdown.pl can now be require'd and the Markdown function called
+  repeatedly by external code.
 
-+	Backticks (```) delimited code blocks are now handled better and are
-	no longer subject to any further accidental processing.
++ Backticks (```) delimited code blocks are now handled better and are
+  no longer subject to any further accidental processing.
 
 
 1.0.3 (06 Sep 2015):
 
-+	Added support for --htmlroot option to set a URL prefix.
++ Added support for --htmlroot option to set a URL prefix.
 
-+	Relaxed matching rule for non-indented code blocks.
++ Relaxed matching rule for non-indented code blocks.
 
-+	Added support for --imageroot option to set an img URL prefix.
++ Added support for --imageroot option to set an img URL prefix.
 
 
 1.0.2 (03 Sep 2015):
 
-+	Added support for -h and --help to display Markdown.pl help.
++ Added support for -h and --help to display Markdown.pl help.
 
-+	Added support for third-level headers using setext-like
-	underlining using tildes (`~`'s).
++ Added support for third-level headers using setext-like
+  underlining using tildes (`~`'s).
 
-+	Added support for an optional overline using the same character
-	as the underline when using setext-style headers.
++ Added support for an optional overline using the same character
+  as the underline when using setext-style headers.
 
-+	Stopped recognizing `_` within words.  The `*` character is still
-	recognized within words.
++ Stopped recognizing `_` within words.  The `*` character is still
+  recognized within words.
 
-+	Added support for strike through text using `~~` similarly to the
-	way strong works using `**`.
++ Added support for strike through text using `~~` similarly to the
+  way strong works using `**`.
 
-+	Added support for non-indended code blocks by preceding and following
-	them with a line consisting of 3 backtick quotes (`` ` ``) or more.
++ Added support for non-indended code blocks by preceding and following
+  them with a line consisting of 3 backtick quotes (`` ` ``) or more.
 
 
 1.0.1 (14 Dec 2004):
 
-+	Changed the syntax rules for code blocks and spans. Previously,
-	backslash escapes for special Markdown characters were processed
-	everywhere other than within inline HTML tags. Now, the contents
-	of code blocks and spans are no longer processed for backslash
-	escapes. This means that code blocks and spans are now treated
-	literally, with no special rules to worry about regarding
-	backslashes.
++ Changed the syntax rules for code blocks and spans. Previously,
+  backslash escapes for special Markdown characters were processed
+  everywhere other than within inline HTML tags. Now, the contents
+  of code blocks and spans are no longer processed for backslash
+  escapes. This means that code blocks and spans are now treated
+  literally, with no special rules to worry about regarding
+  backslashes.
 
-	**NOTE**: This changes the syntax from all previous versions of
-	Markdown. Code blocks and spans involving backslash characters
-	will now generate different output than before.
+  **NOTE**: This changes the syntax from all previous versions of
+  Markdown. Code blocks and spans involving backslash characters
+  will now generate different output than before.
 
-+	Tweaked the rules for link definitions so that they must occur
-	within three spaces of the left margin. Thus if you indent a link
-	definition by four spaces or a tab, it will now be a code block.
-	
-		   [a]: /url/  "Indented 3 spaces, this is a link def"
++ Tweaked the rules for link definitions so that they must occur
+  within three spaces of the left margin. Thus if you indent a link
+  definition by four spaces or a tab, it will now be a code block.
 
-		    [b]: /url/  "Indented 4 spaces, this is a code block"
-	
-	**IMPORTANT**: This may affect existing Markdown content if it
-	contains link definitions indented by 4 or more spaces.
+           [a]: /url/  "Indented 3 spaces, this is a link def"
 
-+	Added `>`, `+`, and `-` to the list of backslash-escapable
-	characters. These should have been done when these characters
-	were added as unordered list item markers.
+            [b]: /url/  "Indented 4 spaces, this is a code block"
 
-+	Trailing spaces and tabs following HTML comments and `<hr/>` tags
-	are now ignored.
+  **IMPORTANT**: This may affect existing Markdown content if it
+  contains link definitions indented by 4 or more spaces.
 
-+	Inline links using `<` and `>` URL delimiters weren't working:
++ Added `>`, `+`, and `-` to the list of backslash-escapable
+  characters. These should have been done when these characters
+  were added as unordered list item markers.
 
-		like [this](<http://example.com/>)
++ Trailing spaces and tabs following HTML comments and `<hr/>` tags
+  are now ignored.
 
-+	Added a bit of tolerance for trailing spaces and tabs after
-	Markdown hr's.
++ Inline links using `<` and `>` URL delimiters weren't working:
 
-+	Fixed bug where auto-links were being processed within code spans:
+          like [this](<http://example.com/>)
 
-		like this: `<http://example.com/>`
++ Added a bit of tolerance for trailing spaces and tabs after
+  Markdown hr's.
 
-+	Sort-of fixed a bug where lines in the middle of hard-wrapped
-	paragraphs, which lines look like the start of a list item,
-	would accidentally trigger the creation of a list. E.g. a
-	paragraph that looked like this:
++ Fixed bug where auto-links were being processed within code spans:
 
-		I recommend upgrading to version
-		8. Oops, now this line is treated
-		as a sub-list.
+          like this: `<http://example.com/>`
 
-	This is fixed for top-level lists, but it can still happen for
-	sub-lists. E.g., the following list item will not be parsed
-	properly:
++ Sort-of fixed a bug where lines in the middle of hard-wrapped
+  paragraphs, which lines look like the start of a list item,
+  would accidentally trigger the creation of a list. E.g. a
+  paragraph that looked like this:
 
-		+	I recommend upgrading to version
-			8. Oops, now this line is treated
-			as a sub-list.
+          I recommend upgrading to version
+          8. Oops, now this line is treated
+          as a sub-list.
 
-	Given Markdown's list-creation rules, I'm not sure this can
-	be fixed.
+  This is fixed for top-level lists, but it can still happen for
+  sub-lists. E.g., the following list item will not be parsed
+  properly:
 
-+	Standalone HTML comments are now handled; previously, they'd get
-	wrapped in a spurious `<p>` tag.
+          + I recommend upgrading to version
+            8. Oops, now this line is treated
+            as a sub-list.
 
-+	Fix for horizontal rules preceded by 2 or 3 spaces.
+  Given Markdown's list-creation rules, I'm not sure this can
+  be fixed.
 
-+	`<hr>` HTML tags in must occur within three spaces of left
-	margin. (With 4 spaces or a tab, they should be code blocks, but
-	weren't before this fix.)
++ Standalone HTML comments are now handled; previously, they'd get
+  wrapped in a spurious `<p>` tag.
 
-+	Capitalized "With" in "Markdown With SmartyPants" for
-	consistency with the same string label in SmartyPants.pl.
-	(This fix is specific to the MT plug-in interface.)
++ Fix for horizontal rules preceded by 2 or 3 spaces.
 
-+	Auto-linked email address can now optionally contain
-	a 'mailto:' protocol. I.e. these are equivalent:
++ `<hr>` HTML tags in must occur within three spaces of left
+  margin. (With 4 spaces or a tab, they should be code blocks, but
+  weren't before this fix.)
 
-		<mailto:user@example.com>
-		<user@example.com>
++ Capitalized "With" in "Markdown With SmartyPants" for
+  consistency with the same string label in SmartyPants.pl.
+  (This fix is specific to the MT plug-in interface.)
 
-+	Fixed annoying bug where nested lists would wind up with
-	spurious (and invalid) `<p>` tags.
++ Auto-linked email address can now optionally contain
+ a 'mailto:' protocol. I.e. these are equivalent:
 
-+	You can now write empty links:
+          <mailto:user@example.com>
+          <user@example.com>
 
-		[like this]()
++ Fixed annoying bug where nested lists would wind up with
+  spurious (and invalid) `<p>` tags.
 
-	and they'll be turned into anchor tags with empty href attributes.
-	This should have worked before, but didn't.
++ You can now write empty links:
 
-+	`***this***` and `___this___` are now turned into
+          [like this]()
 
-		<strong><em>this</em></strong>
+  and they'll be turned into anchor tags with empty href attributes.
+  This should have worked before, but didn't.
 
-	Instead of
++ `***this***` and `___this___` are now turned into
 
-		<strong><em>this</strong></em>
+          <strong><em>this</em></strong>
 
-	which isn't valid. (Thanks to Michel Fortin for the fix.)
+  Instead of
 
-+	Added a new substitution in `_EncodeCode()`: s/\$/&#036;/g; This
-	is only for the benefit of Blosxom users, because Blosxom
-	(sometimes?) interpolates Perl scalars in your article bodies.
+          <strong><em>this</strong></em>
 
-+	Fixed problem for links defined with urls that include parens, e.g.:
+  which isn't valid. (Thanks to Michel Fortin for the fix.)
 
-		[1]: http://sources.wikipedia.org/wiki/Middle_East_Policy_(Chomsky)
++ Added a new substitution in `_EncodeCode()`: `s/\$/&#036;/g`;
+  this is only for the benefit of Blosxom users, because Blosxom
+  (sometimes?) interpolates Perl scalars in your article bodies.
 
-	"Chomsky" was being erroneously treated as the URL's title.
++ Fixed problem for links defined with urls that include parens, e.g.:
 
-+	At some point during 1.0's beta cycle, I changed every sub's
-	argument fetching from this idiom:
+          [1]: http://sources.wikipedia.org/wiki/Middle_East_Policy_(Chomsky)
 
-		my $text = shift;
+  "Chomsky" was being erroneously treated as the URL's title.
 
-	to:
++ At some point during 1.0's beta cycle, I changed every sub's
+  argument fetching from this idiom:
 
-		my $text = shift || return '';
+          my $text = shift;
 
-	The idea was to keep Markdown from doing any work in a sub
-	if the input was empty. This introduced a bug, though:
-	if the input to any function was the single-character string
-	"0", it would also evaluate as false and return immediately.
-	How silly. Now fixed.
+  to:
+
+          my $text = shift || return '';
+
+  The idea was to keep Markdown from doing any work in a sub
+  if the input was empty. This introduced a bug, though:
+  if the input to any function was the single-character string
+  "0", it would also evaluate as false and return immediately.
+  How silly. Now fixed.
 
 
 
@@ -333,7 +333,7 @@ Copyright and License
 ---------------------
 
 Copyright (C) 2003-2004 John Gruber  
-Copyright (C) 2015 Kyle J. McKay  
+Copyright (C) 2015-2017 Kyle J. McKay  
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
