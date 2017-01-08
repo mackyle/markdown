@@ -29,8 +29,9 @@ All rights reserved.
 close(DATA) if fileno(DATA);
 
 require Exporter;
-use Digest::MD5 qw(md5 md5_hex);
+use Digest::MD5 qw(md5);
 use File::Basename qw(basename);
+use Scalar::Util qw(refaddr);
 use Pod::Usage;
 @ISA = qw(Exporter);
 @EXPORT_OK = qw(Markdown);
@@ -41,6 +42,7 @@ $INC{__PACKAGE__.'.pm'} = $INC{basename(__FILE__)} unless exists $INC{__PACKAGE_
 # use utf8;
 # binmode( STDOUT, ":utf8" );  # c.f.: http://acis.openlib.org/dev/perl-unicode-struggle.html
 
+sub block_id;
 
 #
 # Global default settings:
@@ -70,13 +72,16 @@ $g_nested_brackets = qr{
 # Table of hash values for escaped characters:
 my %g_escape_table;
 foreach my $char (split //, "\\\`*_~{}[]()>#+-.!") {
-    $g_escape_table{$char} = md5_hex($char);
+    $g_escape_table{$char} = block_id($char,1);
 }
 
+# Permanent block id table
+my %g_perm_block_ids;
 
 # Global hashes, used by various utility routines
 my %g_urls;
 my %g_titles;
+my %g_block_ids;
 my %g_html_blocks;
 my %opt;
 
@@ -262,6 +267,20 @@ elsif (!caller) {
 }
 
 
+# Return a "block id" to use to identify the block that does not contain
+# any characters that could be misinterpreted by the rest of the code
+# Originally this used md5_hex but that's unnecessarily slow
+# Instead just use the refaddr of the scalar ref of the entry for that
+# key in either the global or, if the optional second argument is true,
+# permanent table.  To avoid the result being confused with anything
+# else, it's prefixed with a control character and suffixed with another
+# both of which are not allowed by the XML standard or Unicode.
+sub block_id {
+    $_[1] ?
+    "\2".refaddr(\$g_perm_block_ids{$_[0]})."\3" :
+    "\5".refaddr(\$g_block_ids{$_[0]})."\6";
+}
+
 
 sub Markdown {
 #
@@ -298,6 +317,7 @@ sub Markdown {
     # articles):
     %g_urls = ();
     %g_titles = ();
+    %g_block_ids = ();
     %g_html_blocks = ();
     $g_list_level = 0;
 
@@ -359,7 +379,7 @@ sub _HashBTCodeBlocks {
 	    $codeblock = _EncodeCode($codeblock); # or run highlighter here
 	    $codeblock = "<pre><code>" . $codeblock . "\n</code></pre>";
 
-	    my $key = md5_hex($codeblock);
+	    my $key = block_id($codeblock);
 	    $g_html_blocks{$key} = $codeblock;
 	    "\n\n" . $key . "\n\n";
 	}egmx;
@@ -442,7 +462,7 @@ sub _HashHTMLBlocks {
 		    (?=\n+|\Z) # followed by a newline or end of document
 		)
 	    }{
-		my $key = md5_hex($1);
+		my $key = block_id($1);
 		$g_html_blocks{$key} = $1;
 		"\n\n" . $key . "\n\n";
 	    }egmx;
@@ -462,7 +482,7 @@ sub _HashHTMLBlocks {
 		    (?=\n+|\Z) # followed by a newline or end of document
 		)
 	    }{
-		my $key = md5_hex($1);
+		my $key = block_id($1);
 		$g_html_blocks{$key} = $1;
 		"\n\n" . $key . "\n\n";
 	    }egmx;
@@ -484,7 +504,7 @@ sub _HashHTMLBlocks {
 		    (?=\n{2,}|\Z)	# followed by a blank line or end of document
 		)
 	    }{
-		my $key = md5_hex($1);
+		my $key = block_id($1);
 		$g_html_blocks{$key} = $1;
 		"\n\n" . $key . "\n\n";
 	    }egx;
@@ -507,7 +527,7 @@ sub _HashHTMLBlocks {
 		    (?=\n{2,}|\Z)   # followed by a blank line or end of document
 		)
 	    }{
-		my $key = md5_hex($1);
+		my $key = block_id($1);
 		$g_html_blocks{$key} = $1;
 		"\n\n" . $key . "\n\n";
 	    }egx;
@@ -527,9 +547,9 @@ sub _RunBlockGamut {
     $text = _DoHeaders($text);
 
     # Do Horizontal Rules:
-    $text =~ s{^[ ]{0,2}([ ]?\*[ ]?){3,}[ \t]*$}{\n<hr$opt{empty_element_suffix}\n}gmx;
-    $text =~ s{^[ ]{0,2}([ ]? -[ ]?){3,}[ \t]*$}{\n<hr$opt{empty_element_suffix}\n}gmx;
-    $text =~ s{^[ ]{0,2}([ ]? _[ ]?){3,}[ \t]*$}{\n<hr$opt{empty_element_suffix}\n}gmx;
+    $text =~ s{^ {0,3}\*(?: {0,2}\*){2,}[ \t]*$}{\n<hr$opt{empty_element_suffix}\n}gm;
+    $text =~ s{^ {0,3}\_(?: {0,2}\_){2,}[ \t]*$}{\n<hr$opt{empty_element_suffix}\n}gm;
+    $text =~ s{^ {0,3}\-(?: {0,2}\-){2,}[ \t]*$}{\n<hr$opt{empty_element_suffix}\n}gm;
 
     $text = _DoLists($text);
 
@@ -594,12 +614,10 @@ sub _EscapeSpecialChars {
 	    # Within tags, encode *, _ and ~ so they don't conflict
 	    # with their use in Markdown for italics and strong.
 	    # We're replacing each such character with its
-	    # corresponding MD5 checksum value; this is likely
+	    # corresponding block id value; this is likely
 	    # overkill, but it should prevent us from colliding
 	    # with the escape values by accident.
-	    $cur_token->[1] =~ s! \* !$g_escape_table{'*'}!gx;
-	    $cur_token->[1] =~ s! _  !$g_escape_table{'_'}!gx;
-	    $cur_token->[1] =~ s! ~  !$g_escape_table{'~'}!gx;
+	    $cur_token->[1] =~ s!([*_~])!$g_escape_table{$1}!g;
 	    $text .= $cur_token->[1];
 	} else {
 	    my $t = $cur_token->[1];
@@ -645,15 +663,13 @@ sub _DoAnchors {
 
 	if (defined $g_urls{$link_id}) {
 	    my $url = _PrefixURL($g_urls{$link_id});
-	    $url =~ s! \* !$g_escape_table{'*'}!gx; # We've got to encode these to avoid
-	    $url =~ s!	_ !$g_escape_table{'_'}!gx; # conflicting with italics, bold
-	    $url =~ s!	~ !$g_escape_table{'~'}!gx; # and strike through.
+	    # We've got to encode these to avoid conflicting
+	    # with italics, bold and strike through.
+	    $url =~ s!([*_~])!$g_escape_table{$1}!g;
 	    $result = "<a href=\"$url\"";
 	    if ( defined $g_titles{$link_id} ) {
 		my $title = $g_titles{$link_id};
-		$title =~ s! \* !$g_escape_table{'*'}!gx;
-		$title =~ s!  _ !$g_escape_table{'_'}!gx;
-		$title =~ s!  ~ !$g_escape_table{'~'}!gx;
+		$title =~ s!([*_~])!$g_escape_table{$1}!g;
 		$result .=  " title=\"$title\"";
 	    }
 	    $result .= ">$link_text</a>";
@@ -691,16 +707,14 @@ sub _DoAnchors {
 	my $title	= $6;
 
 	$url = _PrefixURL($url);
-	$url =~ s! \* !$g_escape_table{'*'}!gx; # We've got to encode these to avoid
-	$url =~ s!  _ !$g_escape_table{'_'}!gx; # conflicting with italics, bold
-	$url =~ s!  ~ !$g_escape_table{'~'}!gx; # and strike through.
+	# We've got to encode these to avoid conflicting
+	# with italics, bold and strike through.
+	$url =~ s!([*_~])!$g_escape_table{$1}!g;
 	$result = "<a href=\"$url\"";
 
 	if (defined $title) {
 	    $title =~ s/\042/&quot;/g;
-	    $title =~ s! \* !$g_escape_table{'*'}!gx;
-	    $title =~ s!  _ !$g_escape_table{'_'}!gx;
-	    $title =~ s!  ~ !$g_escape_table{'~'}!gx;
+	    $title =~ s!([*_~])!$g_escape_table{$1}!g;
 	    $result .= " title=\"$title\"";
 	}
 
@@ -749,15 +763,13 @@ sub _DoImages {
 	$alt_text =~ s/"/&quot;/g;
 	if (defined $g_urls{$link_id}) {
 	    my $url = _PrefixURL($g_urls{$link_id});
-	    $url =~ s! \* !$g_escape_table{'*'}!gx; # We've got to encode these to avoid
-	    $url =~ s!	_ !$g_escape_table{'_'}!gx; # conflicting with italics, bold
-	    $url =~ s!	~ !$g_escape_table{'~'}!gx; # and strike through.
+	    # We've got to encode these to avoid conflicting
+	    # with italics, bold and strike through.
+	    $url =~ s!([*_~])!$g_escape_table{$1}!g;
 	    $result = "<img src=\"$url\" alt=\"$alt_text\"";
 	    if (defined $g_titles{$link_id}) {
 		my $title = $g_titles{$link_id};
-		$title =~ s! \* !$g_escape_table{'*'}!gx;
-		$title =~ s!  _ !$g_escape_table{'_'}!gx;
-		$title =~ s!  ~ !$g_escape_table{'~'}!gx;
+		$title =~ s!([*_~])!$g_escape_table{$1}!g;
 		$result .=  " title=\"$title\"";
 	    }
 	    $result .= $opt{empty_element_suffix};
@@ -804,14 +816,12 @@ sub _DoImages {
 	$url = _PrefixURL($url);
 	$alt_text =~ s/"/&quot;/g;
 	$title	  =~ s/"/&quot;/g;
-	$url =~ s! \* !$g_escape_table{'*'}!gx; # We've got to encode these to avoid
-	$url =~ s!  _ !$g_escape_table{'_'}!gx; # conflicting with italics, bold
-	$url =~ s!  ~ !$g_escape_table{'~'}!gx; # and strike through.
+	# We've got to encode these to avoid conflicting
+	# with italics, bold and strike through.
+	$url =~ s!([*_~])!$g_escape_table{$1}!g;
 	$result = "<img src=\"$url\" alt=\"$alt_text\"";
 	if (defined $title) {
-	    $title =~ s! \* !$g_escape_table{'*'}!gx;
-	    $title =~ s!  _ !$g_escape_table{'_'}!gx;
-	    $title =~ s!  ~ !$g_escape_table{'~'}!gx;
+	    $title =~ s!([*_~])!$g_escape_table{$1}!g;
 	    $result .= " title=\"$title\"";
 	}
 	$result .= $opt{empty_element_suffix};
@@ -1135,14 +1145,7 @@ sub _EncodeCode {
     s! >  !&gt;!gx;
 
     # Now, escape characters that are magic in Markdown:
-    s! \* !$g_escape_table{'*'}!gx;
-    s! _  !$g_escape_table{'_'}!gx;
-    s! ~  !$g_escape_table{'~'}!gx;
-    s! {  !$g_escape_table{'{'}!gx;
-    s! }  !$g_escape_table{'}'}!gx;
-    s! \[ !$g_escape_table{'['}!gx;
-    s! \] !$g_escape_table{']'}!gx;
-    s! \\ !$g_escape_table{'\\'}!gx;
+    s!([*_~{}\[\]\\])!$g_escape_table{$1}!g;
 
     return $_;
 }
@@ -1265,23 +1268,8 @@ sub _EncodeBackslashEscapes {
 #
     local $_ = shift;
 
-    s! \\\\  !$g_escape_table{'\\'}!gx; # Must process escaped backslashes first.
-    s! \\`   !$g_escape_table{'`'}!gx;
-    s! \\\*  !$g_escape_table{'*'}!gx;
-    s! \\_   !$g_escape_table{'_'}!gx;
-    s! \\~   !$g_escape_table{'~'}!gx;
-    s! \\\{  !$g_escape_table{'{'}!gx;
-    s! \\\}  !$g_escape_table{'}'}!gx;
-    s! \\\[  !$g_escape_table{'['}!gx;
-    s! \\\]  !$g_escape_table{']'}!gx;
-    s! \\\(  !$g_escape_table{'('}!gx;
-    s! \\\)  !$g_escape_table{')'}!gx;
-    s! \\>   !$g_escape_table{'>'}!gx;
-    s! \\\#  !$g_escape_table{'#'}!gx;
-    s! \\\+  !$g_escape_table{'+'}!gx;
-    s! \\\-  !$g_escape_table{'-'}!gx;
-    s! \\\.  !$g_escape_table{'.'}!gx;
-    s{ \\!  }{$g_escape_table{'!'}}gx;
+    s!\\\\!$g_escape_table{'\\'}!go; # Must process escaped backslashes first.
+    s{\\([`*_~{}\[\]()>#+\-.!`])}{$g_escape_table{$1}}g;
 
     return $_;
 }
@@ -1458,7 +1446,7 @@ sub _PrefixURL {
     return $url if $url =~ m,^//, || $url =~ /^[A-Za-z][A-Za-z0-9+.-]*:/;
     my $ans = $opt{url_prefix};
     $ans = $opt{img_prefix}
-        if $opt{img_prefix} ne '' && $url =~ /\.(?:png|gif|jpe?g|svg?z)$/i;
+	if $opt{img_prefix} ne '' && $url =~ /\.(?:png|gif|jpe?g|svg?z)$/i;
     return $url unless $ans ne '';
     $ans .= '/' if substr($ans, -1, 1) ne '/';
     $ans .= substr($url, 0, 1) eq '/' ? substr($url, 1) : $url;
