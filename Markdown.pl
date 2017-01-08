@@ -1288,12 +1288,12 @@ sub _EncodeBackslashEscapes {
 
 
 sub _DoAutoLinks {
-    my $text = shift;
+    local $_ = shift;
 
-    $text =~ s{<((https?|ftp):[^'\042>\s]+)>}{&lt;<a href="$1">$1</a>&gt;}gi;
+    s{<((https?|ftps?):[^'\042>\s]+)>}{<a href="$1">&lt;$1&gt;</a>}gi;
 
     # Email addresses: <address@domain.foo>
-    $text =~ s{
+    s{
 	<
 	(?:mailto:)?
 	(
@@ -1303,10 +1303,16 @@ sub _DoAutoLinks {
 	)
 	>
     }{
-	"&lt;"._EncodeEmailAddress( _UnescapeSpecialChars($1) )."&gt;";
+	_EncodeEmailAddress(_UnescapeSpecialChars($1), "&#x3c;", "&#62;");
     }egix;
 
-    return $text;
+    # (kjm) I don't do "x" patterns
+    s{(?<![\042'<>])(?<!&[Ll][Tt];)(?<!&#60;)(?<!&#x3[Cc];)\b((?:https?|ftps?)://(?:[-a-zA-Z0-9./?\&\%=_~!*;:\@+\$,\x23](?:(?<![.,:;])|(?=[^\s])))+)}
+     {<a href="$1">$1</a>}sog;
+    s{(?<![][])(?<!\] )\[RFC( ?)([0-9]{1,5})\](?![][])(?! \[)}
+     {[<a href="http://tools.ietf.org/html/rfc$2">RFC$1$2</a>]}sog;
+
+    return $_;
 }
 
 
@@ -1326,7 +1332,9 @@ sub _EncodeEmailAddress {
 # mailing list: <http://tinyurl.com/yu7ue>
 #
 
-    my $addr = shift;
+    my ($addr, $prefix, $suffix) = @_;
+    $prefix = "" unless defined($prefix);
+    $suffix = "" unless defined($suffix);
 
     srand;
     my @encode = (
@@ -1355,8 +1363,9 @@ sub _EncodeEmailAddress {
 	$char;
     }gex;
 
-    $addr = qq{<a href="$addr">$addr</a>};
-    $addr =~ s{">.+?:}{">}; # strip the mailto: from the visible part
+    # strip the mailto: from the visible part
+    (my $bareaddr = $addr) =~ s/^.+?://;
+    $addr = qq{<a href="$addr">$prefix$bareaddr$suffix</a>};
 
     return $addr;
 }
