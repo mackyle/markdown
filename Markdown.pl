@@ -29,7 +29,7 @@ All rights reserved.
 close(DATA) if fileno(DATA);
 
 require Exporter;
-use Digest::MD5 qw(md5_hex);
+use Digest::MD5 qw(md5 md5_hex);
 use File::Basename qw(basename);
 use Pod::Usage;
 @ISA = qw(Exporter);
@@ -1336,7 +1336,7 @@ sub _EncodeEmailAddress {
     $prefix = "" unless defined($prefix);
     $suffix = "" unless defined($suffix);
 
-    srand;
+    srand(unpack('N',md5($addr)));
     my @encode = (
 	sub { '&#' .		     ord(shift)	  . ';' },
 	sub { '&#x' . sprintf( "%X", ord(shift) ) . ';' },
