@@ -32,11 +32,10 @@ can [see the source for it by adding `.md` to the URL] [src].
 ## Paragraphs, Headers, Blockquotes ##
 
 A paragraph is simply one or more consecutive lines of text, separated
-by one or more blank lines. (A blank line is any line that looks like
+by one or more blank lines.  (A blank line is any line that looks like
 a blank line -- a line containing nothing but spaces or tabs is
-considered blank.) Normal paragraphs should not be indented with
-spaces or tabs. Note that Markdown expands all tabs to spaces using
-tabstops set at 4 spaces apart. It performs this expansion before
+considered blank.)  Normal paragraphs should not be indented with
+spaces or tabs.  Note that Markdown expands all tabs to spaces before
 doing anything else.
 
 Markdown offers two styles of headers: *Setext* and *atx*.
@@ -175,7 +174,7 @@ Output:
 
 If you put blank lines between items, you'll get `<p>` tags for the
 list item text. You can create multi-paragraph list items by indenting
-the paragraphs by 4 spaces or 1 tab:
+the paragraphs by 4 spaces:
 
       *   A list item.
 
@@ -292,8 +291,8 @@ Output:
 
 
 To specify an entire block of pre-formatted code, indent every line of
-the block by 4 spaces or 1 tab. Just like with code spans, `&`, `<`,
-and `>` characters will be escaped automatically.
+the block by 4 spaces.  Just like with code spans, `&`, `<`, and `>`
+characters will be escaped automatically.
 
 Alternatively an entire block of pre-formatted code may be preceded with a
 line consisting of 3 backtick quotes (or more) and followed by a line
@@ -301,10 +300,9 @@ consisting of the same number of backtick quotes -- in which case the code
 itself does not need to be additionally indented.  The first line may
 optionally have a syntax specifier (e.g. sh, c, perl, etc.) appended.
 Note also that any physical tab characters within a 3-backtick-quotes,
-non-indented code block are always expanded correctly to 8-character tab-stop
-positions (which differs from the 4-character positions used in the rest of a
-markdown file).  This is to facilitate simple copy-and-paste to include code
-snippets.
+non-indented code block are *always* expanded correctly to 8-character
+tab-stop positions.  This is to facilitate simple copy-and-paste to include
+code snippets.
 
 Markdown:
 

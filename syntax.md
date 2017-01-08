@@ -183,11 +183,10 @@ and `&` in your example code needs to be escaped.)
 <h3 id="p">Paragraphs and Line Breaks</h3>
 
 A paragraph is simply one or more consecutive lines of text, separated
-by one or more blank lines. (A blank line is any line that looks like a
+by one or more blank lines.  (A blank line is any line that looks like a
 blank line -- a line containing nothing but spaces or tabs is considered
-blank.) Normal paragraphs should not be indented with spaces or tabs.
-Note that Markdown expands all tabs to spaces using tabstops set at 4
-spaces apart. It performs this expansion before doing anything else.
+blank.)  Normal paragraphs should not be indented with spaces or tabs.
+Note that Markdown expands all tabs to spaces before doing anything else.
 
 The implication of the "one or more consecutive lines of text" rule is
 that Markdown supports "hard-wrapped" text paragraphs. This differs
@@ -373,8 +372,7 @@ list with the number 1. At some point in the future, Markdown may support
 starting ordered lists at an arbitrary number.
 
 List markers typically start at the left margin, but may be indented by
-up to three spaces. List markers must be followed by one or more spaces
-or a tab.
+up to three spaces.  List markers must be followed by one or more spaces.
 
 To make lists look nice, you can wrap items with hanging indents:
 
@@ -419,8 +417,7 @@ will turn into:
       </ul>
 
 List items may consist of multiple paragraphs. Each subsequent
-paragraph in a list item must be indented by either 4 spaces
-or one tab:
+paragraph in a list item must be indented by 4 spaces:
 
       1.  This is a list item with two paragraphs. Lorem ipsum dolor
           sit amet, consectetuer adipiscing elit. Aliquam hendrerit
@@ -453,7 +450,7 @@ delimiters need to be indented:
           > inside a list item.
 
 To put a code block within a list item, the code block needs
-to be indented *twice* -- 8 spaces or two tabs:
+to be indented *twice* (in other words 8 spaces):
 
       *   A list item with a code block:
 
@@ -480,8 +477,8 @@ of a code block are interpreted literally. Markdown wraps a code block
 in both `<pre>` and `<code>` tags.
 
 To produce a code block in Markdown, simply indent every line of the
-block by at least 4 spaces or 1 tab. Alternatively precede the block with
-a line consisting of 3 backtick quotes (or more) and follow it with a
+block by at least 4 spaces.  Alternatively precede the block with a
+line consisting of 3 backtick quotes (or more) and follow it with a
 line consisting of the same number of backtick quotes -- in this case the
 code lines themselves do not require any additional indentation.
 For example, given this input:
@@ -507,9 +504,8 @@ Markdown will generate:
 
 Note that when using the 3 backtick quotes technique, the blank line
 before the start of the code block is optional. One level of
-indentation -- 4 spaces or 1 tab -- is removed from each
-line of the code block unless the 3 backtick quotes are used.
-For example, this:
+indentation -- 4 spaces -- is removed from each line of the code block
+unless the 3 backtick quotes are used.  For example, this:
 
       Here is an example of AppleScript:
 
