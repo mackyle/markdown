@@ -923,7 +923,9 @@ sub _DoLists {
 # Form HTML ordered (numbered) and unordered (bulleted) lists.
 #
     my $text = shift;
-    my $less_than_indent = $opt{indent_width} - 1;
+    my $indent = $opt{indent_width};
+    my $less_than_indent = $indent - 1;
+    my $less_than_double_indent = 2 * $indent - 1;
 
     # Re-usable pattern to match any entirel ul or ol list:
     my $whole_list = qr{
@@ -964,6 +966,10 @@ sub _DoLists {
     # pattern will never change, and when this optimization isn't on, we run
     # afoul of the reaper. Thus, the slightly redundant code to that uses two
     # static s/// patterns rather than one conditional pattern.
+    #
+    # Note: (kjm) With the addition of the two-of-the-same-kind-in-a-row-
+    # starts-a-list-at-the-top-level rule the two patterns really are somewhat
+    # different now.
 
     if ($g_list_level) {
 	$text =~ s{
@@ -982,7 +988,18 @@ sub _DoLists {
     }
     else {
 	$text =~ s{
-		(?:(?<=\n\n)|\A\n?)
+		(?: (?<=\n\n) |
+		    \A\n? |
+		    (?:(?<=\n) # two of the same kind of marker lines
+		       (?=[ ]{0,$less_than_indent}$marker_ul[ ].*\n
+		          [ ]{0,$less_than_indent}$marker_ul[ ])) |
+		    (?:(?<=\n) # in a row will start a list
+		       (?=[ ]{0,$less_than_indent}$marker_ol[ ].*\n
+		          [ ]{0,$less_than_indent}$marker_ol[ ])) |
+		    (?:(?<=\n) # or any marker and a sublist marker
+		       (?=[ ]{0,$less_than_indent}$marker_any[ ].*\n
+		          [ ]{$indent,$less_than_double_indent}$marker_any[ ]))
+		)
 		$whole_list
 	    }{
 		my $list = $1;
