@@ -29,7 +29,7 @@ All rights reserved.
 require Exporter;
 use Digest::MD5 qw(md5);
 use File::Basename qw(basename);
-use Scalar::Util qw(refaddr);
+use Scalar::Util qw(refaddr looks_like_number);
 use Pod::Usage;
 @ISA = qw(Exporter);
 @EXPORT_OK = qw(Markdown);
@@ -46,9 +46,10 @@ exit(&_main(@ARGV)||0) unless caller;
 #
 # Global default settings:
 #
-my ($g_empty_element_suffix, $g_tab_width);
+my ($g_empty_element_suffix, $g_indent_width, $g_tab_width);
 BEGIN {
     $g_empty_element_suffix = " />";	# Change to ">" for HTML output
+    $g_indent_width = 4;		# Number of spaces considered new level
     $g_tab_width = 4;			# Legacy even though it's wrong
 }
 
@@ -253,6 +254,7 @@ sub _main {
 	'html4tags',
 	'htmlroot|r=s',
 	'imageroot|i=s',
+	'tabwidth|tab-width=s',
     );
     if ($cli_opts{'help'}) {
 	pod2usage(-verbose => 2, -exitval => 0);
@@ -273,12 +275,19 @@ sub _main {
     if ($cli_opts{'html4tags'}) {	 # Use HTML tag style instead of XHTML
 	$options{empty_element_suffix} = ">";
     }
+    if ($cli_opts{'tabwidth'}) {
+	my $tw = $cli_opts{'tabwidth'};
+	die "invalid tab width (must be integer)\n" unless looks_like_number $tw;
+	die "invalid tab width (must be >= 2 and <= 32)\n" unless $tw >= 2 && $tw <= 32;
+	$options{tab_width} = int(0+$tw);
+    }
     if ($cli_opts{'htmlroot'}) {	 # Use URL prefix
 	$options{url_prefix} = $cli_opts{'htmlroot'};
     }
     if ($cli_opts{'imageroot'}) {	 # Use image URL prefix
 	$options{img_prefix} = $cli_opts{'imageroot'};
     }
+    $options{tab_width} = 8 unless defined($options{tab_width});
 
 
     #### Process incoming text: ###########################
@@ -313,6 +322,7 @@ sub Markdown {
 	# set initial defaults
 	empty_element_suffix	=> $g_empty_element_suffix,
 	tab_width		=> $g_tab_width,
+	indent_width		=> $g_indent_width,
 	url_prefix		=> "", # Prefixed to non-absolute URLs
 	img_prefix		=> "", # Prefixed to non-absolute image URLs
     );
@@ -409,11 +419,11 @@ sub _StripLinkDefinitions {
 # hash references.
 #
     my $text = shift;
-    my $less_than_tab = $opt{tab_width} - 1;
+    my $less_than_indent = $opt{indent_width} - 1;
 
     # Link defs are in the form: ^[id]: url "optional title"
     while ($text =~ s{
-			^[ ]{0,$less_than_tab}\[(.+)\]: # id = $1
+			^[ ]{0,$less_than_indent}\[(.+)\]: # id = $1
 			  [ \t]*
 			  \n?		    # maybe *one* newline
 			  [ \t]*
@@ -449,7 +459,7 @@ BEGIN {
 
 sub _HashHTMLBlocks {
     my $text = shift;
-    my $less_than_tab = $opt{tab_width} - 1;
+    my $less_than_indent = $opt{indent_width} - 1;
 
     # Hashify HTML blocks:
     # We only want to do this for block-level HTML tags, such as headers,
@@ -513,7 +523,7 @@ sub _HashHTMLBlocks {
 		    \A\n?	    # the beginning of the doc
 		)
 		(			# save in $1
-		    [ ]{0,$less_than_tab}
+		    [ ]{0,$less_than_indent}
 		    <(hr)		# start tag = $2
 		    \b			# word break
 		    ([^<>])*?		#
@@ -535,7 +545,7 @@ sub _HashHTMLBlocks {
 		    \A\n?	    # the beginning of the doc
 		)
 		(		    # save in $1
-		    [ ]{0,$less_than_tab}
+		    [ ]{0,$less_than_indent}
 		    (?s:
 			<!
 			(--.*?--\s*)+
@@ -913,13 +923,13 @@ sub _DoLists {
 # Form HTML ordered (numbered) and unordered (bulleted) lists.
 #
     my $text = shift;
-    my $less_than_tab = $opt{tab_width} - 1;
+    my $less_than_indent = $opt{indent_width} - 1;
 
     # Re-usable pattern to match any entirel ul or ol list:
     my $whole_list = qr{
 	(			    # $1 = whole list
 	  (			    # $2
-	    [ ]{0,$less_than_tab}
+	    [ ]{0,$less_than_indent}
 	    (${marker_any})	    # $3 = first list item marker
 	    [ \t]+
 	  )
@@ -1068,19 +1078,18 @@ sub _DoCodeBlocks {
 
     $text =~ s{
 	    (?:\n\n|\A)
-	    (		# $1 = the code block -- one or more lines, starting with a space/tab
+	    (		# $1 = the code block -- one or more lines, starting with indent_width spaces
 	      (?:
-		(?:[ ]{$opt{tab_width}} | \t)  # Lines must start with a tab or a tab-width of spaces
+		(?:[ ]{$opt{indent_width}})  # Lines must start with indent_width of spaces
 		.*\n+
 	      )+
 	    )
-	    ((?=^[ ]{0,$opt{tab_width}}\S)|\Z) # Lookahead for non-space at line-start, or end of doc
+	    ((?=^[ ]{0,$opt{indent_width}}\S)|\Z) # Lookahead for non-space at line-start, or end of doc
 	}{
 	    my $codeblock = $1;
 	    my $result; # return value
 
 	    $codeblock = _EncodeCode(_Outdent($codeblock));
-	    $codeblock = _Detab($codeblock);
 	    $codeblock =~ s/\A\n+//; # trim leading newlines
 	    $codeblock =~ s/\s+\z//; # trim trailing whitespace
 
@@ -1430,11 +1439,11 @@ sub _TokenizeHTML {
 
 sub _Outdent {
 #
-# Remove one level of line-leading tabs or spaces
+# Remove one level of line-leading indent_width of spaces
 #
     my $text = shift;
 
-    $text =~ s/^(\t|[ ]{1,$opt{tab_width}})//gm;
+    $text =~ s/^ {1,$opt{indent_width}}//gm;
     return $text;
 }
 
@@ -1483,13 +1492,14 @@ Markdown.pl - convert Markdown format text files to HTML
 =head1 SYNOPSIS
 
 B<Markdown.pl> [B<--help>] [B<--html4tags>] [B<--htmlroot>=I<prefix>]
-    [B<--imageroot>=I<prefix>] [B<--version>] [B<--shortversion>] [--]
-    [I<file>...]
+    [B<--imageroot>=I<prefix>] [B<--version>] [B<--shortversion>]
+    [B<--tabwidth>=I<num>] [--] [I<file>...]
 
  Options:
    -h                                   show short usage help
    --help                               show long detailed help
    --html4tags                          use <br> instead of <br />
+   --tabwidth=num                       expand tabs to num instead of 8
    -r prefix | --htmlroot=prefix        append relative non-img URLs
                                         to prefix
    -i prefix | --imageroot=prefix	append relative img URLs to
@@ -1534,6 +1544,19 @@ Use HTML 4 style for empty element tags, e.g.:
 instead of Markdown's default XHTML style tags, e.g.:
 
     <br />
+
+
+=item B<--tabwidth>=I<num>
+
+Expand tabs to I<num> character wide tab stop positions instead of the default
+8.  Don't use this; physical tabs should always be expanded to 8-character
+positions.  This option does I<not> affect the number of spaces needed to
+start a new "indent level".  That will always be 4 no matter what value is
+used (or implied by default) with this option.  Also note that tabs inside
+backticks-delimited code blocks will always be expanded to 8-character tab
+stop positions no matter what value is used for this option.
+
+The value must be S<2 <= I<num> <= 32>.
 
 
 =item B<-r> I<prefix>, B<--htmlroot>=I<prefix>
