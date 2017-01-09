@@ -26,8 +26,6 @@ All rights reserved.
 *VERSION = \"1.0.4+" # Sun 05 Jun 2016+
 }
 
-close(DATA) if fileno(DATA);
-
 require Exporter;
 use Digest::MD5 qw(md5);
 use File::Basename qw(basename);
@@ -37,43 +35,27 @@ use Pod::Usage;
 @EXPORT_OK = qw(Markdown);
 $INC{__PACKAGE__.'.pm'} = $INC{basename(__FILE__)} unless exists $INC{__PACKAGE__.'.pm'};
 
+close(DATA) if fileno(DATA);
+exit(&_main(@ARGV)||0) unless caller;
 
 ## Disabled; causes problems under Perl 5.6.1:
 # use utf8;
 # binmode( STDOUT, ":utf8" );  # c.f.: http://acis.openlib.org/dev/perl-unicode-struggle.html
 
-sub block_id;
 
 #
 # Global default settings:
 #
-my $g_empty_element_suffix = " />";	# Change to ">" for HTML output
-my $g_tab_width = 4;			# Legacy even though it's wrong
+my ($g_empty_element_suffix, $g_tab_width);
+BEGIN {
+    $g_empty_element_suffix = " />";	# Change to ">" for HTML output
+    $g_tab_width = 4;			# Legacy even though it's wrong
+}
 
 
 #
 # Globals:
 #
-
-# Regex to match balanced [brackets]. See Friedl's
-# "Mastering Regular Expressions", 2nd Ed., pp. 328-331.
-my $g_nested_brackets;
-$g_nested_brackets = qr{
-    (?>					# Atomic matching
-	[^\[\]]+			# Anything other than brackets
-     |
-	\[
-	    (??{ $g_nested_brackets })	# Recursive set of nested brackets
-	\]
-    )*
-}x;
-
-
-# Table of hash values for escaped characters:
-my %g_escape_table;
-foreach my $char (split //, "\\\`*_~{}[]()>#+-.!") {
-    $g_escape_table{$char} = block_id($char,1);
-}
 
 # Permanent block id table
 my %g_perm_block_ids;
@@ -85,18 +67,67 @@ my %g_block_ids;
 my %g_html_blocks;
 my %opt;
 
+# Return a "block id" to use to identify the block that does not contain
+# any characters that could be misinterpreted by the rest of the code
+# Originally this used md5_hex but that's unnecessarily slow
+# Instead just use the refaddr of the scalar ref of the entry for that
+# key in either the global or, if the optional second argument is true,
+# permanent table.  To avoid the result being confused with anything
+# else, it's prefixed with a control character and suffixed with another
+# both of which are not allowed by the XML standard or Unicode.
+sub block_id {
+    $_[1] ?
+    "\2".refaddr(\$g_perm_block_ids{$_[0]})."\3" :
+    "\5".refaddr(\$g_block_ids{$_[0]})."\6";
+}
+
+# Regex to match balanced [brackets]. See Friedl's
+# "Mastering Regular Expressions", 2nd Ed., pp. 328-331.
+my $g_nested_brackets;
+BEGIN {
+    $g_nested_brackets = qr{
+    (?>					# Atomic matching
+	[^\[\]]+			# Anything other than brackets
+     |
+	\[
+	    (??{ $g_nested_brackets })	# Recursive set of nested brackets
+	\]
+    )*
+    }ox
+}
+
+
+# Table of hash values for escaped characters:
+my %g_escape_table;
+BEGIN {
+    foreach my $char (split //, "\\\`*_~{}[]()>#+-.!") {
+	$g_escape_table{$char} = block_id($char,1);
+    }
+}
+
 # Used to track when we're inside an ordered or unordered list
 # (see _ProcessListItems() for details):
-my $g_list_level = 0;
+my $g_list_level;
+BEGIN {
+    $g_list_level = 0;
+}
 
 
 #### Blosxom plug-in interface ##########################################
+my $_haveBX;
+BEGIN {
+    no warnings 'once';
+    $_haveBX = defined($blosxom::version);
+}
 
 # Set $g_blosxom_use_meta to 1 to use Blosxom's meta plug-in to determine
 # which posts Markdown should process, using a "meta-markup: markdown"
 # header. If it's set to 0 (the default), Markdown will process all
 # entries.
-my $g_blosxom_use_meta = 0;
+my $g_blosxom_use_meta;
+BEGIN {
+    $g_blosxom_use_meta = 0;
+}
 
 sub start { 1; }
 sub story {
@@ -112,15 +143,16 @@ sub story {
 
 
 #### Movable Type plug-in interface #####################################
-eval {require MT};  # Test to see if we're running in MT.
-unless ($@) {
+my $_haveMT = eval {require MT; 1;}; # Test to see if we're running in MT
+my $_haveMT3 = $_haveMT && eval {require MT::Plugin; 1;}; # and MT >= MT 3.0.
+
+unless ($_haveMT) {
     require MT;
     import  MT;
     require MT::Template::Context;
     import  MT::Template::Context;
 
-    eval {require MT::Plugin}; # Test to see if we're running >= MT 3.0.
-    unless ($@) {
+    unless ($_haveMT3) {
 	require MT::Plugin;
 	import  MT::Plugin;
 	my $plugin = new MT::Plugin({
@@ -203,88 +235,71 @@ unless ($@) {
 	});
     }
 }
-elsif (!caller) {
+
 #### BBEdit/command-line text filter interface ##########################
-# Needs to be hidden from MT (and Blosxom when running in static mode).
-
-    # We're only using $blosxom::version once; tell Perl not to warn us:
-    no warnings 'once';
-    unless ( defined($blosxom::version) ) {
-	use warnings;
-
-	#### Check for command-line switches: #################
-	my %options = ();
-	my %cli_opts;
-	use Getopt::Long;
-	Getopt::Long::Configure(qw(bundling require_order pass_through));
-	GetOptions(\%cli_opts,
-	    'help','h',
-	    'version|V',
-	    'shortversion|short-version|s',
-	    'html4tags',
-	    'htmlroot|r=s',
-	    'imageroot|i=s',
-	);
-	if ($cli_opts{'help'}) {
-	    pod2usage(-verbose => 2, -exitval => 0);
-	}
-	if ($cli_opts{'h'}) {
-	    pod2usage(-verbose => 0, -exitval => 0);
-	}
-	if ($cli_opts{'version'}) { # Version info
-	    print "\nThis is Markdown, version $VERSION.\n", $COPYRIGHT;
-	    print "License is Modified BSD (aka 3-clause BSD) License\n";
-	    print "<https://opensource.org/licenses/BSD-3-Clause>\n";
-	    exit 0;
-	}
-	if ($cli_opts{'shortversion'}) { # Just the version number string.
-	    print $VERSION;
-	    exit 0;
-	}
-	if ($cli_opts{'html4tags'}) {	 # Use HTML tag style instead of XHTML
-	    $options{empty_element_suffix} = ">";
-	}
-	if ($cli_opts{'htmlroot'}) {	 # Use URL prefix
-	    $options{url_prefix} = $cli_opts{'htmlroot'};
-	}
-	if ($cli_opts{'imageroot'}) {	 # Use image URL prefix
-	    $options{img_prefix} = $cli_opts{'imageroot'};
-	}
+sub _main {
+    local *ARGV = \@_;
 
 
-	#### Process incoming text: ###########################
-	for (;;) {
-	    local $_;
-	    {
-		local $/; # Slurp the whole file
-		$_ = <>;
-	    }
-	    defined($_) or last;
-	    print Markdown($_, \%options);
-	}
+    #### Check for command-line switches: #################
+    my %options = ();
+    my %cli_opts;
+    use Getopt::Long;
+    Getopt::Long::Configure(qw(bundling require_order pass_through));
+    GetOptions(\%cli_opts,
+	'help','h',
+	'version|V',
+	'shortversion|short-version|s',
+	'html4tags',
+	'htmlroot|r=s',
+	'imageroot|i=s',
+    );
+    if ($cli_opts{'help'}) {
+	pod2usage(-verbose => 2, -exitval => 0);
+    }
+    if ($cli_opts{'h'}) {
+	pod2usage(-verbose => 0, -exitval => 0);
+    }
+    if ($cli_opts{'version'}) { # Version info
+	print "\nThis is Markdown, version $VERSION.\n", $COPYRIGHT;
+	print "License is Modified BSD (aka 3-clause BSD) License\n";
+	print "<https://opensource.org/licenses/BSD-3-Clause>\n";
 	exit 0;
     }
-}
+    if ($cli_opts{'shortversion'}) { # Just the version number string.
+	print $VERSION;
+	exit 0;
+    }
+    if ($cli_opts{'html4tags'}) {	 # Use HTML tag style instead of XHTML
+	$options{empty_element_suffix} = ">";
+    }
+    if ($cli_opts{'htmlroot'}) {	 # Use URL prefix
+	$options{url_prefix} = $cli_opts{'htmlroot'};
+    }
+    if ($cli_opts{'imageroot'}) {	 # Use image URL prefix
+	$options{img_prefix} = $cli_opts{'imageroot'};
+    }
 
 
-# Return a "block id" to use to identify the block that does not contain
-# any characters that could be misinterpreted by the rest of the code
-# Originally this used md5_hex but that's unnecessarily slow
-# Instead just use the refaddr of the scalar ref of the entry for that
-# key in either the global or, if the optional second argument is true,
-# permanent table.  To avoid the result being confused with anything
-# else, it's prefixed with a control character and suffixed with another
-# both of which are not allowed by the XML standard or Unicode.
-sub block_id {
-    $_[1] ?
-    "\2".refaddr(\$g_perm_block_ids{$_[0]})."\3" :
-    "\5".refaddr(\$g_block_ids{$_[0]})."\6";
+    #### Process incoming text: ###########################
+    for (;;) {
+	local $_;
+	{
+	    local $/; # Slurp the whole file
+	    $_ = <>;
+	}
+	defined($_) or last;
+	print Markdown($_, \%options);
+    }
+
+
+    exit 0;
 }
 
 
 sub Markdown {
 #
-# Main function. The order in which other subs are called here is
+# Primary function. The order in which other subs are called here is
 # essential. Link and image substitutions need to happen before
 # _EscapeSpecialChars(), so that any *'s or _'s in the <a>
 # and <img> tags get encoded.
@@ -426,6 +441,11 @@ sub _StripLinkDefinitions {
     return $text;
 }
 
+my ($block_tags_a, $block_tags_b);
+BEGIN {
+    $block_tags_a = qr/p|div|h[1-6]|blockquote|pre|table|dl|ol|ul|script|noscript|form|fieldset|iframe|math|ins|del/o;
+    $block_tags_b = qr/p|div|h[1-6]|blockquote|pre|table|dl|ol|ul|script|noscript|form|fieldset|iframe|math/o;
+}
 
 sub _HashHTMLBlocks {
     my $text = shift;
@@ -437,8 +457,6 @@ sub _HashHTMLBlocks {
     # "paragraphs" that are wrapped in non-block-level tags, such as anchors,
     # phrase emphasis, and spans. The list of tags we're looking for is
     # hard-coded:
-    my $block_tags_a = qr/p|div|h[1-6]|blockquote|pre|table|dl|ol|ul|script|noscript|form|fieldset|iframe|math|ins|del/;
-    my $block_tags_b = qr/p|div|h[1-6]|blockquote|pre|table|dl|ol|ul|script|noscript|form|fieldset|iframe|math/;
 
     # First, look for nested blocks, e.g.:
     #   <div>
@@ -882,17 +900,20 @@ sub _DoHeaders {
 }
 
 
+my ($marker_ul, $marker_ol, $marker_any);
+BEGIN {
+    # Re-usable patterns to match list item bullets and number markers:
+    $marker_ul  = qr/[*+-]/o;
+    $marker_ol  = qr/\d+[.]/o;
+    $marker_any = qr/(?:$marker_ul|$marker_ol)/o;
+}
+
 sub _DoLists {
 #
 # Form HTML ordered (numbered) and unordered (bulleted) lists.
 #
     my $text = shift;
     my $less_than_tab = $opt{tab_width} - 1;
-
-    # Re-usable patterns to match list item bullets and number markers:
-    my $marker_ul  = qr/[*+-]/;
-    my $marker_ol  = qr/\d+[.]/;
-    my $marker_any = qr/(?:$marker_ul|$marker_ol)/;
 
     # Re-usable pattern to match any entirel ul or ol list:
     my $whole_list = qr{
@@ -1132,13 +1153,7 @@ sub _EncodeCode {
 
     # Encode $'s, but only if we're running under Blosxom.
     # (Blosxom interpolates Perl variables in article bodies.)
-    {
-	no warnings 'once';
-    if (defined($blosxom::version)) {
-	s/\$/&#036;/g;
-    }
-    }
-
+    s/\$/&#036;/g if $_haveBX;
 
     # Do the angle bracket song and dance:
     s! <  !&lt;!gx;
@@ -1396,7 +1411,7 @@ sub _TokenizeHTML {
     my $nested_tags = join('|', ('(?:<[a-z/!$](?:[^<>]') x $depth) . (')*>)' x $depth);
     my $match = qr/(?s: <! ( -- .*? -- \s* )+ > ) | # comment
 		   (?s: <\? .*? \?> ) |		    # processing instruction
-		   $nested_tags/ix;		    # nested tags
+		   $nested_tags/iox;		    # nested tags
 
     while ($str =~ m/($match)/g) {
 	my $whole_tag = $1;
