@@ -730,6 +730,25 @@ sub _EscapeSpecialChars {
 }
 
 
+sub _ProcessWikiLink {
+    my ($link_text, $link_loc) = @_;
+    if (defined($link_loc) && $link_loc =~ m{^(?:http|ftp)s?://\S+$}i) {
+	# Just rewrite it to [...](...) form
+	return "[".$link_text."](".$link_loc.")";
+    }
+    if (defined($link_loc)) {
+	# We don't handle any other kind of "bar" links yet
+	return undef;
+    }
+    if ($link_text =~ m{^(?:http|ftp)s?://\S+$}i) {
+	# Just rewrite it to [...](...) form
+	return "[".$link_text."](".$link_text.")";
+    }
+    # We don't handle any other wiki-style links yet
+    return undef;
+}
+
+
 sub _DoAnchors {
 #
 # Turn Markdown link shortcuts into XHTML <a> tags.
@@ -737,7 +756,32 @@ sub _DoAnchors {
     my $text = shift;
 
     #
-    # First, handle reference-style links: [link text] [id]
+    # First, handle wiki-style links: [[wiki style link]]
+    #
+    $text =~ s{
+	(		    # wrap whole match in $1
+	  \[\[
+	    ($g_nested_brackets) # link text and id = $2
+	  \]\]
+	)
+    }{
+	my $result;
+	my $whole_match = $1;
+	my $link_text	= $2;
+	my $link_loc    = undef;
+
+	if ($link_text =~ /^(.*)\|(.*)$/s) {
+	    $link_text = $1;
+	    $link_loc = $2;
+	}
+
+	$result = _ProcessWikiLink($link_text, $link_loc);
+	defined($result) or $result = $whole_match;
+	$result;
+    }xsge;
+
+    #
+    # Next, handle reference-style links: [link text] [id]
     #
     $text =~ s{
 	(		    # wrap whole match in $1
@@ -783,7 +827,7 @@ sub _DoAnchors {
     }xsge;
 
     #
-    # Next, inline-style links: [link text](url "optional title")
+    # Finally, inline-style links: [link text](url "optional title")
     #
     $text =~ s{
 	(		# wrap whole match in $1
