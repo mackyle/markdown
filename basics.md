@@ -1,13 +1,14 @@
+================
 Markdown: Basics
 ================
 
-<ul id="ProjectSubmenu">
-    <li><a class="selected" title="Markdown Basics">Basics</a></li>
-    <li><a href="syntax.html" title="Markdown Syntax Documentation">Syntax</a></li>
-    <li><a href="LICENSE.html" title="License Information">License</a></li>
-</ul>
+* _[Markdown Basics]( "Markdown Basics")_
+* [Syntax][]
+* [License][]
 
+- - - - -
 
+------------------------------------------------
 Getting the Gist of Markdown's Formatting Syntax
 ------------------------------------------------
 
@@ -25,11 +26,14 @@ and translate it to XHTML.
 **Note:** This document is itself written using Markdown; you
 can [see the source for it by adding `.md` to the URL] [src].
 
-  [s]: syntax.html  "Markdown Syntax"
+  [syntax]: syntax.html  "Markdown Syntax"
+  [license]: license.html "License Information"
   [src]: basics.md
 
 
-## Paragraphs, Headers, Blockquotes ##
+--------------------------------
+Paragraphs, Headers, Blockquotes
+--------------------------------
 
 A paragraph is simply one or more consecutive lines of text, separated
 by one or more blank lines.  (A blank line is any line that looks like
@@ -102,8 +106,9 @@ Output:
       </blockquote>
 
 
-
-### Phrase Emphasis ###
+~~~~~~~~~~~~~~~
+Phrase Emphasis
+~~~~~~~~~~~~~~~
 
 Markdown uses asterisks and underscores to indicate spans of emphasis.
 
@@ -126,8 +131,9 @@ Output:
       Or, even, <strke>strike through instead</strike>.</p>
 
 
-
-## Lists ##
+-----
+Lists
+-----
 
 Unordered (bulleted) lists use asterisks, pluses, and hyphens (`*`,
 `+`, and `-`) as list markers. These three markers are
@@ -191,8 +197,9 @@ Output:
       </ul>
 
 
-
-### Links ###
+~~~~~
+Links
+~~~~~
 
 Markdown supports two styles for creating links: *inline* and
 *reference*. With both styles, you use square brackets to delimit the
@@ -248,7 +255,9 @@ Output:
       <a href="http://www.nytimes.com/">The New York Times</a>.</p>
 
 
-### Images ###
+~~~~~~
+Images
+~~~~~~
 
 Image syntax is very much like link syntax.
 
@@ -267,8 +276,9 @@ Both of the above examples produce the same output:
       <img src="/path/to/img.jpg" alt="alt text" title="Title" />
 
 
-
-### Code ###
+~~~~
+Code
+~~~~
 
 In a regular paragraph, you can create code span by wrapping text in
 backtick quotes. Any ampersands (`&`) and angle brackets (`<` or
