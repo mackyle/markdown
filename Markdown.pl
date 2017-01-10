@@ -373,7 +373,7 @@ sub Markdown {
     # Strip link definitions, store in hashes.
     $text = _StripLinkDefinitions($text);
 
-    $text = _RunBlockGamut($text);
+    $text = _RunBlockGamut("\n".$text);
 
     # Unhashify code blocks
     $text =~ s/(\005\d+\006)/$g_code_blocks{$1}/g;
@@ -936,6 +936,7 @@ sub _DoLists {
     my $whole_list = qr{
 	(			    # $1 = whole list
 	  (			    # $2
+	    (?<=\n)
 	    [ ]{0,$less_than_indent}
 	    (${marker_any})	    # $3 = first list item marker
 	    [ \t]+
