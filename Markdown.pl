@@ -66,6 +66,7 @@ my %g_urls;
 my %g_titles;
 my %g_block_ids;
 my %g_html_blocks;
+my %g_code_blocks;
 my %opt;
 
 # Return a "block id" to use to identify the block that does not contain
@@ -344,6 +345,7 @@ sub Markdown {
     %g_titles = ();
     %g_block_ids = ();
     %g_html_blocks = ();
+    %g_code_blocks = ();
     $g_list_level = 0;
 
     # Standardize line endings:
@@ -372,6 +374,9 @@ sub Markdown {
     $text = _StripLinkDefinitions($text);
 
     $text = _RunBlockGamut($text);
+
+    # Unhashify code blocks
+    $text =~ s/(\005\d+\006)/$g_code_blocks{$1}/g;
 
     $text = _UnescapeSpecialChars($text);
 
@@ -402,7 +407,7 @@ sub _HashBTCodeBlocks {
 	    $codeblock =~ s/\A\n+//; # trim leading newlines
 	    $codeblock =~ s/\s+\z//; # trim trailing whitespace
 	    $codeblock = _EncodeCode($codeblock); # or run highlighter here
-	    $codeblock = "<pre><code>" . $codeblock . "\n</code></pre>";
+	    $codeblock = "<div><dl></dl><pre><code>" . $codeblock . "\n</code></pre></div>";
 
 	    my $key = block_id($codeblock);
 	    $g_html_blocks{$key} = $codeblock;
@@ -980,7 +985,7 @@ sub _DoLists {
 		my $list_type = ($3 =~ m/$marker_ul/) ? "ul" : "ol";
 		# Turn double returns into triple returns, so that we can make a
 		# paragraph for the last item in a list, if necessary:
-		$list =~ s/\n{2,}/\n\n\n/g;
+		$list =~ s/\n\n/\n\n\n/g;
 		my $result = _ProcessListItems($list, $marker_any);
 		$result = "<$list_type>\n" . $result . "</$list_type>\n";
 		$result;
@@ -1006,7 +1011,7 @@ sub _DoLists {
 		my $list_type = ($3 =~ m/$marker_ul/) ? "ul" : "ol";
 		# Turn double returns into triple returns, so that we can make a
 		# paragraph for the last item in a list, if necessary:
-		$list =~ s/\n{2,}/\n\n\n/g;
+		$list =~ s/\n\n/\n\n\n/g;
 		my $result = _ProcessListItems($list, $marker_any);
 		$result = "<$list_type>\n" . $result . "</$list_type>\n";
 		$result;
@@ -1094,7 +1099,7 @@ sub _DoCodeBlocks {
     my $text = shift;
 
     $text =~ s{
-	    (?:\n\n|\A)
+	    (?:\n\n|\A\n?)
 	    (		# $1 = the code block -- one or more lines, starting with indent_width spaces
 	      (?:
 		(?:[ ]{$opt{indent_width}})  # Lines must start with indent_width of spaces
@@ -1104,15 +1109,16 @@ sub _DoCodeBlocks {
 	    ((?=^[ ]{0,$opt{indent_width}}\S)|\Z) # Lookahead for non-space at line-start, or end of doc
 	}{
 	    my $codeblock = $1;
-	    my $result; # return value
 
+	    $codeblock =~ s/\n\n\n/\n\n/g; # undo "paragraph for last list item" change
 	    $codeblock = _EncodeCode(_Outdent($codeblock));
 	    $codeblock =~ s/\A\n+//; # trim leading newlines
 	    $codeblock =~ s/\s+\z//; # trim trailing whitespace
 
-	    $result = "\n\n<pre><code>" . $codeblock . "\n</code></pre>\n\n";
-
-	    $result;
+	    my $result = "<div><dl></dl><pre><code>" . $codeblock . "\n</code></pre></div>";
+	    my $key = block_id($result);
+	    $g_code_blocks{$key} = $result;
+	    "\n\n" . $key . "\n\n";
 	}egmx;
 
     return $text;
@@ -1232,15 +1238,6 @@ sub _DoBlockQuotes {
 	    $bq = _RunBlockGamut($bq);	 # recurse
 
 	    $bq =~ s/^/  /mg;
-	    # These leading spaces screw with <pre> content, so we need to fix that:
-	    $bq =~ s{
-		    (\s*)(<pre>.+?</pre>)
-		}{
-		    my ($indent, $pre) = ($1, $2);
-		    $pre =~ s/^  //mg;
-		    $indent.$pre;
-		}egsx;
-
 	    "<blockquote>\n$bq\n</blockquote>\n\n";
 	}egmx;
 
@@ -1266,7 +1263,7 @@ sub _FormParagraphs {
     # Wrap <p> tags.
     #
     foreach (@grafs) {
-	unless (defined( $g_html_blocks{$_} )) {
+	unless (defined($g_html_blocks{$_}) || defined($g_code_blocks{$_})) {
 	    $_ = _RunSpanGamut($_);
 	    s/^([ \t]*)/<p>/;
 	    $_ .= "</p>";
