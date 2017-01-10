@@ -46,8 +46,9 @@ exit(&_main(@ARGV)||0) unless caller;
 #
 # Global default settings:
 #
-my ($g_empty_element_suffix, $g_indent_width, $g_tab_width);
+my ($g_style_prefix, $g_empty_element_suffix, $g_indent_width, $g_tab_width);
 BEGIN {
+    $g_style_prefix = "_markdown-";	# Prefix for markdown css class styles
     $g_empty_element_suffix = " />";	# Change to ">" for HTML output
     $g_indent_width = 4;		# Number of spaces considered new level
     $g_tab_width = 4;			# Legacy even though it's wrong
@@ -57,6 +58,9 @@ BEGIN {
 #
 # Globals:
 #
+
+# Style sheet template
+my $g_style_sheet;
 
 # Permanent block id table
 my %g_perm_block_ids;
@@ -257,6 +261,7 @@ sub _main {
 	'htmlroot|r=s',
 	'imageroot|i=s',
 	'tabwidth|tab-width=s',
+	'stylesheet|style-sheet',
     );
     if ($cli_opts{'help'}) {
 	pod2usage(-verbose => 2, -exitval => 0);
@@ -289,8 +294,17 @@ sub _main {
     if ($cli_opts{'imageroot'}) {	 # Use image URL prefix
 	$options{img_prefix} = $cli_opts{'imageroot'};
     }
+    if ($cli_opts{'stylesheet'}) {  # Display the style sheet
+	$options{show_styles} = 1;
+    }
     $options{tab_width} = 8 unless defined($options{tab_width});
 
+    #### Show the style sheet if requested
+    if ($options{show_styles}) {
+	my $stylesheet = $g_style_sheet;
+	$stylesheet =~ s/%\(base\)/$g_style_prefix/g;
+	print $stylesheet;
+    }
 
     #### Process incoming text: ###########################
     for (;;) {
@@ -322,6 +336,7 @@ sub Markdown {
     # hashref or a list of name, value paurs.
     %opt = (
 	# set initial defaults
+	style_prefix		=> $g_style_prefix,
 	empty_element_suffix	=> $g_empty_element_suffix,
 	tab_width		=> $g_tab_width,
 	indent_width		=> $g_indent_width,
@@ -382,7 +397,8 @@ sub Markdown {
 
     $text = _UnescapeSpecialChars($text);
 
-    return $text . "\n";
+    $text .= "\n" unless $text eq "";
+    return $text;
 }
 
 
@@ -409,7 +425,8 @@ sub _HashBTCodeBlocks {
 	    $codeblock =~ s/\A\n+//; # trim leading newlines
 	    $codeblock =~ s/\s+\z//; # trim trailing whitespace
 	    $codeblock = _EncodeCode($codeblock); # or run highlighter here
-	    $codeblock = "<div><dl></dl><pre><code>" . $codeblock . "\n</code></pre></div>";
+	    $codeblock = "<div class=\"$opt{style_prefix}code-bt\"><dl></dl><pre><code>"
+		. $codeblock . "\n</code></pre></div>";
 
 	    my $key = block_id($codeblock);
 	    $g_html_blocks{$key} = $codeblock;
@@ -1024,7 +1041,7 @@ sub _DoLists {
 		# Turn double returns into triple returns, so that we can make a
 		# paragraph for the last item in a list, if necessary:
 		$list =~ s/\n\n/\n\n\n/g;
-		my $result = _ProcessListItems($list, $marker_any);
+		my $result = _ProcessListItems($list_type, $list, $marker_any);
 		$result = "<$list_type>\n" . $result . "</$list_type>\n";
 		$result;
 	    }egmx;
@@ -1050,7 +1067,7 @@ sub _DoLists {
 		# Turn double returns into triple returns, so that we can make a
 		# paragraph for the last item in a list, if necessary:
 		$list =~ s/\n\n/\n\n\n/g;
-		my $result = _ProcessListItems($list, $marker_any);
+		my $result = _ProcessListItems($list_type, $list, $marker_any);
 		$result = "<$list_type>\n" . $result . "</$list_type>\n";
 		$result;
 	    }egmx;
@@ -1067,6 +1084,7 @@ sub _ProcessListItems {
 #   into individual list items.
 #
 
+    my $list_type = shift;
     my $list_str = shift;
     my $marker_any = shift;
 
@@ -1097,18 +1115,33 @@ sub _ProcessListItems {
     # trim trailing blank lines:
     $list_str =~ s/\n{2,}\z/\n/;
 
-
     $list_str =~ s{
 	(\n)?				# leading line = $1
 	(^[ ]*)				# leading whitespace = $2
-	($marker_any) [ ]+		# list marker = $3
-	((?s:.+?)			# list item text   = $4
-	(\n{1,2}))
+	($marker_any) [ ] ([ ]*)	# list marker = $3 leading item space = $4
+	((?s:.+?)			# list item text = $5
+	 (?:\n{1,2}))
 	(?= \n* (?: \z | \2 $marker_any [ ]))
     }{
-	my $item = $4;
+	my $item = $5;
 	my $leading_line = $1;
 	my $leading_space = $2;
+	my $leading_item_space = $4;
+	my $liclass = '';
+	my $checkbox = '';
+
+	if ($list_type eq "ul" && !$leading_item_space && $item =~ /^\[([ xX])\] +(.*)$/s) {
+	    my $checkmark = lc $1;
+	    $item = $2;
+	    my ($checkbox_class, $checkbox_val);
+	    if ($checkmark eq "x") {
+		($checkbox_class, $checkbox_val) = ("checkbox-on", "x");
+	    } else {
+		($checkbox_class, $checkbox_val) = ("checkbox-off", "&#160;");
+	    }
+	    $liclass = " class=\"$opt{style_prefix}$checkbox_class\"";
+	    $checkbox = "<span><span></span></span><span></span><span>[<tt>$checkbox_val</tt>]&#160;</span>";
+	}
 
 	if ($leading_line or ($item =~ m/\n{2,}/)) {
 	    $item = _RunBlockGamut(_Outdent($item));
@@ -1120,7 +1153,7 @@ sub _ProcessListItems {
 	    $item = _RunSpanGamut($item);
 	}
 
-	"<li>" . $item . "</li>\n";
+	"<li$liclass>" . $checkbox . $item . "</li>\n";
     }egmx;
 
     $g_list_level--;
@@ -1153,7 +1186,8 @@ sub _DoCodeBlocks {
 	    $codeblock =~ s/\A\n+//; # trim leading newlines
 	    $codeblock =~ s/\s+\z//; # trim trailing whitespace
 
-	    my $result = "<div><dl></dl><pre><code>" . $codeblock . "\n</code></pre></div>";
+	    my $result = "<div class=\"$opt{style_prefix}code\"><dl></dl><pre><code>"
+		. $codeblock . "\n</code></pre></div>";
 	    my $key = block_id($result);
 	    $g_code_blocks{$key} = $result;
 	    "\n\n" . $key . "\n\n";
@@ -1530,12 +1564,107 @@ sub _PrefixURL {
 }
 
 
+BEGIN {
+    $g_style_sheet = <<'STYLESHEET';
+
+<style type="text/css">
+/* <![CDATA[ */
+
+/* Markdown.pl fancy style sheet
+** Copyright (C) 2017 Kyle J. McKay.
+** All rights reserved.
+**
+** Redistribution and use in source and binary forms, with or without
+** modification, are permitted provided that the following conditions are met:
+**
+**   1. Redistributions of source code must retain the above copyright notice,
+**      this list of conditions and the following disclaimer.
+**
+**   2. Redistributions in binary form must reproduce the above copyright
+**      notice, this list of conditions and the following disclaimer in the
+**      documentation and/or other materials provided with the distribution.
+**
+**   3. Neither the name of the copyright holder nor the names of its
+**      contributors may be used to endorse or promote products derived from
+**      this software without specific prior written permission.
+**
+** THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+** AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+** IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+** ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+** LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+** CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+** SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+** INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+** CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+** ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+** POSSIBILITY OF SUCH DAMAGE.
+*/
+
+div.%(base)code-bt > pre, div.%(base)code > pre {
+	margin: 0 3ex;
+	padding: 1ex;
+	background-color: #eee;
+	overflow: auto;
+}
+
+li.%(base)checkbox-on,
+li.%(base)checkbox-off {
+	list-style-type: none;
+	display: block;
+}
+li.%(base)checkbox-on > span:first-child + span + span,
+li.%(base)checkbox-off > span:first-child + span + span {
+	position: absolute;
+	clip: rect(0,0,0,0);
+}
+li.%(base)checkbox-on > span:first-child,
+li.%(base)checkbox-off > span:first-child,
+li.%(base)checkbox-on > span:first-child + span,
+li.%(base)checkbox-off > span:first-child + span {
+	display: block;
+	position: absolute;
+	margin-left: -3ex;
+	width: 1em;
+	height: 1em;
+}
+li.%(base)checkbox-on > span:first-child > span:first-child,
+li.%(base)checkbox-off > span:first-child > span:first-child {
+	display: block;
+	position: absolute;
+	left: 0.75pt; top: 0.75pt; right: 0.75pt; bottom: 0.75pt;
+}
+li.%(base)checkbox-on > span:first-child > span:first-child:before,
+li.%(base)checkbox-off > span:first-child > span:first-child:before {
+	display: inline-block;
+	position: relative;
+	right: 1pt;
+	width: 100%;
+	height: 100%;
+	border: 1pt solid;
+	content: "";
+}
+li.%(base)checkbox-on > span:first-child + span:before {
+	position: relative;
+	left: 2pt;
+	bottom: 1pt;
+	font-size: 125%;
+	line-height: 80%;
+	content: "\2713";
+}
+
+/* ]]> */
+</style>
+
+STYLESHEET
+    $g_style_sheet =~ s/^\s+//g;
+    $g_style_sheet =~ s/\s+$//g;
+    $g_style_sheet .= "\n";
+}
+
 1;
 
 __DATA__
-
-
-=pod
 
 =head1 NAME
 
@@ -1545,7 +1674,7 @@ Markdown.pl - convert Markdown format text files to HTML
 
 B<Markdown.pl> [B<--help>] [B<--html4tags>] [B<--htmlroot>=I<prefix>]
     [B<--imageroot>=I<prefix>] [B<--version>] [B<--shortversion>]
-    [B<--tabwidth>=I<num>] [--] [I<file>...]
+    [B<--tabwidth>=I<num>] [B<--stylesheet>] [--] [I<file>...]
 
  Options:
    -h                                   show short usage help
@@ -1559,6 +1688,7 @@ B<Markdown.pl> [B<--help>] [B<--html4tags>] [B<--htmlroot>=I<prefix>]
    -V | --version                       show version, authors, license
                                         and copyright
    -s | --shortversion                  show just the version number
+   --stylesheet                         output the fancy style sheet
    --                                   end options and treat next
                                         argument as file
 
@@ -1630,6 +1760,16 @@ Display Markdown's version number and copyright information.
 =item B<-s>, B<--shortversion>
 
 Display the short-form version number.
+
+
+=item B<--stylesheet>
+
+Include the fancy style sheet at the beginning of the output.  This style
+sheet makes fancy checkboxes and list numbering work.  Without it things
+will still look fine except that the fancy stuff won't be there.
+
+Use this option with no other arguments and redirect standard input to
+/dev/null to get just the style sheet and nothing else.
 
 
 =item B<-h>, B<--help>
