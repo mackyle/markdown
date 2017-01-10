@@ -687,6 +687,14 @@ tend to put them immediately after each paragraph in which they're
 used, but if you want, you can put them all at the end of your
 document, sort of like footnotes.
 
+All first, second and third level headers defined at the top-level
+(in other words they are not in lists and start at the left margin)
+using either the setext-style or atx-style automatically have an
+anchor id and link definition added for them provided there is not
+already a previous definition with the same id.  You can use this
+to place a table-of-contents at the top of the document that links
+to subsections later in the document.
+
 Here's an example of reference links in action:
 
       I get 10 times more traffic from [Google] [1] than from

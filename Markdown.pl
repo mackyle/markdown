@@ -27,7 +27,7 @@ All rights reserved.
 }
 
 require Exporter;
-use Digest::MD5 qw(md5);
+use Digest::MD5 qw(md5 md5_hex);
 use File::Basename qw(basename);
 use Scalar::Util qw(refaddr looks_like_number);
 use Pod::Usage;
@@ -64,6 +64,7 @@ my %g_perm_block_ids;
 # Global hashes, used by various utility routines
 my %g_urls;
 my %g_titles;
+my %g_anchors;
 my %g_block_ids;
 my %g_html_blocks;
 my %g_code_blocks;
@@ -343,6 +344,7 @@ sub Markdown {
     # articles):
     %g_urls = ();
     %g_titles = ();
+    %g_anchors = ();
     %g_block_ids = ();
     %g_html_blocks = ();
     %g_code_blocks = ();
@@ -373,7 +375,7 @@ sub Markdown {
     # Strip link definitions, store in hashes.
     $text = _StripLinkDefinitions($text);
 
-    $text = _RunBlockGamut("\n".$text);
+    $text = _RunBlockGamut("\n".$text, 1);
 
     # Unhashify code blocks
     $text =~ s/(\005\d+\006)/$g_code_blocks{$1}/g;
@@ -575,9 +577,9 @@ sub _RunBlockGamut {
 # These are all the transformations that form block-level
 # tags like paragraphs, headers, and list items.
 #
-    my $text = shift;
+    my ($text, $anchors) = @_;
 
-    $text = _DoHeaders($text);
+    $text = _DoHeaders($text, $anchors);
 
     # Do Horizontal Rules:
     $text =~ s{^ {0,3}\*(?: {0,2}\*){2,}[ \t]*$}{\n<hr$opt{empty_element_suffix}\n}gm;
@@ -694,8 +696,9 @@ sub _DoAnchors {
 	    $link_id = lc $link_text;	  # for shortcut links like [this][].
 	}
 
-	if (defined $g_urls{$link_id}) {
-	    my $url = _PrefixURL($g_urls{$link_id});
+	if (defined($g_urls{$link_id}) || defined($g_anchors{$link_id})) {
+	    my $url = $g_urls{$link_id};
+	    $url = defined($url) ? _PrefixURL($url) : $g_anchors{$link_id};
 	    # We've got to encode these to avoid conflicting
 	    # with italics, bold and strike through.
 	    $url =~ s!([*_~])!$g_escape_table{$1}!g;
@@ -866,8 +869,31 @@ sub _DoImages {
 }
 
 
+sub _MakeAnchorId {
+    use bytes;
+    my $link = lc(shift);
+    $link =~ s/^\s+//;
+    $link =~ s/\s+$//;
+    $link =~ s/\s+/ /g;
+    $link =~ tr/-a-z0-9_/_/cs;
+    return '' unless $link ne '';
+    $link = md5_hex($link) if length($link) > 64;
+    "_".$link."_";
+}
+
+
+sub _GetNewAnchorId {
+    my $link = lc(shift);
+    return '' if defined($g_anchors{$link});
+    my $id = _MakeAnchorId($link);
+    return '' unless $id;
+    $g_anchors{$link} = '#'.$id;
+    $id;
+}
+
+
 sub _DoHeaders {
-    my $text = shift;
+    my ($text, $anchors) = @_;
 
     # Setext-style headers:
     #     Header 1
@@ -880,15 +906,24 @@ sub _DoHeaders {
     #     ~~~~~~~~
     #
     $text =~ s{ ^(?:=+[ \t]*\n)?(.+)[ \t]*\n=+[ \t]*\n+ }{
-	"<h1>" . _RunSpanGamut($1) . "</h1>\n\n";
+	my $h = $1;
+	my $id = _GetNewAnchorId($h);
+	$id = " id=\"$id\"" if $id ne "";
+	"<h1$id>" . _RunSpanGamut($h) . "</h1>\n\n";
     }egmx;
 
     $text =~ s{ ^(?:-+[ \t]*\n)?(.+)[ \t]*\n-+[ \t]*\n+ }{
-	"<h2>" . _RunSpanGamut($1) . "</h2>\n\n";
+	my $h = $1;
+	my $id = _GetNewAnchorId($h);
+	$id = " id=\"$id\"" if $id ne "";
+	"<h2$id>" . _RunSpanGamut($h) . "</h2>\n\n";
     }egmx;
 
     $text =~ s{ ^(?:~+[ \t]*\n)?(.+)[ \t]*\n~+[ \t]*\n+ }{
-	"<h3>" . _RunSpanGamut($1) . "</h3>\n\n";
+	my $h = $1;
+	my $id = _GetNewAnchorId($h);
+	$id = " id=\"$id\"" if $id ne "";
+	"<h3$id>" . _RunSpanGamut($h) . "</h3>\n\n";
     }egmx;
 
 
@@ -907,8 +942,11 @@ sub _DoHeaders {
 	    \#*		# optional closing #'s (not counted)
 	    \n+
 	}{
+	    my $h = $2;
 	    my $h_level = length($1);
-	    "<h$h_level>" . _RunSpanGamut($2) . "</h$h_level>\n\n";
+	    my $id = $h_level <= 3 ? _GetNewAnchorId($h) : '';
+	    $id = " id=\"$id\"" if $id ne "";
+	    "<h$h_level$id>" . _RunSpanGamut($h) . "</h$h_level>\n\n";
 	}egmx;
 
     return $text;
