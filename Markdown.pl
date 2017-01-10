@@ -363,11 +363,11 @@ sub Markdown {
     # Convert all tabs to spaces.
     $text = _Detab($text);
 
-    # Strip any lines consisting only of spaces and tabs.
+    # Strip any lines consisting only of spaces.
     # This makes subsequent regexen easier to write, because we can
     # match consecutive blank lines with /\n+/ instead of something
-    # contorted like /[ \t]*\n+/ .
-    $text =~ s/^[ \t]+$//mg;
+    # contorted like / *\n+/ .
+    $text =~ s/^ +$//mg;
 
     # Turn block-level HTML blocks into hash entries
     $text = _HashHTMLBlocks($text);
@@ -431,19 +431,19 @@ sub _StripLinkDefinitions {
     # Link defs are in the form: ^[id]: url "optional title"
     while ($text =~ s{
 			^[ ]{0,$less_than_indent}\[(.+)\]: # id = $1
-			  [ \t]*
+			  [ ]*
 			  \n?		    # maybe *one* newline
-			  [ \t]*
+			  [ ]*
 			<?(\S+?)>?	    # url = $2
-			  [ \t]*
+			  [ ]*
 			  \n?		    # maybe one newline
-			  [ \t]*
+			  [ ]*
 			(?:
 			    (?<=\s)	    # lookbehind for whitespace
 			    ["(]
 			    (.+?)	    # title = $3
 			    [")]
-			    [ \t]*
+			    [ ]*
 			)?  # title is optional
 			(?:\n+|\Z)
 		    }
@@ -493,7 +493,7 @@ sub _HashHTMLBlocks {
 		    \b			# word break
 		    (.*\n)*?		# any number of lines, minimally matching
 		    </\2>		# the matching end tag
-		    [ \t]*		# trailing spaces/tabs
+		    [ ]*		# trailing spaces
 		    (?=\n+|\Z) # followed by a newline or end of document
 		)
 	    }{
@@ -513,7 +513,7 @@ sub _HashHTMLBlocks {
 		    \b			# word break
 		    (.*\n)*?		# any number of lines, minimally matching
 		    .*</\2>		# the matching end tag
-		    [ \t]*		# trailing spaces/tabs
+		    [ ]*		# trailing spaces
 		    (?=\n+|\Z) # followed by a newline or end of document
 		)
 	    }{
@@ -535,7 +535,7 @@ sub _HashHTMLBlocks {
 		    \b			# word break
 		    ([^<>])*?		#
 		    /?>			# the matching end tag
-		    [ \t]*
+		    [ ]*
 		    (?=\n{2,}|\Z)	# followed by a blank line or end of document
 		)
 	    }{
@@ -558,7 +558,7 @@ sub _HashHTMLBlocks {
 			(--.*?--\s*)+
 			>
 		    )
-		    [ \t]*
+		    [ ]*
 		    (?=\n{2,}|\Z)   # followed by a blank line or end of document
 		)
 	    }{
@@ -582,9 +582,9 @@ sub _RunBlockGamut {
     $text = _DoHeaders($text, $anchors);
 
     # Do Horizontal Rules:
-    $text =~ s{^ {0,3}\*(?: {0,2}\*){2,}[ \t]*$}{\n<hr$opt{empty_element_suffix}\n}gm;
-    $text =~ s{^ {0,3}\_(?: {0,2}\_){2,}[ \t]*$}{\n<hr$opt{empty_element_suffix}\n}gm;
-    $text =~ s{^ {0,3}\-(?: {0,2}\-){2,}[ \t]*$}{\n<hr$opt{empty_element_suffix}\n}gm;
+    $text =~ s{^ {0,3}\*(?: {0,2}\*){2,}[ ]*$}{\n<hr$opt{empty_element_suffix}\n}gm;
+    $text =~ s{^ {0,3}\_(?: {0,2}\_){2,}[ ]*$}{\n<hr$opt{empty_element_suffix}\n}gm;
+    $text =~ s{^ {0,3}\-(?: {0,2}\-){2,}[ ]*$}{\n<hr$opt{empty_element_suffix}\n}gm;
 
     $text = _DoLists($text);
 
@@ -725,9 +725,9 @@ sub _DoAnchors {
 	    ($g_nested_brackets) # link text = $2
 	  \]
 	  \(		# literal paren
-	    [ \t]*
+	    [ ]*
 	    <?(.*?)>?	# href = $3
-	    [ \t]*
+	    [ ]*
 	    (		# $4
 	      (['\042]) # quote char = $5
 	      (.*?)	# Title = $6
@@ -828,14 +828,14 @@ sub _DoImages {
 	    (.*?)	# alt text = $2
 	  \]
 	  \(		# literal paren
-	    [ \t]*
+	    [ ]*
 	    <?(\S+?)>?	# src url = $3
-	    [ \t]*
+	    [ ]*
 	    (		# $4
 	      (['\042]) # quote char = $5
 	      (.*?)	# title = $6
 	      \5	# matching quote
-	      [ \t]*
+	      [ ]*
 	    )?		# title is optional
 	  \)
 	)
@@ -905,21 +905,21 @@ sub _DoHeaders {
     #     Header 3
     #     ~~~~~~~~
     #
-    $text =~ s{ ^(?:=+[ \t]*\n)?(.+)[ \t]*\n=+[ \t]*\n+ }{
+    $text =~ s{ ^(?:=+[ ]*\n)?(.+)[ ]*\n=+[ ]*\n+ }{
 	my $h = $1;
 	my $id = _GetNewAnchorId($h);
 	$id = " id=\"$id\"" if $id ne "";
 	"<h1$id>" . _RunSpanGamut($h) . "</h1>\n\n";
     }egmx;
 
-    $text =~ s{ ^(?:-+[ \t]*\n)?(.+)[ \t]*\n-+[ \t]*\n+ }{
+    $text =~ s{ ^(?:-+[ ]*\n)?(.+)[ ]*\n-+[ ]*\n+ }{
 	my $h = $1;
 	my $id = _GetNewAnchorId($h);
 	$id = " id=\"$id\"" if $id ne "";
 	"<h2$id>" . _RunSpanGamut($h) . "</h2>\n\n";
     }egmx;
 
-    $text =~ s{ ^(?:~+[ \t]*\n)?(.+)[ \t]*\n~+[ \t]*\n+ }{
+    $text =~ s{ ^(?:~+[ ]*\n)?(.+)[ ]*\n~+[ ]*\n+ }{
 	my $h = $1;
 	my $id = _GetNewAnchorId($h);
 	$id = " id=\"$id\"" if $id ne "";
@@ -936,9 +936,9 @@ sub _DoHeaders {
     #
     $text =~ s{
 	    ^(\#{1,6})	# $1 = string of #'s
-	    [ \t]*
+	    [ ]*
 	    (.+?)	# $2 = Header text
-	    [ \t]*
+	    [ ]*
 	    \#*		# optional closing #'s (not counted)
 	    \n+
 	}{
@@ -977,7 +977,7 @@ sub _DoLists {
 	    (?<=\n)
 	    [ ]{0,$less_than_indent}
 	    (${marker_any})	    # $3 = first list item marker
-	    [ \t]+
+	    [ ]+
 	  )
 	  (?s:.+?)
 	  (			    # $4
@@ -986,8 +986,7 @@ sub _DoLists {
 	      \n{2,}
 	      (?=\S)
 	      (?!		    # Negative lookahead for another list item marker
-		[ \t]*
-		${marker_any}[ \t]+
+		${marker_any}[ ]
 	      )
 	  )
 	)
@@ -1101,11 +1100,11 @@ sub _ProcessListItems {
 
     $list_str =~ s{
 	(\n)?				# leading line = $1
-	(^[ \t]*)			# leading whitespace = $2
-	($marker_any) [ \t]+		# list marker = $3
+	(^[ ]*)				# leading whitespace = $2
+	($marker_any) [ ]+		# list marker = $3
 	((?s:.+?)			# list item text   = $4
 	(\n{1,2}))
-	(?= \n* (\z | \2 ($marker_any) [ \t]+))
+	(?= \n* (?: \z | \2 $marker_any [ ]))
     }{
 	my $item = $4;
 	my $leading_line = $1;
@@ -1200,8 +1199,8 @@ sub _DoCodeSpans {
 	    (?!`)
 	@
 	    my $c = "$2";
-	    $c =~ s/^[ \t]*//g; # leading whitespace
-	    $c =~ s/[ \t]*$//g; # trailing whitespace
+	    $c =~ s/^[ ]+//g; # leading whitespace
+	    $c =~ s/[ ]+$//g; # trailing whitespace
 	    $c = _EncodeCode($c);
 	    "<code>$c</code>";
 	@egsx;
@@ -1264,7 +1263,7 @@ sub _DoBlockQuotes {
     $text =~ s{
 	  (			# Wrap whole match in $1
 	    (
-	      ^[ \t]*>[ \t]?	# '>' at the start of a line
+	      ^[ ]*>[ ]?	# '>' at the start of a line
 		.+\n		# rest of the first line
 	      (.+\n)*		# subsequent consecutive lines
 	      \n*		# blanks
@@ -1272,8 +1271,8 @@ sub _DoBlockQuotes {
 	  )
 	}{
 	    my $bq = $1;
-	    $bq =~ s/^[ \t]*>[ \t]?//gm; # trim one level of quoting
-	    $bq =~ s/^[ \t]+$//mg;	 # trim whitespace-only lines
+	    $bq =~ s/^[ ]*>[ ]?//gm; # trim one level of quoting
+	    $bq =~ s/^[ ]+$//mg;	 # trim whitespace-only lines
 	    $bq = _RunBlockGamut($bq);	 # recurse
 
 	    $bq =~ s/^/  /mg;
@@ -1304,7 +1303,7 @@ sub _FormParagraphs {
     foreach (@grafs) {
 	unless (defined($g_html_blocks{$_}) || defined($g_code_blocks{$_})) {
 	    $_ = _RunSpanGamut($_);
-	    s/^([ \t]*)/<p>/;
+	    s/^([ ]*)/<p>/;
 	    $_ .= "</p>";
 	}
     }
