@@ -17,6 +17,7 @@ Markdown: Syntax
     *   [Headers][]
     *   [Blockquotes][]
     *   [Lists][]
+    *   [Style Sheet][]
     *   [Code Blocks][]
     *   [Horizontal Rules][]
 *   [Span Elements][]
@@ -327,7 +328,8 @@ Quote Level from the Text menu.
 Lists
 ~~~~~
 
-Markdown supports ordered (numbered) and unordered (bulleted) lists.
+Markdown supports ordered (numbered, lettered or roman numeraled)
+and unordered (bulleted) lists.
 
 Unordered lists use asterisks, pluses, and hyphens -- interchangably
 -- as list markers:
@@ -348,15 +350,19 @@ and:
       -   Green
       -   Blue
 
-Ordered lists use numbers followed by periods:
+Ordered lists use numbers or letters or roman numerals followed by a
+period or right parenthesis `)`:
 
       1.  Bird
       2.  McHale
       3.  Parish
 
-It's important to note that the actual numbers you use to mark the
-list have no effect on the HTML output Markdown produces. The HTML
-Markdown produces from the above list is:
+It's important to note that the actual numbers (or letters or roman
+numerals) you use to mark the list *do* have an effect on the HTML
+output Markdown produces, but only if you skip ahead and/or change
+the list marker style.
+
+The HTML Markdown produces from the above list is:
 
       <ol>
       <li>Bird</li>
@@ -376,14 +382,50 @@ or even:
       1. McHale
       8. Parish
 
-you'd get the exact same HTML output. The point is, if you want to,
-you can use ordinal numbers in your ordered Markdown lists, so that
-the numbers in your source match the numbers in your published HTML.
-But if you want to be lazy, you don't have to.
+you'd get the exact same HTML output in the first case, but in the
+second case the numbers would be in the sequence 3, 4 and 8 because
+you are only allowed to skip ahead (and the first item in the list
+must be numbered at least 0 [or `a`, `i`, etc.]).
+
+The point is, if you want to, you can use ordinal numbers in your
+ordered Markdown lists, so that the numbers in your source match the
+numbers in your published HTML.  But if you want to be lazy, you don't
+have to.
+
+The style of the list marker is determined by the first list item.
+If the first list item uses numbers the list style will be `decimal`.
+If the first list item uses a roman numeral then the list style will
+be either `lower-roman` or `upper-roman` depending on the case used.
+Similarly for any non-roman letter you get `lower-alpha` or `upper-alpha`.
+
+However, if later list items change the style, an attempt is made to
+modify the list item style for that item which should be effective in
+just about any browser available today.
+
+Similarly if a list item "skips ahead" an attempt is made to skip the
+list number ahead which again should be effective in just about any
+browser available today.
+
+A right parenthesis ')' may be used in place of the `.` for any of the
+numbering styles but it requires the [style sheet][] to be included or
+you will end up just seeing `.` instead.  For example this list:
+
+      a)  Alpha
+      b)  Beta
+      c)  Gamma
+
+will end up being displayed like this without the [style sheet][]:
+
+      a.  Alpha
+      b.  Beta
+      c.  Gamma
 
 If you do use lazy list numbering, however, you should still start the
-list with the number 1. At some point in the future, Markdown may support
-starting ordered lists at an arbitrary number.
+list with the number 1 (or letter A or a or roman numeral I or i) or even
+a higher number if desired and then stick with that number (or letter) for
+the rest of the items.  Since you may only skip forward in the numbering,
+the items will end up numbered (or "lettered") starting with the value
+used for the first item.
 
 List markers typically start at the left margin, but may be indented by
 up to three spaces.  List markers must be followed by one or more spaces.
@@ -480,6 +522,34 @@ In other words, a *number-period-space* sequence at the beginning of a
 line. To avoid this, you can backslash-escape the period:
 
       1986\. What a great season.
+
+Markdown tries to be smart about this and requires either a blank line
+before something that looks like a list item or requires that a list
+definition is already active or requires that two lines in a row look
+like list items in order for Markdown to recognize a list item.
+
+So the above, by itself without the escaped ".", will not start a list
+when it's outside of any list unless it's preceded by a blank line or
+immediately followed by another line that looks like a list item (either
+of the same kind or of a sublist).
+
+
+~~~~~~~~~~~
+Style Sheet
+~~~~~~~~~~~
+
+If an unordered list item begins with `[ ]` or `[x]` then its bullet will
+be suppressed and a nice checkbox shown instead.  In order for the fancy
+checkboxes to show the markdown style sheet must be included.
+
+It may be included in the output with the `--show-stylesheet` option.
+To get just the style sheet, run `Markdown.pl` with no arguments with the
+input redirected to `/dev/null`.  Without the style sheet these items
+will show normally (i.e. with a bullet and as `[ ]` or `[x]`).
+
+Ordered lists that make use of a `)` instead of a `.` to terminate the
+marker also require the style sheet otherwise they will display with
+the normal `.` marker termination.
 
 
 ~~~~~~~~~~~

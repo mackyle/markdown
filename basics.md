@@ -163,8 +163,9 @@ all produce the same output:
       <li>Booze.</li>
       </ul>
 
-Ordered (numbered) lists use regular numbers, followed by periods, as
-list markers:
+Ordered (numbered or lettered) lists use regular numbers (or letters or
+roman numerals), followed by periods (or right parentheses), as list
+markers:
 
       1.  Red
       2.  Green

@@ -970,13 +970,120 @@ sub _DoHeaders {
 }
 
 
-my ($marker_ul, $marker_ol, $marker_any);
+my ($marker_ul, $marker_ol, $marker_any, $roman_numeral);
 BEGIN {
     # Re-usable patterns to match list item bullets and number markers:
+    $roman_numeral = qr/(?:
+	[IiVvXx]|[Ii]{2,3}|[Ii][VvXx]|[VvXx][Ii]{1,3}|[Xx][Vv][Ii]{0,3}|
+	[Xx][Ii][VvXx]|[Xx]{2}[Ii]{0,3}|[Xx]{2}[Ii]?[Vv]|[Xx]{2}[Vv][Ii]{1,2})/ox;
     $marker_ul  = qr/[*+-]/o;
-    $marker_ol  = qr/\d+[.]/o;
+    $marker_ol  = qr/(?:\d+|[A-Za-z]|$roman_numeral)[.\)]/o;
     $marker_any = qr/(?:$marker_ul|$marker_ol)/o;
 }
+
+
+sub _GetListMarkerType {
+    my ($list_type, $list_marker, $first_marker) = @_;
+    return "" unless $list_type && $list_marker && lc($list_type) eq "ol";
+    unless ($list_marker =~ /^[IiVvXx][.\)]?$/ &&
+	    # these are roman unless $first_marker type is 'a' or 'A'
+	    defined($first_marker) &&
+	    lc(_GetListMarkerType($list_type, $first_marker)) eq 'a') {
+	return "I" if $list_marker =~ /^[IVX]/;
+	return "i" if $list_marker =~ /^[ivx]/;
+    }
+    return "A" if $list_marker =~ /^[A-Z]/;
+    return "a" if $list_marker =~ /^[a-z]/;
+    return "1";
+}
+
+
+sub _GetListItemClass {
+    my ($list_type, $list_marker, $first_marker) = @_;
+    my $list_marker_type = _GetListMarkerType($list_type, $list_marker, $first_marker);
+    return "" unless $list_marker_type =~ /^[IiAa1]$/ && $list_marker =~ /.\)$/;
+    return "upper-roman" if $list_marker_type eq "I";
+    return "lower-roman" if $list_marker_type eq "i";
+    return "upper-alpha" if $list_marker_type eq "A";
+    return "lower-alpha" if $list_marker_type eq "a";
+    return "decimal";
+}
+
+
+my %_roman_number_table;
+BEGIN {
+    %_roman_number_table = (
+	i	=>  1,
+	ii	=>  2,
+	iii	=>  3,
+	iv	=>  4,
+	v	=>  5,
+	vi	=>  6,
+	vii	=>  7,
+	viii	=>  8,
+	ix	=>  9,
+	x	=> 10,
+	xi	=> 11,
+	xii	=> 12,
+	xiii	=> 13,
+	xiv	=> 14,
+	xv	=> 15,
+	xvi	=> 16,
+	xvii	=> 17,
+	xviii	=> 18,
+	xix	=> 19,
+	xx	=> 20,
+	xxi	=> 21,
+	xxii	=> 22,
+	xxiii	=> 23,
+	xxiv	=> 24,
+	xxv	=> 25,
+	xxvi	=> 26,
+	xxvii	=> 27
+    );
+}
+
+
+sub _GetMarkerIntegerNum {
+    my ($list_marker_type, $marker_val) = @_;
+    my $ans = &{sub{
+	return 0 + $marker_val if $list_marker_type eq "1";
+	$list_marker_type = lc($list_marker_type);
+	$marker_val = lc($marker_val);
+	return ord($marker_val) - ord("a") + 1 if $list_marker_type eq "a";
+	return 1 unless $list_marker_type eq "i";
+	defined($_roman_number_table{$marker_val}) and
+	    return $_roman_number_table{$marker_val};
+	return 1;
+    }};
+    return $ans if $ans == 0 && $list_marker_type eq "1";
+    return $ans >= 1 ? $ans : 1;
+}
+
+
+sub _IncrList {
+    my ($from, $to, $extra) = @_;
+    $extra = defined($extra) ? " $extra" : "";
+    my $result = "";
+    while ($from + 10 <= $to) {
+	$result .= "<span$extra class=\"$opt{style_prefix}ol-incr-10\"></span>\n";
+	$from += 10;
+    }
+    while ($from + 5 <= $to) {
+	$result .= "<span$extra class=\"$opt{style_prefix}ol-incr-5\"></span>\n";
+	$from += 5;
+    }
+    while ($from + 2 <= $to) {
+	$result .= "<span$extra class=\"$opt{style_prefix}ol-incr-2\"></span>\n";
+	$from += 2;
+    }
+    while ($from < $to) {
+	$result .= "<span$extra class=\"$opt{style_prefix}ol-incr\"></span>\n";
+	++$from;
+    }
+    return $result;
+}
+
 
 sub _DoLists {
 #
@@ -987,17 +1094,17 @@ sub _DoLists {
     my $less_than_indent = $indent - 1;
     my $less_than_double_indent = 2 * $indent - 1;
 
-    # Re-usable pattern to match any entirel ul or ol list:
+    # Re-usable pattern to match any entire ul or ol list:
     my $whole_list = qr{
-	(			    # $1 = whole list
-	  (			    # $2
+	(			    # $1 (or $_[0]) = whole list
+	  (			    # $2 (or $_[1])
 	    (?<=\n)
 	    [ ]{0,$less_than_indent}
-	    (${marker_any})	    # $3 = first list item marker
+	    (${marker_any})	    # $3 (or $_[2]) = first list item marker
 	    [ ]+
 	  )
 	  (?s:.+?)
-	  (			    # $4
+	  (			    # $4 (or $_[3])
 	      \z
 	    |
 	      \n{2,}
@@ -1008,6 +1115,36 @@ sub _DoLists {
 	  )
 	)
     }mx;
+
+    my $list_item_sub = sub {
+	my $list = $_[0];
+	my $list_type = ($_[2] =~ m/$marker_ul/) ? "ul" : "ol";
+	my $list_class = "";
+	my $list_incr = "";
+	# Turn double returns into triple returns, so that we can make a
+	# paragraph for the last item in a list, if necessary:
+	$list =~ s/\n\n/\n\n\n/g;
+	my ($result, $first_marker, $fancy) = _ProcessListItems($list_type, $list);
+	my $list_marker_type = _GetListMarkerType($list_type, $first_marker);
+	if ($list_marker_type) {
+		$first_marker =~ s/[.\)]$//;
+		my $first_marker_num = _GetMarkerIntegerNum($list_marker_type, $first_marker);
+		$list_marker_type = $list_marker_type eq "1" ? "" : " type=\"$list_marker_type\"";
+		if ($fancy) {
+		    $list_class = " class=\"$opt{style_prefix}ol\"";
+		    my $start = $first_marker_num;
+		    $start = 10 if $start > 10;
+		    $start = 5 if $start > 5 && $start < 10;
+		    $start = 1 if $start > 1 && $start < 5;
+		    $list_marker_type .= " start=\"$start\"" unless $start == 1;
+		    $list_incr = _IncrList($start, $first_marker_num);
+		} else {
+		    $list_marker_type .= " start=\"$first_marker_num\"" unless $first_marker_num == 1;
+		}
+	}
+	$result = "<$list_type$list_marker_type$list_class>\n$list_incr" . $result . "</$list_type>\n";
+	$result;
+    };
 
     # We use a different prefix before nested lists than top-level lists.
     # See extended comment in _ProcessListItems().
@@ -1029,21 +1166,16 @@ sub _DoLists {
     #
     # Note: (kjm) With the addition of the two-of-the-same-kind-in-a-row-
     # starts-a-list-at-the-top-level rule the two patterns really are somewhat
-    # different now.
+    # different now, but the duplication has pretty much been eliminated via
+    # use of a separate sub which has the side-effect of making the below
+    # two cases much easier to grok all at once.
 
     if ($g_list_level) {
 	$text =~ s{
 		^
 		$whole_list
 	    }{
-		my $list = $1;
-		my $list_type = ($3 =~ m/$marker_ul/) ? "ul" : "ol";
-		# Turn double returns into triple returns, so that we can make a
-		# paragraph for the last item in a list, if necessary:
-		$list =~ s/\n\n/\n\n\n/g;
-		my $result = _ProcessListItems($list_type, $list, $marker_any);
-		$result = "<$list_type>\n" . $result . "</$list_type>\n";
-		$result;
+		&$list_item_sub($1, $2, $3, $4);
 	    }egmx;
     }
     else {
@@ -1062,17 +1194,9 @@ sub _DoLists {
 		)
 		$whole_list
 	    }{
-		my $list = $1;
-		my $list_type = ($3 =~ m/$marker_ul/) ? "ul" : "ol";
-		# Turn double returns into triple returns, so that we can make a
-		# paragraph for the last item in a list, if necessary:
-		$list =~ s/\n\n/\n\n\n/g;
-		my $result = _ProcessListItems($list_type, $list, $marker_any);
-		$result = "<$list_type>\n" . $result . "</$list_type>\n";
-		$result;
+		&$list_item_sub($1, $2, $3, $4);
 	    }egmx;
     }
-
 
     return $text;
 }
@@ -1086,8 +1210,6 @@ sub _ProcessListItems {
 
     my $list_type = shift;
     my $list_str = shift;
-    my $marker_any = shift;
-
 
     # The $g_list_level global keeps track of when we're inside a list.
     # Each time we enter a list, we increment it; when we leave a list,
@@ -1111,25 +1233,83 @@ sub _ProcessListItems {
     # starting cardinal number; e.g. "1." or "a.".
 
     $g_list_level++;
+    my $marker_kind = $list_type eq "ul" ? $marker_ul : $marker_ol;
+    my $first_marker;
+    my $first_marker_type;
+    my $first_marker_num;
+    my $fancy;
+    my $skipped;
+    my $typechanged;
+    my $next_num = 1;
 
     # trim trailing blank lines:
     $list_str =~ s/\n{2,}\z/\n/;
 
-    $list_str =~ s{
+    my $result = "";
+    my $oldpos = 0;
+    pos($list_str) = 0;
+    while ($list_str =~ m{\G		# start where we left off
 	(\n)?				# leading line = $1
 	(^[ ]*)				# leading whitespace = $2
 	($marker_any) [ ] ([ ]*)	# list marker = $3 leading item space = $4
-	((?s:.+?)			# list item text = $5
-	 (?:\n{1,2}))
-	(?= \n* (?: \z | \2 $marker_any [ ]))
-    }{
-	my $item = $5;
+    }cgmx) {
 	my $leading_line = $1;
 	my $leading_space = $2;
+	my $list_marker = $3;
+	my $list_marker_len = length($list_marker);
 	my $leading_item_space = $4;
-	my $liclass = '';
-	my $checkbox = '';
+	if ($-[0] > $oldpos) {
+	    $result .= substr($list_str, $oldpos, $-[0] - $oldpos); # Sort-of $`
+	    $oldpos = $-[0]; # point at start of this entire match
+	}
+	if ($list_marker !~ /$marker_kind/) {
+	    # Wrong marker kind, "fix up" the marker to a correct "lazy" marker
+	    # But keep the old length in $list_marker_len
+	    $list_marker = $list_type eq "ul" ? "*" : "1.";
+	}
 
+	# Now grab the rest of this item's data upto but excluding the next
+	# list marker at the SAME indent level, but sublists must be INCLUDED
+
+	my $item = "";
+	while ($list_str =~ m{\G
+	    ((?:.+?)(?:\n{1,2}))	# list item text = $1
+	    (?= \n* (?: \z |		# end of string OR
+		    (^[ ]*)		# leading whitespace = $2
+		    ($marker_any)	# next list marker = $3
+		    ([ ]+) ))		# one or more spaces after marker = $4
+	}cgmxs) {
+
+	    # If $3 has a left edge that is at the left edge of the previous
+	    # marker OR $3 has a right edge that is at the right edge of the
+	    # previous marker then we stop; otherwise we go on
+
+	    $item .= substr($list_str, $-[0], $+[0] - $-[0]); # $&
+	    last if !defined($4) || length($2) == length($leading_space) ||
+		length($2) + length($3) == length($leading_space) + $list_marker_len;
+	    # move along, you're not the marker droid we're looking for...
+	    $item .= substr($list_str, $+[0], $+[4] - $+[0]);
+	    pos($list_str) = $+[4]; # ...move along over the marker droid
+	}
+	# Remember where we parked
+	$oldpos = pos($list_str);
+
+	# Process the $list_marker $item
+
+	my $liatt = '';
+	my $checkbox = '';
+	my $incr = '';
+
+	if (!defined($first_marker)) {
+	    $first_marker = $list_marker;
+	    $first_marker_type = _GetListMarkerType($list_type, $first_marker);
+	    if ($first_marker_type) {
+		(my $marker_val = $first_marker) =~ s/[.\)]$//;
+		$first_marker_num = _GetMarkerIntegerNum($first_marker_type, $marker_val);
+		$next_num = $first_marker_num;
+		$skipped = 1 if $next_num != 1;
+	    }
+	}
 	if ($list_type eq "ul" && !$leading_item_space && $item =~ /^\[([ xX])\] +(.*)$/s) {
 	    my $checkmark = lc $1;
 	    $item = $2;
@@ -1139,8 +1319,26 @@ sub _ProcessListItems {
 	    } else {
 		($checkbox_class, $checkbox_val) = ("checkbox-off", "&#160;");
 	    }
-	    $liclass = " class=\"$opt{style_prefix}$checkbox_class\"";
+	    $liatt = " class=\"$opt{style_prefix}$checkbox_class\"";
 	    $checkbox = "<span><span></span></span><span></span><span>[<tt>$checkbox_val</tt>]&#160;</span>";
+	} else {
+	    $liatt = _GetListItemClass($list_type, $list_marker, $first_marker);
+	    if (lc($list_type) eq "ol" && defined($first_marker)) {
+		my $styled = $fancy = 1 if $liatt;
+		my $list_marker_type = _GetListMarkerType($list_type, $list_marker, $first_marker);
+		my $sfx = lc($list_marker_type) eq uc($list_marker_type) ? "" :
+		    (lc($list_marker_type) eq $list_marker_type ? "-lc" : "-uc");
+		$liatt = " class=\"$opt{style_prefix}li$sfx\"" if $liatt ne "";
+		$typechanged = 1 if $list_marker_type ne $first_marker_type;
+		$list_marker =~ s/[.\)]$//;
+		my $marker_num = _GetMarkerIntegerNum($list_marker_type, $list_marker);
+		$marker_num = $next_num if $marker_num < $next_num;
+		$skipped = 1 if $next_num < $marker_num;
+		$incr = _IncrList($next_num, $marker_num, "incrlevel=$g_list_level");
+		$liatt = " value=\"$marker_num\"$liatt" if $fancy || $skipped;
+		$liatt = " type=\"$list_marker_type\"$liatt" if $styled || $typechanged;
+		$next_num = $marker_num + 1;
+	    }
 	}
 
 	if ($leading_line or ($item =~ m/\n{2,}/)) {
@@ -1153,13 +1351,24 @@ sub _ProcessListItems {
 	    $item = _RunSpanGamut($item);
 	}
 
-	"<li$liclass>" . $checkbox . $item . "</li>\n";
-    }egmx;
+	# Append to $result
+	$result .= "$incr<li$liatt>" . $checkbox . $item . "</li>\n";
+    }
+    if ($fancy) {
+	# remove "incrlevel=$g_list_level " parts
+	$result =~ s{<span incrlevel=$g_list_level class="$opt{style_prefix}ol-incr((?:-\d{1,2})?)">}
+	    {<span class="$opt{style_prefix}ol-incr$1">}g;
+    } else {
+	# remove the $g_list_level incr spans entirely
+	$result =~ s{<span incrlevel=$g_list_level class="$opt{style_prefix}ol-incr(?:-\d{1,2})?"></span>\n}{}g;
+    }
+
+    # Anything left over (similar to $') goes into result
+    $result .= substr($list_str, pos($list_str));
 
     $g_list_level--;
-    return $list_str;
+    return ($result, $first_marker, $fancy);
 }
-
 
 
 sub _DoCodeBlocks {
@@ -1608,6 +1817,68 @@ div.%(base)code-bt > pre, div.%(base)code > pre {
 	overflow: auto;
 }
 
+ol.%(base)ol {
+	counter-reset: %(base)item;
+}
+ol.%(base)ol[start="0"] {
+	counter-reset: %(base)item -1;
+}
+ol.%(base)ol[start="5"] {
+	counter-reset: %(base)item 4;
+}
+ol.%(base)ol[start="10"] {
+	counter-reset: %(base)item 9;
+}
+ol.%(base)ol > span.%(base)ol-incr {
+	counter-increment: %(base)item;
+}
+ol.%(base)ol > span.%(base)ol-incr-2 {
+	counter-increment: %(base)item 2;
+}
+ol.%(base)ol > span.%(base)ol-incr-5 {
+	counter-increment: %(base)item 5;
+}
+ol.%(base)ol > span.%(base)ol-incr-10 {
+	counter-increment: %(base)item 10;
+}
+ol.%(base)ol > li {
+	counter-increment: %(base)item;
+}
+ol.%(base)ol > li.%(base)li,
+ol.%(base)ol > li.%(base)li-lc,
+ol.%(base)ol > li.%(base)li-uc {
+	list-style-type: none;
+	display: block;
+}
+ol.%(base)ol > li.%(base)li:before,
+ol.%(base)ol > li.%(base)li-lc:before,
+ol.%(base)ol > li.%(base)li-uc:before {
+	position: absolute;
+	text-align: right;
+	white-space: nowrap;
+	margin-left: -9ex;
+	width: 9ex;
+}
+ol.%(base)ol > li.%(base)li[type="1"]:before {
+	content: counter(%(base)item, decimal) ")\A0 \A0 ";
+}
+ol.%(base)ol > li.%(base)li-lc[type="i"]:before,
+ol.%(base)ol > li.%(base)li-lc[type="I"]:before {
+	content: counter(%(base)item, lower-roman) ")\A0 \A0 ";
+}
+ol.%(base)ol > li.%(base)li-uc[type="I"]:before,
+ol.%(base)ol > li.%(base)li-uc[type="i"]:before {
+	content: counter(%(base)item, upper-roman) ")\A0 \A0 ";
+}
+ol.%(base)ol > li.%(base)li-lc[type="a"]:before,
+ol.%(base)ol > li.%(base)li-lc[type="A"]:before {
+	content: counter(%(base)item, lower-alpha) ")\A0 \A0 ";
+}
+ol.%(base)ol > li.%(base)li-uc[type="A"]:before,
+ol.%(base)ol > li.%(base)li-uc[type="a"]:before {
+	content: counter(%(base)item, upper-alpha) ")\A0 \A0 ";
+}
+
 li.%(base)checkbox-on,
 li.%(base)checkbox-off {
 	list-style-type: none;
@@ -1765,8 +2036,9 @@ Display the short-form version number.
 =item B<--stylesheet>
 
 Include the fancy style sheet at the beginning of the output.  This style
-sheet makes fancy checkboxes and list numbering work.  Without it things
-will still look fine except that the fancy stuff won't be there.
+sheet makes fancy checkboxes and makes a right parenthesis C<)> show instead
+of a C<.> for ordered lists that use them.  Without it things will still look
+fine except that the fancy stuff won't be there.
 
 Use this option with no other arguments and redirect standard input to
 /dev/null to get just the style sheet and nothing else.
