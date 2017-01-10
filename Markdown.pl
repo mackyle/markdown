@@ -262,6 +262,8 @@ sub _main {
 	'imageroot|i=s',
 	'tabwidth|tab-width=s',
 	'stylesheet|style-sheet',
+	'no-stylesheet|no-style-sheet',
+	'stub',
     );
     if ($cli_opts{'help'}) {
 	pod2usage(-verbose => 2, -exitval => 0);
@@ -279,8 +281,13 @@ sub _main {
 	print $VERSION;
 	exit 0;
     }
+    my $stub = 0;
+    if ($cli_opts{'stub'}) {
+	$stub = 1;
+    }
     if ($cli_opts{'html4tags'}) {	 # Use HTML tag style instead of XHTML
 	$options{empty_element_suffix} = ">";
+	$stub = -$stub;
     }
     if ($cli_opts{'tabwidth'}) {
 	my $tw = $cli_opts{'tabwidth'};
@@ -297,16 +304,47 @@ sub _main {
     if ($cli_opts{'stylesheet'}) {  # Display the style sheet
 	$options{show_styles} = 1;
     }
+    if ($cli_opts{'no-stylesheet'}) {  # Do not display the style sheet
+	$options{show_styles} = 0;
+    }
+    $options{show_styles} = 1 if $stub && !defined($options{show_styles});
     $options{tab_width} = 8 unless defined($options{tab_width});
 
-    #### Show the style sheet if requested
-    if ($options{show_styles}) {
-	my $stylesheet = $g_style_sheet;
-	$stylesheet =~ s/%\(base\)/$g_style_prefix/g;
-	print $stylesheet;
-    }
+    my $hdr = sub {
+	if ($stub > 0) {
+	    print <<'HTML5';
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+HTML5
+	} elsif ($stub < 0) {
+	    print <<'HTML4';
+<html>
+<head>
+HTML4
+	}
+	if ($stub && ($options{title} || $options{h1})) {
+	    my $title = $options{title};
+	    defined($title) && $title ne "" or $title = $options{h1};
+	    if (defined($title) && $title ne "") {
+		$title =~ s/&/&amp;/g;
+		$title =~ s/</&lt;/g;
+		print "<title>$title</title>\n";
+	    }
+	}
+	if ($options{show_styles}) {
+	    my $stylesheet = $g_style_sheet;
+	    $stylesheet =~ s/%\(base\)/$g_style_prefix/g;
+	    print $stylesheet;
+	}
+	if ($stub) {
+	    print "</head>\n<body style=\"text-align:center\">\n",
+		"<div style=\"display:inline-block;text-align:left;max-width:42pc\">\n";
+	}
+    };
 
     #### Process incoming text: ###########################
+    my $didhdr;
     for (;;) {
 	local $_;
 	{
@@ -314,9 +352,17 @@ sub _main {
 	    $_ = <>;
 	}
 	defined($_) or last;
-	print Markdown($_, \%options);
+	my $result = Markdown($_, \%options);
+	if ($result ne "") {
+	    if (!$didhdr) {
+		&$hdr();
+		$didhdr = 1;
+	    }
+	    print $result;
+	}
     }
-
+    &$hdr() unless $didhdr;
+    print "</div>\n</body>\n</html>\n" if $stub;
 
     exit 0;
 }
@@ -398,6 +444,9 @@ sub Markdown {
     $text = _UnescapeSpecialChars($text);
 
     $text .= "\n" unless $text eq "";
+
+    ${$_[0]}{h1} = $opt{h1}
+	if defined($opt{h1}) && $opt{h1} ne "" && ref($_[0]) eq "HASH";
     return $text;
 }
 
@@ -911,6 +960,15 @@ sub _GetNewAnchorId {
 
 sub _DoHeaders {
     my ($text, $anchors) = @_;
+    my $h1;
+    my $geth1 = $anchors && !defined($opt{h1}) ? sub {
+	return unless !defined($h1);
+	my $h = shift;
+	$h =~ s/^\s+//;
+	$h =~ s/\s+$//;
+	$h =~ s/\s+/ /g;
+	$h1 = $h if $h ne "";
+    } : sub {};
 
     # Setext-style headers:
     #     Header 1
@@ -925,6 +983,7 @@ sub _DoHeaders {
     $text =~ s{ ^(?:=+[ ]*\n)?(.+)[ ]*\n=+[ ]*\n+ }{
 	my $h = $1;
 	my $id = _GetNewAnchorId($h);
+	&$geth1($h);
 	$id = " id=\"$id\"" if $id ne "";
 	"<h1$id>" . _RunSpanGamut($h) . "</h1>\n\n";
     }egmx;
@@ -962,10 +1021,12 @@ sub _DoHeaders {
 	    my $h = $2;
 	    my $h_level = length($1);
 	    my $id = $h_level <= 3 ? _GetNewAnchorId($h) : '';
+	    &$geth1($h) if $h_level == 1;
 	    $id = " id=\"$id\"" if $id ne "";
 	    "<h$h_level$id>" . _RunSpanGamut($h) . "</h$h_level>\n\n";
 	}egmx;
 
+    $opt{h1} = $h1 if defined($h1) && $h1 ne "";
     return $text;
 }
 
@@ -1945,7 +2006,8 @@ Markdown.pl - convert Markdown format text files to HTML
 
 B<Markdown.pl> [B<--help>] [B<--html4tags>] [B<--htmlroot>=I<prefix>]
     [B<--imageroot>=I<prefix>] [B<--version>] [B<--shortversion>]
-    [B<--tabwidth>=I<num>] [B<--stylesheet>] [--] [I<file>...]
+    [B<--tabwidth>=I<num>] [B<--stylesheet>] [B<--stub>] [--]
+    [I<file>...]
 
  Options:
    -h                                   show short usage help
@@ -1960,6 +2022,9 @@ B<Markdown.pl> [B<--help>] [B<--html4tags>] [B<--htmlroot>=I<prefix>]
                                         and copyright
    -s | --shortversion                  show just the version number
    --stylesheet                         output the fancy style sheet
+   --no-stylesheet                      do not output fancy style sheet
+   --stub                               wrap output in stub document
+                                        implies --stylesheet
    --                                   end options and treat next
                                         argument as file
 
@@ -2035,13 +2100,27 @@ Display the short-form version number.
 
 =item B<--stylesheet>
 
-Include the fancy style sheet at the beginning of the output.  This style
-sheet makes fancy checkboxes and makes a right parenthesis C<)> show instead
-of a C<.> for ordered lists that use them.  Without it things will still look
-fine except that the fancy stuff won't be there.
+Include the fancy style sheet at the beginning of the output (or in the
+C<head> section with B<--stub>).  This style sheet makes fancy checkboxes
+and makes a right parenthesis C<)> show instead of a C<.> for ordered lists
+that use them.  Without it things will still look fine except that the
+fancy stuff won't be there.
 
 Use this option with no other arguments and redirect standard input to
 /dev/null to get just the style sheet and nothing else.
+
+
+=item B<--no-stylesheet>
+
+Overrides a previous B<--stylesheet> and disables implicit inclusion
+of the style sheet by the B<--stub> option.
+
+
+=item B<--stub>
+
+Wrap the output in a full document stub (i.e. has C<html>, C<head> and C<body>
+tags).  The style sheet I<will> be included in the C<head> section unless the
+B<--no-stylesheet> option is also used.
 
 
 =item B<-h>, B<--help>
