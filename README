@@ -2,7 +2,7 @@
 Markdown
 ========
 
-Version 1.1.0 - Wed 11 Jan 2017
+Version 1.1.1 - Wed 11 Jan 2017
 
 John Gruber  
 Kyle J. McKay
@@ -34,8 +34,12 @@ in Markdown.)
 Installation and Requirements
 -----------------------------
 
-Markdown requires Perl 5.6.0 or later. Welcome to the 21st Century.
+Markdown requires Perl 5.8.0 or later. Welcome to the 21st Century.
 Markdown also requires the standard Perl library module `Digest::MD5`.
+
+As of version 1.1.1, Markdown auto-detects the character set of the
+input (US-ASCII, ISO-8859-1 and UTF-8 are supported) and always
+converts the input to UTF-8 when writing the output.
 
 
 Movable Type
@@ -168,6 +172,12 @@ Markdown.pl source code for more information.
 ---------------
 Version History
 ---------------
+
+1.1.1 (11 Jan 2017):
+
++ Markdown.pl: auto-detect latin-1/utf-8 input always output utf-8  
+  The minimum version of Perl required is now 5.8.0.
+
 
 1.1.0 (11 Jan 2017):
 

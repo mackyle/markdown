@@ -12,9 +12,11 @@
 
 package Markdown;
 
-require 5.006_000;
+require 5.008;
 use strict;
 use warnings;
+
+use Encode;
 
 use vars qw($COPYRIGHT $VERSION @ISA @EXPORT_OK);
 
@@ -23,7 +25,7 @@ BEGIN {*COPYRIGHT =
 Copyright (C) 2015,2016,2017 Kyle J. McKay
 All rights reserved.
 ";
-*VERSION = \"1.1.0" # Wed 11 Jan 2017
+*VERSION = \"1.1.1" # Wed 11 Jan 2017
 }
 
 require Exporter;
@@ -38,10 +40,12 @@ $INC{__PACKAGE__.'.pm'} = $INC{basename(__FILE__)} unless exists $INC{__PACKAGE_
 close(DATA) if fileno(DATA);
 exit(&_main(@ARGV)||0) unless caller;
 
-## Disabled; causes problems under Perl 5.6.1:
-# use utf8;
-# binmode( STDOUT, ":utf8" );  # c.f.: http://acis.openlib.org/dev/perl-unicode-struggle.html
-
+my $encoder;
+BEGIN {
+	$encoder = Encode::find_encoding('Windows-1252') ||
+		   Encode::find_encoding('ISO-8859-1') or
+		   die "failed to load ISO-8859-1 encoder\n";
+}
 
 #
 # Global default settings:
@@ -316,11 +320,15 @@ sub _main {
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
+<meta charset="utf-8" />
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
 HTML5
 	} elsif ($stub < 0) {
 	    print <<'HTML4';
 <html>
 <head>
+<meta charset="utf-8">
+<meta http-equiv="content-type" content="text/html; charset=utf-8">
 HTML4
 	}
 	if ($stub && ($options{title} || $options{h1})) {
@@ -375,8 +383,16 @@ sub Markdown {
 # _EscapeSpecialChars(), so that any *'s or _'s in the <a>
 # and <img> tags get encoded.
 #
-    my $text = shift;
-    defined $text or $text='';
+    my $_text = shift;
+    defined $_text or $_text='';
+
+    my $text;
+    if (Encode::is_utf8($_text) || utf8::decode($_text)) {
+	$text = $_text;
+    } else {
+	$text = $encoder->decode($_text, Encode::FB_DEFAULT);
+    }
+    $_text = undef;
 
     # Any remaining arguments after the first are options; either a single
     # hashref or a list of name, value paurs.
@@ -445,8 +461,11 @@ sub Markdown {
 
     $text .= "\n" unless $text eq "";
 
-    ${$_[0]}{h1} = $opt{h1}
-	if defined($opt{h1}) && $opt{h1} ne "" && ref($_[0]) eq "HASH";
+    utf8::encode($text);
+    if (defined($opt{h1}) && $opt{h1} ne "" && ref($_[0]) eq "HASH") {
+	utf8::encode($opt{h1});
+	${$_[0]}{h1} = $opt{h1}
+    }
     return $text;
 }
 
@@ -2087,6 +2106,9 @@ HTML tags (like <div> and <table> as well).
 For more information about Markdown's syntax, see the F<basics.md>
 and F<syntax.md> files included with F<Markdown.pl>.
 
+Input (auto-detected) may be either ISO-8859-1 or UTF-8.  Output is always
+converted to the UTF-8 character set.
+
 
 =head1 OPTIONS
 
@@ -2181,6 +2203,8 @@ the usage and options are shown.
 Z<> See the F<README> file for detailed release notes for this version.
 
 =over
+
+=item Z<> 1.1.1 - 11 Jan 2017
 
 =item Z<> 1.1.0 - 11 Jan 2017
 
