@@ -23,7 +23,7 @@ BEGIN {*COPYRIGHT =
 Copyright (C) 2015,2016,2017 Kyle J. McKay
 All rights reserved.
 ";
-*VERSION = \"1.0.4+" # Sun 05 Jun 2016+
+*VERSION = \"1.1.0" # Wed 11 Jan 2017
 }
 
 require Exporter;
@@ -2181,6 +2181,8 @@ the usage and options are shown.
 Z<> See the F<README> file for detailed release notes for this version.
 
 =over
+
+=item Z<> 1.1.0 - 11 Jan 2017
 
 =item Z<> 1.0.4 - 05 Jun 2016
 

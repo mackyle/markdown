@@ -1,12 +1,14 @@
+========
 Markdown
 ========
 
-Version 1.0.4 - Sun 05 Jun 2016
+Version 1.1.0 - Wed 11 Jan 2017
 
 John Gruber  
 Kyle J. McKay
 
 
+------------
 Introduction
 ------------
 
@@ -28,7 +30,7 @@ available in the `basics.md` and `syntax.md` files.
 in Markdown.)
 
 
-
+-----------------------------
 Installation and Requirements
 -----------------------------
 
@@ -36,7 +38,8 @@ Markdown requires Perl 5.6.0 or later. Welcome to the 21st Century.
 Markdown also requires the standard Perl library module `Digest::MD5`.
 
 
-### Movable Type ###
+Movable Type
+~~~~~~~~~~~~
 
 Markdown works with Movable Type version 2.6 or later (including
 MT 3.0 or later).
@@ -69,7 +72,8 @@ Note that by default, Markdown produces XHTML output. To configure
 Markdown to produce HTML 4 output, see "Configuration", below.
 
 
-### Blosxom ###
+Blosxom
+~~~~~~~
 
 Markdown works with Blosxom version 2.x.
 
@@ -91,7 +95,8 @@ Markdown works with Blosxom version 2.x.
     <http://jclark.org/weblog/WebDev/Blosxom/Markdown.html>
 
 
-### BBEdit ###
+BBEdit
+~~~~~~
 
 Markdown works with BBEdit 6.1 or later on Mac OS X. (It also works
 with BBEdit 5.1 or later and MacPerl 5.6.1 on Mac OS 8.6 or later.)
@@ -111,7 +116,7 @@ with BBEdit 5.1 or later and MacPerl 5.6.1 on Mac OS 8.6 or later.)
     the Filters floating palette
 
 
-
+-------------
 Configuration
 -------------
 
@@ -125,7 +130,8 @@ Markdown can be configured to produce HTML-style tags; e.g.:
       <br>
 
 
-### Movable Type ###
+Movable Type
+~~~~~~~~~~~~
 
 You need to use a special `MTMarkdownOptions` container tag in each
 Movable Type template where you want HTML 4-style output:
@@ -147,7 +153,8 @@ publish the raw Markdown-formatted text without translation into
     </MTMarkdownOptions>
 
 
-### Command-Line ###
+Command-Line
+~~~~~~~~~~~~
 
 Use the `--html4tags` command-line switch to produce HTML output from a
 Unix-style command line. E.g.:
@@ -158,9 +165,32 @@ Type `perldoc Markdown.pl`, or read the POD documentation within the
 Markdown.pl source code for more information.
 
 
-
+---------------
 Version History
 ---------------
+
+1.1.0 (11 Jan 2017):
+
++ Markdown.pl: handle some limited [[wiki style links]]
+
++ Markdown.pl: add --stub, --stylesheet and --tabwidth options
+
++ Markdown.pl: support more list markers
+
++ Markdown.pl: format fancy checkboxes
+
++ Markdown.pl: add anchors and definitions for headers
+
++ Markdown.pl: do not mishandle double list markers
+
++ Markdown.pl: handle non-backticks-delimited code blocks properly
+
++ Markdown.pl: recognize top-level lists better
+
++ Markdown.pl: output deterministic documents
+
++ Markdown.pl: auto linkify without '<'...'>'
+
 
 1.0.4 (05 Jun 2016):
 
@@ -328,7 +358,7 @@ Version History
   How silly. Now fixed.
 
 
-
+---------------------
 Copyright and License
 ---------------------
 
