@@ -1094,14 +1094,15 @@ sub _DoHeaders {
 }
 
 
-my ($marker_ul, $marker_ol, $marker_any, $roman_numeral);
+my ($marker_ul, $marker_ol, $marker_any, $roman_numeral, $greek_lower);
 BEGIN {
     # Re-usable patterns to match list item bullets and number markers:
     $roman_numeral = qr/(?:
 	[IiVvXx]|[Ii]{2,3}|[Ii][VvXx]|[VvXx][Ii]{1,3}|[Xx][Vv][Ii]{0,3}|
 	[Xx][Ii][VvXx]|[Xx]{2}[Ii]{0,3}|[Xx]{2}[Ii]?[Vv]|[Xx]{2}[Vv][Ii]{1,2})/ox;
+    $greek_lower = qr/(?:[\x{03b1}-\x{03c9}])/o;
     $marker_ul  = qr/[*+-]/o;
-    $marker_ol  = qr/(?:\d+|[A-Za-z]|$roman_numeral)[.\)]/o;
+    $marker_ol  = qr/(?:\d+|[A-Za-z]|$roman_numeral|$greek_lower)[.\)]/o;
     $marker_any = qr/(?:$marker_ul|$marker_ol)/o;
 }
 
@@ -1117,20 +1118,25 @@ sub _GetListMarkerType {
 	return "i" if $list_marker =~ /^[ivx]/;
     }
     return "A" if $list_marker =~ /^[A-Z]/;
-    return "a" if $list_marker =~ /^[a-z]/;
+    return "a" if $list_marker =~ /^[a-z]/ || $list_marker =~ /^$greek_lower/o;
     return "1";
 }
 
 
-sub _GetListItemClass {
+sub _GetListItemTypeClass {
     my ($list_type, $list_marker, $first_marker) = @_;
     my $list_marker_type = _GetListMarkerType($list_type, $list_marker, $first_marker);
-    return "" unless $list_marker_type =~ /^[IiAa1]$/ && $list_marker =~ /.\)$/;
-    return "upper-roman" if $list_marker_type eq "I";
-    return "lower-roman" if $list_marker_type eq "i";
-    return "upper-alpha" if $list_marker_type eq "A";
-    return "lower-alpha" if $list_marker_type eq "a";
-    return "decimal";
+    my $ans = &{sub{
+	return "" unless length($list_marker) >= 2 && $list_marker_type =~ /^[IiAa1]$/;
+	return "lower-greek" if $list_marker_type eq "a" && $list_marker =~ /^$greek_lower/o;
+	return "" unless $list_marker =~ /\)$/;
+	return "upper-roman" if $list_marker_type eq "I";
+	return "lower-roman" if $list_marker_type eq "i";
+	return "upper-alpha" if $list_marker_type eq "A";
+	return "lower-alpha" if $list_marker_type eq "a";
+	return "decimal";
+    }};
+    return ($list_marker_type, $ans);
 }
 
 
@@ -1168,11 +1174,48 @@ BEGIN {
 }
 
 
+# Necessary because ς and σ are the same value grrr
+my %_greek_number_table;
+BEGIN {
+    %_greek_number_table = (
+	"\x{03b1}" =>  1, # α
+	"\x{03b2}" =>  2, # β
+	"\x{03b3}" =>  3, # γ
+	"\x{03b4}" =>  4, # δ
+	"\x{03b5}" =>  5, # ε
+	"\x{03b6}" =>  6, # ζ
+	"\x{03b7}" =>  7, # η
+	"\x{03b8}" =>  8, # θ
+	"\x{03b9}" =>  9, # ι
+	"\x{03ba}" => 10, # κ
+	"\x{03bb}" => 11, # λ
+	#"\x{00b5}"=> 12, # µ is "micro" not "mu"
+	"\x{03bc}" => 12, # μ
+	"\x{03bd}" => 13, # ν
+	"\x{03be}" => 14, # ξ
+	"\x{03bf}" => 15, # ο
+	"\x{03c0}" => 16, # π
+	"\x{03c1}" => 17, # ρ
+	"\x{03c2}" => 18, # ς
+	"\x{03c3}" => 18, # σ
+	"\x{03c4}" => 19, # τ
+	"\x{03c5}" => 20, # υ
+	"\x{03c6}" => 21, # φ
+	"\x{03c7}" => 22, # χ
+	"\x{03c8}" => 23, # ψ
+	"\x{03c9}" => 24  # ω
+    );
+}
+
+
 sub _GetMarkerIntegerNum {
     my ($list_marker_type, $marker_val) = @_;
     my $ans = &{sub{
 	return 0 + $marker_val if $list_marker_type eq "1";
 	$list_marker_type = lc($list_marker_type);
+	return $_greek_number_table{$marker_val}
+	    if $list_marker_type eq "a" &&
+	    defined($_greek_number_table{$marker_val});
 	$marker_val = lc($marker_val);
 	return ord($marker_val) - ord("a") + 1 if $list_marker_type eq "a";
 	return 1 unless $list_marker_type eq "i";
@@ -1243,6 +1286,7 @@ sub _DoLists {
     my $list_item_sub = sub {
 	my $list = $_[0];
 	my $list_type = ($_[2] =~ m/$marker_ul/) ? "ul" : "ol";
+	my $list_att = "";
 	my $list_class = "";
 	my $list_incr = "";
 	# Turn double returns into triple returns, so that we can make a
@@ -1253,20 +1297,22 @@ sub _DoLists {
 	if ($list_marker_type) {
 		$first_marker =~ s/[.\)]$//;
 		my $first_marker_num = _GetMarkerIntegerNum($list_marker_type, $first_marker);
-		$list_marker_type = $list_marker_type eq "1" ? "" : " type=\"$list_marker_type\"";
+		$list_att = $list_marker_type eq "1" ? "" : " type=\"$list_marker_type\"";
 		if ($fancy) {
 		    $list_class = " class=\"$opt{style_prefix}ol\"";
 		    my $start = $first_marker_num;
 		    $start = 10 if $start > 10;
 		    $start = 5 if $start > 5 && $start < 10;
 		    $start = 1 if $start > 1 && $start < 5;
-		    $list_marker_type .= " start=\"$start\"" unless $start == 1;
+		    $list_att .= " start=\"$start\"" unless $start == 1;
 		    $list_incr = _IncrList($start, $first_marker_num);
 		} else {
-		    $list_marker_type .= " start=\"$first_marker_num\"" unless $first_marker_num == 1;
+		    $list_class = " class=\"$opt{style_prefix}lc-greek\""
+			if $list_marker_type eq "a" && $first_marker =~ /^$greek_lower/o;
+		    $list_att .= " start=\"$first_marker_num\"" unless $first_marker_num == 1;
 		}
 	}
-	$result = "<$list_type$list_marker_type$list_class>\n$list_incr" . $result . "</$list_type>\n";
+	$result = "<$list_type$list_att$list_class>\n$list_incr" . $result . "</$list_type>\n";
 	$result;
     };
 
@@ -1446,13 +1492,19 @@ sub _ProcessListItems {
 	    $liatt = " class=\"$opt{style_prefix}$checkbox_class\"";
 	    $checkbox = "<span><span></span></span><span></span><span>[<tt>$checkbox_val</tt>]&#160;</span>";
 	} else {
-	    $liatt = _GetListItemClass($list_type, $list_marker, $first_marker);
-	    if (lc($list_type) eq "ol" && defined($first_marker)) {
-		my $styled = $fancy = 1 if $liatt;
-		my $list_marker_type = _GetListMarkerType($list_type, $list_marker, $first_marker);
-		my $sfx = lc($list_marker_type) eq uc($list_marker_type) ? "" :
-		    (lc($list_marker_type) eq $list_marker_type ? "-lc" : "-uc");
-		$liatt = " class=\"$opt{style_prefix}li$sfx\"" if $liatt ne "";
+	    my $list_marker_type;
+	    ($list_marker_type, $liatt) = _GetListItemTypeClass($list_type, $list_marker, $first_marker);
+	    if ($list_type eq "ol" && defined($first_marker)) {
+		my $styled = $fancy = 1 if $liatt && $list_marker =~ /\)$/;
+		my ($sfx, $dash) = ("", "");
+		($sfx, $dash) = ("li", "-") if $styled;
+		if ($liatt =~ /lower/) {
+		    $sfx .= "${dash}lc";
+		} elsif ($liatt =~ /upper/) {
+		    $sfx .= "${dash}uc";
+		}
+		$sfx .= "-greek" if $liatt =~ /greek/;
+		$liatt = " class=\"$opt{style_prefix}$sfx\"" if $sfx;
 		$typechanged = 1 if $list_marker_type ne $first_marker_type;
 		$list_marker =~ s/[.\)]$//;
 		my $marker_num = _GetMarkerIntegerNum($list_marker_type, $list_marker);
@@ -1485,6 +1537,9 @@ sub _ProcessListItems {
     } else {
 	# remove the $g_list_level incr spans entirely
 	$result =~ s{<span incrlevel=$g_list_level class="$opt{style_prefix}ol-incr(?:-\d{1,2})?"></span>\n}{}g;
+	# remove the class="$opt{style_prefix}lc-greek" if first_marker is greek
+	$result =~ s{(<li[^>]*?) class="$opt{style_prefix}lc-greek">}{$1>}g
+	    if defined($first_marker_type) && $first_marker_type eq "a" && $first_marker =~ /^$greek_lower/o;
     }
 
     # Anything left over (similar to $') goes into result
@@ -1965,17 +2020,22 @@ ol.%(base)ol > span.%(base)ol-incr-5 {
 ol.%(base)ol > span.%(base)ol-incr-10 {
 	counter-increment: %(base)item 10;
 }
+ol.%(base)lc-greek, li.%(base)lc-greek {
+	list-style-type: lower-greek;
+}
 ol.%(base)ol > li {
 	counter-increment: %(base)item;
 }
 ol.%(base)ol > li.%(base)li,
 ol.%(base)ol > li.%(base)li-lc,
+ol.%(base)ol > li.%(base)li-lc-greek,
 ol.%(base)ol > li.%(base)li-uc {
 	list-style-type: none;
 	display: block;
 }
 ol.%(base)ol > li.%(base)li:before,
 ol.%(base)ol > li.%(base)li-lc:before,
+ol.%(base)ol > li.%(base)li-lc-greek:before,
 ol.%(base)ol > li.%(base)li-uc:before {
 	position: absolute;
 	text-align: right;
@@ -1997,6 +2057,10 @@ ol.%(base)ol > li.%(base)li-uc[type="i"]:before {
 ol.%(base)ol > li.%(base)li-lc[type="a"]:before,
 ol.%(base)ol > li.%(base)li-lc[type="A"]:before {
 	content: counter(%(base)item, lower-alpha) ")\A0 \A0 ";
+}
+ol.%(base)ol > li.%(base)li-lc-greek[type="a"]:before,
+ol.%(base)ol > li.%(base)li-lc-greek[type="A"]:before {
+	content: counter(%(base)item, lower-greek) ")\A0 \A0 ";
 }
 ol.%(base)ol > li.%(base)li-uc[type="A"]:before,
 ol.%(base)ol > li.%(base)li-uc[type="a"]:before {

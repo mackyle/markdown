@@ -350,8 +350,8 @@ and:
       -   Green
       -   Blue
 
-Ordered lists use numbers or letters or roman numerals followed by a
-period or right parenthesis `)`:
+Ordered lists use numbers or letters (latin or greek) or roman numerals
+followed by a period or right parenthesis `)`:
 
       1.  Bird
       2.  McHale
@@ -396,11 +396,12 @@ The style of the list marker is determined by the first list item.
 If the first list item uses numbers the list style will be `decimal`.
 If the first list item uses a roman numeral then the list style will
 be either `lower-roman` or `upper-roman` depending on the case used.
-Similarly for any non-roman letter you get `lower-alpha` or `upper-alpha`.
+Similarly for any non-roman letter you get `lower-alpha`, `upper-alpha`
+or `lower-greek`.
 
 However, if later list items change the style, an attempt is made to
-modify the list item style for that item which should be effective in
-just about any browser available today.
+modify the list numbering style for that item which should be effective
+in just about any browser available today.
 
 Similarly if a list item "skips ahead" an attempt is made to skip the
 list number ahead which again should be effective in just about any
@@ -429,6 +430,25 @@ used for the first item.
 
 List markers typically start at the left margin, but may be indented by
 up to three spaces.  List markers must be followed by one or more spaces.
+
+Attempts to change an unordered list's style or switch from an ordered
+list to an unordered list (or vice versa) in mid-list are ignored.
+
+Lists end when the first non-blank, non-indented line (relative to the
+current list nesting level) is encountered that does not begin with a
+list marker.
+
+To create two distinct lists when there are only blank lines between the
+end of the first list and the start of the second, a separator line must
+be inserted.  ([Horizontal rules][] work just fine for this).
+
+If desired, an HTML-style comment (e.g. `<!-- -->`) may be used for this
+purpose provided it is preceded and followed by at least one blank line.
+
+Any non-list-marker, non-blank, non-indented (relative to the current
+list nesting level) line may be used for this purpose but the HTML-style
+comment has the advantage of not causing anything extra to be shown when
+the HTML output is displayed in a browser.
 
 To make lists look nice, you can wrap items with hanging indents:
 
