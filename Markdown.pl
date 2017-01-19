@@ -477,7 +477,7 @@ sub _HashBTCodeBlocks {
     my $text = shift;
 
     $text =~ s{
-	    (?:\n|\A)
+	    (?:(?<=\n)|\A)
 		``(`+)[ \t]*(?:([\w.+-]+)[ \t]*)?\n
 	     ( # $3 = the code block -- one or more lines, starting with ```
 	      (?:
