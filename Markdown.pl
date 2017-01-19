@@ -247,6 +247,15 @@ unless ($_haveMT) {
     }
 }
 
+sub _strip {
+	my $str = shift;
+	defined($str) or return undef;
+	$str =~ s/^\s+//;
+	$str =~ s/\s+$//;
+	$str =~ s/\s+/ /g;
+	$str;
+}
+
 #### BBEdit/command-line text filter interface ##########################
 sub _main {
     local *ARGV = \@_;
@@ -533,10 +542,15 @@ sub _StripLinkDefinitions {
 			(?:\n+|\Z)
 		    }
 		    {}mx) {
-	$g_urls{lc $1} = _EncodeAmpsAndAngles( $2 ); # Link IDs are case-insensitive
-	if ($3) {
-	    $g_titles{lc $1} = $3;
-	    $g_titles{lc $1} =~ s/\042/&quot;/g;
+	my $id = _strip(lc $1); # Link IDs are case-insensitive
+	my $url = $2;
+	my $title = _strip($3);
+	if ($id ne "") {
+		$g_urls{$id} = _EncodeAmpsAndAngles($url);
+		if (defined($title) && $title ne "") {
+		    $g_titles{$id} = $title;
+		    $g_titles{$id} =~ s/\042/&quot;/g;
+		}
 	}
     }
 
@@ -819,10 +833,10 @@ sub _DoAnchors {
 	my $result;
 	my $whole_match = $1;
 	my $link_text	= $2;
-	my $link_id	= lc $3;
+	my $link_id	= _strip(lc $3);
 
 	if ($link_id eq "") {
-	    $link_id = lc $link_text;	  # for shortcut links like [this][].
+	    $link_id = _strip(lc $link_text);	  # for shortcut links like [this][].
 	}
 
 	if (defined($g_urls{$link_id}) || defined($g_anchors{$link_id})) {
@@ -869,7 +883,7 @@ sub _DoAnchors {
 	my $whole_match = $1;
 	my $link_text	= $2;
 	my $url		= $3;
-	my $title	= $6;
+	my $title	= _strip($6);
 
 	$url = _PrefixURL($url);
 	# We've got to encode these to avoid conflicting
@@ -901,7 +915,7 @@ sub _DoAnchors {
 	my $result;
 	my $whole_match = $1;
 	my $link_text	= $2;
-	my $link_id	= lc $2;
+	my $link_id	= _strip(lc $2);
 
 	if (defined($g_urls{$link_id}) || defined($g_anchors{$link_id})) {
 	    my $url = $g_urls{$link_id};
@@ -953,8 +967,8 @@ sub _DoImages {
     }{
 	my $result;
 	my $whole_match = $1;
-	my $alt_text	= $2;
-	my $link_id	= lc $3;
+	my $alt_text	= _strip($2);
+	my $link_id	= _strip(lc $3);
 
 	if ($link_id eq "") {
 	    $link_id = lc $alt_text; # for shortcut links like ![this][].
@@ -1006,11 +1020,11 @@ sub _DoImages {
     }{
 	my $result;
 	my $whole_match = $1;
-	my $alt_text	= $2;
+	my $alt_text	= _strip($2);
 	my $url		= $3;
 	my $title	= '';
 	if (defined($6)) {
-	    $title	= $6;
+	    $title	= _strip($6);
 	}
 
 	$url = _PrefixURL($url);
@@ -1041,8 +1055,8 @@ sub _DoImages {
     }{
 	my $result;
 	my $whole_match = $1;
-	my $alt_text	= $2;
-	my $link_id	= lc $2;
+	my $alt_text	= _strip($2);
+	my $link_id	= lc $alt_text;
 
 	$alt_text =~ s/"/&quot;/g;
 	if (defined $g_urls{$link_id}) {
@@ -1072,10 +1086,7 @@ sub _DoImages {
 
 sub _MakeAnchorId {
     use bytes;
-    my $link = lc(shift);
-    $link =~ s/^\s+//;
-    $link =~ s/\s+$//;
-    $link =~ s/\s+/ /g;
+    my $link = shift;
     $link =~ tr/-a-z0-9_/_/cs;
     return '' unless $link ne '';
     $link = md5_hex($link) if length($link) > 64;
@@ -1084,7 +1095,7 @@ sub _MakeAnchorId {
 
 
 sub _GetNewAnchorId {
-    my $link = lc(shift);
+    my $link = _strip(lc(shift));
     return '' if defined($g_anchors{$link});
     my $id = _MakeAnchorId($link);
     return '' unless $id;
@@ -1115,7 +1126,7 @@ sub _DoHeaders {
     #     Header 3
     #     ~~~~~~~~
     #
-    $text =~ s{ ^(?:=+[ ]*\n)?(.+)[ ]*\n=+[ ]*\n+ }{
+    $text =~ s{ ^(?:=+[ ]*\n)?[ ]*(.+?)[ ]*\n=+[ ]*\n+ }{
 	my $h = $1;
 	my $id = _GetNewAnchorId($h);
 	&$geth1($h);
@@ -1123,14 +1134,14 @@ sub _DoHeaders {
 	"<h1$id>" . _RunSpanGamut($h) . "</h1>\n\n";
     }egmx;
 
-    $text =~ s{ ^(?:-+[ ]*\n)?(.+)[ ]*\n-+[ ]*\n+ }{
+    $text =~ s{ ^(?:-+[ ]*\n)?[ ]*(.+?)[ ]*\n-+[ ]*\n+ }{
 	my $h = $1;
 	my $id = _GetNewAnchorId($h);
 	$id = " id=\"$id\"" if $id ne "";
 	"<h2$id>" . _RunSpanGamut($h) . "</h2>\n\n";
     }egmx;
 
-    $text =~ s{ ^(?:~+[ ]*\n)?(.+)[ ]*\n~+[ ]*\n+ }{
+    $text =~ s{ ^(?:~+[ ]*\n)?[ ]*(.+?)[ ]*\n~+[ ]*\n+ }{
 	my $h = $1;
 	my $id = _GetNewAnchorId($h);
 	$id = " id=\"$id\"" if $id ne "";
