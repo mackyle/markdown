@@ -851,6 +851,7 @@ sub _DoAnchors {
 		$title =~ s!([*_~])!$g_escape_table{$1}!g;
 		$result .=  " title=\"$title\"";
 	    }
+	    $link_text = '[' . $link_text . ']' if $link_text =~ /^\d{1,3}$/;
 	    $result .= ">$link_text</a>";
 	}
 	else {
@@ -897,6 +898,7 @@ sub _DoAnchors {
 	    $result .= " title=\"$title\"";
 	}
 
+	$link_text = '[' . $link_text . ']' if $link_text =~ /^\d{1,3}$/;
 	$result .= ">$link_text</a>";
 
 	$result;
@@ -929,6 +931,7 @@ sub _DoAnchors {
 		$title =~ s!([*_~])!$g_escape_table{$1}!g;
 		$result .=  " title=\"$title\"";
 	    }
+	    $link_text = '[' . $link_text . ']' if $link_text =~ /^\d{1,3}$/;
 	    $result .= ">$link_text</a>";
 	}
 	else {
