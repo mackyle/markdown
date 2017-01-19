@@ -2,32 +2,32 @@
 Markdown: Syntax
 ================
 
-* [Markdown Basics][]
+* [Markdown Basics]
 * _[Syntax]( "Markdown Syntax Documentation")_
-* [License][]
+* [License]
 
 - - - - -
 
-*   [Overview][]
-    *   [Philosophy][]
-    *   [Inline HTML][]
-    *   [Automatic Escaping for Special Characters][]
-*   [Block Elements][]
-    *   [Paragraphs and Line Breaks][]
-    *   [Headers][]
-    *   [Blockquotes][]
-    *   [Lists][]
-    *   [Style Sheet][]
-    *   [Code Blocks][]
-    *   [Horizontal Rules][]
-*   [Span Elements][]
-    *   [Links][]
-    *   [Emphasis][]
-    *   [Code][]
-    *   [Images][]
-*   [Miscellaneous][]
-    *   [Backslash Escapes][]
-    *   [Automatic Links][]
+*   [Overview]
+    *   [Philosophy]
+    *   [Inline HTML]
+    *   [Automatic Escaping for Special Characters]
+*   [Block Elements]
+    *   [Paragraphs and Line Breaks]
+    *   [Headers]
+    *   [Blockquotes]
+    *   [Lists]
+    *   [Style Sheet]
+    *   [Code Blocks]
+    *   [Horizontal Rules]
+*   [Span Elements]
+    *   [Links]
+    *   [Emphasis]
+    *   [Code]
+    *   [Images]
+*   [Miscellaneous]
+    *   [Backslash Escapes]
+    *   [Automatic Links]
 
 
 **Note:** This document is itself written using Markdown; you
@@ -408,14 +408,14 @@ list number ahead which again should be effective in just about any
 browser available today.
 
 A right parenthesis ')' may be used in place of the `.` for any of the
-numbering styles but it requires the [style sheet][] to be included or
+numbering styles but it requires the [style sheet] to be included or
 you will end up just seeing `.` instead.  For example this list:
 
       a)  Alpha
       b)  Beta
       c)  Gamma
 
-will end up being displayed like this without the [style sheet][]:
+will end up being displayed like this without the [style sheet]:
 
       a.  Alpha
       b.  Beta
@@ -440,7 +440,7 @@ list marker.
 
 To create two distinct lists when there are only blank lines between the
 end of the first list and the start of the second, a separator line must
-be inserted.  ([Horizontal rules][] work just fine for this).
+be inserted.  ([Horizontal rules] work just fine for this).
 
 If desired, an HTML-style comment (e.g. `<!-- -->`) may be used for this
 purpose provided it is preceded and followed by at least one blank line.
@@ -775,10 +775,14 @@ are equivalent.
 
 The *implicit link name* shortcut allows you to omit the name of the
 link, in which case the link text itself is used as the name.
-Just use an empty set of square brackets -- e.g., to link the word
-"Google" to the google.com web site, you could simply write:
+Just use an empty set of square brackets (or none) -- e.g., to link the
+word "Google" to the google.com web site, you could simply write:
 
       [Google][]
+
+Or even just this:
+
+      [Google]
 
 And then define the link:
 
@@ -787,11 +791,17 @@ And then define the link:
 Because link names may contain spaces, this shortcut even works for
 multiple words in the link text:
 
-      Visit [Daring Fireball][] for more information.
+      Visit [Daring Fireball] for more information.
 
 And then define the link:
 
       [Daring Fireball]: http://daringfireball.net/
+
+Text inside square brackets is left completely unchanged (including the
+surrounding brackets) _unless_ it matches a link definition.  Furthermore,
+the single pair of surrounding square brackets case is always checked
+for last so you may only omit the trailing `[]` of an *implicit link name*
+shortcut when the result would still be unambiguous.
 
 Link definitions can be placed anywhere in your Markdown document. I
 tend to put them immediately after each paragraph in which they're
@@ -817,8 +827,8 @@ Here's an example of reference links in action:
 
 Using the implicit link name shortcut, you could instead write:
 
-      I get 10 times more traffic from [Google][] than from
-      [Yahoo][] or [MSN][].
+      I get 10 times more traffic from [Google] than from
+      [Yahoo] or [MSN].
 
       [google]: http://google.com/        "Google"
       [yahoo]:  http://search.yahoo.com/  "Yahoo Search"

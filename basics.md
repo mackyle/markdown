@@ -3,8 +3,8 @@ Markdown: Basics
 ================
 
 * _[Markdown Basics]( "Markdown Basics")_
-* [Syntax][]
-* [License][]
+* [Syntax]
+* [License]
 
 - - - - -
 

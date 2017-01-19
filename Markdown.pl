@@ -846,7 +846,7 @@ sub _DoAnchors {
     }xsge;
 
     #
-    # Finally, inline-style links: [link text](url "optional title")
+    # Subsequently, inline-style links: [link text](url "optional title")
     #
     $text =~ s{
 	(		# wrap whole match in $1
@@ -885,6 +885,41 @@ sub _DoAnchors {
 
 	$result .= ">$link_text</a>";
 
+	$result;
+    }xsge;
+
+    #
+    # Finally, handle reference-style implicit shortcut links: [link text]
+    #
+    $text =~ s{
+	(		    # wrap whole match in $1
+	  \[
+	    ($g_nested_brackets) # link text = $2
+	  \]
+	)
+    }{
+	my $result;
+	my $whole_match = $1;
+	my $link_text	= $2;
+	my $link_id	= lc $2;
+
+	if (defined($g_urls{$link_id}) || defined($g_anchors{$link_id})) {
+	    my $url = $g_urls{$link_id};
+	    $url = defined($url) ? _PrefixURL($url) : $g_anchors{$link_id};
+	    # We've got to encode these to avoid conflicting
+	    # with italics, bold and strike through.
+	    $url =~ s!([*_~])!$g_escape_table{$1}!g;
+	    $result = "<a href=\"$url\"";
+	    if ( defined $g_titles{$link_id} ) {
+		my $title = $g_titles{$link_id};
+		$title =~ s!([*_~])!$g_escape_table{$1}!g;
+		$result .=  " title=\"$title\"";
+	    }
+	    $result .= ">$link_text</a>";
+	}
+	else {
+	    $result = $whole_match;
+	}
 	$result;
     }xsge;
 
@@ -990,6 +1025,43 @@ sub _DoImages {
 	    $result .= " title=\"$title\"";
 	}
 	$result .= $opt{empty_element_suffix};
+
+	$result;
+    }xsge;
+
+    #
+    # Finally, handle reference-style implicitly labeled links: ![alt text]
+    #
+    $text =~ s{
+	(		# wrap whole match in $1
+	  !\[
+	    (.*?)	# alt text = $2
+	  \]
+	)
+    }{
+	my $result;
+	my $whole_match = $1;
+	my $alt_text	= $2;
+	my $link_id	= lc $2;
+
+	$alt_text =~ s/"/&quot;/g;
+	if (defined $g_urls{$link_id}) {
+	    my $url = _PrefixURL($g_urls{$link_id});
+	    # We've got to encode these to avoid conflicting
+	    # with italics, bold and strike through.
+	    $url =~ s!([*_~])!$g_escape_table{$1}!g;
+	    $result = "<img src=\"$url\" alt=\"$alt_text\"";
+	    if (defined $g_titles{$link_id}) {
+		my $title = $g_titles{$link_id};
+		$title =~ s!([*_~])!$g_escape_table{$1}!g;
+		$result .=  " title=\"$title\"";
+	    }
+	    $result .= $opt{empty_element_suffix};
+	}
+	else {
+	    # If there's no such link ID, leave intact:
+	    $result = $whole_match;
+	}
 
 	$result;
     }xsge;
