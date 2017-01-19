@@ -493,7 +493,7 @@ sub _HashBTCodeBlocks {
 	    $codeblock =~ s/\A\n+//; # trim leading newlines
 	    $codeblock =~ s/\s+\z//; # trim trailing whitespace
 	    $codeblock = _EncodeCode($codeblock); # or run highlighter here
-	    $codeblock = "<div class=\"$opt{style_prefix}code-bt\"><dl></dl><pre><code>"
+	    $codeblock = "<div class=\"$opt{style_prefix}code-bt\"><pre style=\"display:none\"></pre><pre><code>"
 		. $codeblock . "\n</code></pre></div>";
 
 	    my $key = block_id($codeblock);
@@ -1574,7 +1574,7 @@ sub _DoCodeBlocks {
 	    $codeblock =~ s/\A\n+//; # trim leading newlines
 	    $codeblock =~ s/\s+\z//; # trim trailing whitespace
 
-	    my $result = "<div class=\"$opt{style_prefix}code\"><dl></dl><pre><code>"
+	    my $result = "<div class=\"$opt{style_prefix}code\"><pre style=\"display:none\"></pre><pre><code>"
 		. $codeblock . "\n</code></pre></div>";
 	    my $key = block_id($result);
 	    $g_code_blocks{$key} = $result;
@@ -1990,10 +1990,17 @@ BEGIN {
 */
 
 div.%(base)code-bt > pre, div.%(base)code > pre {
-	margin: 0 3ex;
-	padding: 1ex;
-	background-color: #eee;
+	margin: 0;
+	padding: 0;
 	overflow: auto;
+}
+
+div.%(base)code-bt > pre > code, div.%(base)code > pre > code {
+	display: inline-block;
+	margin: 0;
+	padding: 0.5em 0;
+	border-top: thin dotted;
+	border-bottom: thin dotted;
 }
 
 ol.%(base)ol {
@@ -2322,7 +2329,7 @@ Z<> See the F<README> file for detailed release notes for this version.
 
 =item Copyright (C) 2003-2004 John Gruber
 
-=item Copyright (C) 2015,2016 Kyle J. McKay
+=item Copyright (C) 2015-2017 Kyle J. McKay
 
 =item All rights reserved.
 
