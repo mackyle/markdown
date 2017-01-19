@@ -1490,6 +1490,7 @@ sub _ProcessListItems {
     my $first_marker;
     my $first_marker_type;
     my $first_marker_num;
+    my $last_marker;
     my $fancy;
     my $skipped;
     my $typechanged;
@@ -1515,10 +1516,21 @@ sub _ProcessListItems {
 	    $result .= substr($list_str, $oldpos, $-[0] - $oldpos); # Sort-of $`
 	    $oldpos = $-[0]; # point at start of this entire match
 	}
-	if ($list_marker !~ /$marker_kind/) {
+	if (!defined($first_marker)) {
+	    $first_marker = $last_marker = $list_marker;
+	    $first_marker_type = _GetListMarkerType($list_type, $first_marker);
+	    if ($first_marker_type) {
+		(my $marker_val = $first_marker) =~ s/[.\)]$//;
+		$first_marker_num = _GetMarkerIntegerNum($first_marker_type, $marker_val);
+		$next_num = $first_marker_num;
+		$skipped = 1 if $next_num != 1;
+	    }
+	} elsif ($list_marker !~ /$marker_kind/) {
 	    # Wrong marker kind, "fix up" the marker to a correct "lazy" marker
 	    # But keep the old length in $list_marker_len
-	    $list_marker = $list_type eq "ul" ? "*" : "1.";
+	    $list_marker = $last_marker;
+	} else {
+	    $last_marker = $list_marker;
 	}
 
 	# Now grab the rest of this item's data upto but excluding the next
@@ -1553,16 +1565,6 @@ sub _ProcessListItems {
 	my $checkbox = '';
 	my $incr = '';
 
-	if (!defined($first_marker)) {
-	    $first_marker = $list_marker;
-	    $first_marker_type = _GetListMarkerType($list_type, $first_marker);
-	    if ($first_marker_type) {
-		(my $marker_val = $first_marker) =~ s/[.\)]$//;
-		$first_marker_num = _GetMarkerIntegerNum($first_marker_type, $marker_val);
-		$next_num = $first_marker_num;
-		$skipped = 1 if $next_num != 1;
-	    }
-	}
 	if ($list_type eq "ul" && !$leading_item_space && $item =~ /^\[([ xX])\] +(.*)$/s) {
 	    my $checkmark = lc $1;
 	    $item = $2;
