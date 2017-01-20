@@ -1194,15 +1194,15 @@ BEGIN {
 
 
 sub _GetListMarkerType {
-    my ($list_type, $list_marker, $first_marker) = @_;
+    my ($list_type, $list_marker, $last_marker) = @_;
     return "" unless $list_type && $list_marker && lc($list_type) eq "ol";
-    unless ($list_marker =~ /^[IiVvXx][.\)]?$/ &&
-	    # these are roman unless $first_marker type is 'a' or 'A'
-	    defined($first_marker) &&
-	    lc(_GetListMarkerType($list_type, $first_marker)) eq 'a') {
-	return "I" if $list_marker =~ /^[IVX]/;
-	return "i" if $list_marker =~ /^[ivx]/;
-    }
+    my $last_marker_type = '';
+    $last_marker_type = _GetListMarkerType($list_type, $last_marker)
+	if defined($last_marker) &&
+	    # these are roman unless $last_marker type case matches and is 'a' or 'A'
+	    $list_marker =~ /^[IiVvXx][.\)]?$/;
+    return "I" if $list_marker =~ /^[IVX]/ && $last_marker_type ne 'A';
+    return "i" if $list_marker =~ /^[ivx]/ && $last_marker_type ne 'a';
     return "A" if $list_marker =~ /^[A-Z]/;
     return "a" if $list_marker =~ /^[a-z]/ || $list_marker =~ /^$greek_lower/o;
     return "1";
@@ -1210,8 +1210,8 @@ sub _GetListMarkerType {
 
 
 sub _GetListItemTypeClass {
-    my ($list_type, $list_marker, $first_marker) = @_;
-    my $list_marker_type = _GetListMarkerType($list_type, $list_marker, $first_marker);
+    my ($list_type, $list_marker, $last_marker) = @_;
+    my $list_marker_type = _GetListMarkerType($list_type, $list_marker, $last_marker);
     my $ans = &{sub{
 	return "" unless length($list_marker) >= 2 && $list_marker_type =~ /^[IiAa1]$/;
 	return "lower-greek" if $list_marker_type eq "a" && $list_marker =~ /^$greek_lower/o;
@@ -1520,7 +1520,7 @@ sub _ProcessListItems {
 	    $oldpos = $-[0]; # point at start of this entire match
 	}
 	if (!defined($first_marker)) {
-	    $first_marker = $last_marker = $list_marker;
+	    $first_marker = $list_marker;
 	    $first_marker_type = _GetListMarkerType($list_type, $first_marker);
 	    if ($first_marker_type) {
 		(my $marker_val = $first_marker) =~ s/[.\)]$//;
@@ -1532,8 +1532,6 @@ sub _ProcessListItems {
 	    # Wrong marker kind, "fix up" the marker to a correct "lazy" marker
 	    # But keep the old length in $list_marker_len
 	    $list_marker = $last_marker;
-	} else {
-	    $last_marker = $list_marker;
 	}
 
 	# Now grab the rest of this item's data upto but excluding the next
@@ -1581,7 +1579,7 @@ sub _ProcessListItems {
 	    $checkbox = "<span><span></span></span><span></span><span>[<tt>$checkbox_val</tt>]&#160;</span>";
 	} else {
 	    my $list_marker_type;
-	    ($list_marker_type, $liatt) = _GetListItemTypeClass($list_type, $list_marker, $first_marker);
+	    ($list_marker_type, $liatt) = _GetListItemTypeClass($list_type, $list_marker, $last_marker);
 	    if ($list_type eq "ol" && defined($first_marker)) {
 		my $styled = $fancy = 1 if $liatt && $list_marker =~ /\)$/;
 		my ($sfx, $dash) = ("", "");
@@ -1594,8 +1592,8 @@ sub _ProcessListItems {
 		$sfx .= "-greek" if $liatt =~ /greek/;
 		$liatt = " class=\"$opt{style_prefix}$sfx\"" if $sfx;
 		$typechanged = 1 if $list_marker_type ne $first_marker_type;
-		$list_marker =~ s/[.\)]$//;
-		my $marker_num = _GetMarkerIntegerNum($list_marker_type, $list_marker);
+		(my $marker_val = $list_marker) =~ s/[.\)]$//;
+		my $marker_num = _GetMarkerIntegerNum($list_marker_type, $marker_val);
 		$marker_num = $next_num if $marker_num < $next_num;
 		$skipped = 1 if $next_num < $marker_num;
 		$incr = _IncrList($next_num, $marker_num, "incrlevel=$g_list_level");
@@ -1604,6 +1602,7 @@ sub _ProcessListItems {
 		$next_num = $marker_num + 1;
 	    }
 	}
+	$last_marker = $list_marker;
 
 	if ($leading_line or ($item =~ m/\n{2,}/)) {
 	    $item = _RunBlockGamut(_Outdent($item));
