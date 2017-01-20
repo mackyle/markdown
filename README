@@ -2,7 +2,7 @@
 Markdown
 ========
 
-Version 1.1.1 - Thu 12 Jan 2017
+Version 1.1.2 - Thu 19 Jan 2017
 
 John Gruber  
 Kyle J. McKay
@@ -172,6 +172,25 @@ Markdown.pl source code for more information.
 ---------------
 Version History
 ---------------
+
+1.1.2 (19 Jan 2017):
+
++ Markdown.pl: usually (i), (v) and (x) are roman
+
++ Markdown.pl: retain square brackets around footnotes
+
++ Markdown.pl: treat '*' in <ol> like last marker
+
++ Markdown.pl: normalize link white space
+
++ Markdown.pl: do not mishandle double list markers redux
+
++ Markdown.pl: recognize two ```-delimited blocks in a row
+
++ Markdown: allow trailing '[]' to be omitted
+
++ Markdown.pl: tweak code block output again
+
 
 1.1.1 (12 Jan 2017):
 
