@@ -1830,6 +1830,40 @@ sub _FormParagraphs {
 }
 
 
+sub _EncodeHTML {
+    my $val = shift;
+    $val =~ s/&/&amp;/g;
+    $val =~ s/</&lt;/g;
+    return $val;
+}
+
+
+my $g_possible_tag_name;
+BEGIN {
+    # note: length("blockquote") == 10
+    $g_possible_tag_name = qr/(?i:[a-z]{1,10}|h[1-6])/o;
+}
+
+
+# Encode leading '<' of any non-tags
+# However, "<?", "<!" and "<$" are passed through (legacy on that "<$" thing)
+sub _DoTag {
+	my $tag = shift;
+	return $tag if $tag =~ /^<[?\$!]/;
+	if ($tag =~ m{^</}) {
+		if ($tag !~ m{^</$g_possible_tag_name\s*>}) {
+			return _EncodeHTML($tag);
+		} else {
+			return $tag;
+		}
+	}
+	if ($tag !~ m{^<$g_possible_tag_name[\s>]} && $tag !~ m{^<$g_possible_tag_name/>$}) {
+		return _EncodeHTML($tag);
+	}
+	return $tag;
+}
+
+
 sub _EncodeAmpsAndAngles {
 # Smart processing for ampersands and angle brackets that need to be encoded.
 
@@ -1841,6 +1875,10 @@ sub _EncodeAmpsAndAngles {
 
     # Encode naked <'s
     $text =~ s{<(?![a-z/?\$!])}{&lt;}gi;
+    $text =~ s{<(?=[^>]*$)}{&lt;}g;
+
+    # Encode <'s that cannot possibly be a start or end tag
+    $text =~ s{(<[^>]*>)}{_DoTag($1)}ige;
 
     return $text;
 }
