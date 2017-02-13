@@ -1506,7 +1506,7 @@ sub _ProcessListItems {
     my $oldpos = 0;
     pos($list_str) = 0;
     while ($list_str =~ m{\G		# start where we left off
-	(\n)?				# leading line = $1
+	(\n+)?				# leading line = $1
 	(^[ ]*)				# leading whitespace = $2
 	($marker_any) [ ] ([ ]*)	# list marker = $3 leading item space = $4
     }cgmx) {
@@ -1629,8 +1629,8 @@ sub _ProcessListItems {
 	    if defined($first_marker_type) && $first_marker_type eq "a" && $first_marker =~ /^$greek_lower/o;
     }
 
-    # Anything left over (similar to $') goes into result
-    $result .= substr($list_str, pos($list_str));
+    # Anything left over (similar to $') goes into result, but this should always be empty
+    $result .= _RunBlockGamut(substr($list_str, pos($list_str)));
 
     $g_list_level--;
     return ($result, $first_marker, $fancy);
