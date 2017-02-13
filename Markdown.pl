@@ -1830,18 +1830,31 @@ sub _FormParagraphs {
 }
 
 
-sub _EncodeHTML {
-    my $val = shift;
-    $val =~ s/&/&amp;/g;
-    $val =~ s/</&lt;/g;
-    return $val;
-}
-
-
 my $g_possible_tag_name;
+my %ok_tag_name;
 BEGIN {
     # note: length("blockquote") == 10
     $g_possible_tag_name = qr/(?i:[a-z]{1,10}|h[1-6])/o;
+    %ok_tag_name = map({$_ => 1} qw(
+	a abbr acronym address
+	b basefont bdo big blockquote br
+	caption center cite code
+	dd del dfn dir div dl dt
+	em
+	font
+	h1 h2 h3 h4 h5 h6 hr
+	i img ins
+	kbd
+	li
+	menu
+	ol
+	p pre
+	q
+	s samp small span strike strong sub sup
+	table tbody thead tfoot col colgroup tr th td tt
+	u ul
+	var
+    ));
 }
 
 
@@ -1850,16 +1863,12 @@ BEGIN {
 sub _DoTag {
 	my $tag = shift;
 	return $tag if $tag =~ /^<[?\$!]/;
-	if ($tag =~ m{^</}) {
-		if ($tag !~ m{^</$g_possible_tag_name\s*>}) {
-			return _EncodeHTML($tag);
-		} else {
-			return $tag;
-		}
+	if (($tag =~ m{^<($g_possible_tag_name)(?:[\s>]|/>$)} || $tag =~ m{^</($g_possible_tag_name)\s*>}) &&
+	    $ok_tag_name{lc($1)}) {
+
+	    return $tag;
 	}
-	if ($tag !~ m{^<$g_possible_tag_name[\s>]} && $tag !~ m{^<$g_possible_tag_name/>$}) {
-		return _EncodeHTML($tag);
-	}
+	$tag =~ s/</&lt;/g;
 	return $tag;
 }
 
