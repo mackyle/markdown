@@ -271,6 +271,7 @@ sub _main {
 	'version|V',
 	'shortversion|short-version|s',
 	'html4tags',
+	'deprecated',
 	'htmlroot|r=s',
 	'imageroot|i=s',
 	'tabwidth|tab-width=s',
@@ -301,6 +302,10 @@ sub _main {
     if ($cli_opts{'html4tags'}) {	 # Use HTML tag style instead of XHTML
 	$options{empty_element_suffix} = ">";
 	$stub = -$stub;
+    }
+    if ($cli_opts{'deprecated'}) {	 # Allow <dir> and <menu> tags to pass through
+	_SetAllowedTag("dir");
+	_SetAllowedTag("menu");
     }
     if ($cli_opts{'tabwidth'}) {
 	my $tw = $cli_opts{'tabwidth'};
@@ -1839,14 +1844,13 @@ BEGIN {
 	a abbr acronym address
 	b basefont bdo big blockquote br
 	caption center cite code col colgroup
-	dd del dfn dir div dl dt
+	dd del dfn div dl dt
 	em
 	font
 	h1 h2 h3 h4 h5 h6 hr
 	i img ins
 	kbd
 	li
-	menu
 	ol
 	p pre
 	q
@@ -1855,6 +1859,16 @@ BEGIN {
 	u ul
 	var
     ));
+    $ok_tag_name{$_} = 0 foreach (qw(
+	dir menu
+    ));
+}
+
+
+sub _SetAllowedTag {
+	my ($tag, $forbid) = @_;
+	$ok_tag_name{$tag} = $forbid ? 0 : 1
+		if defined($tag) && exists($ok_tag_name{$tag});
 }
 
 
@@ -2281,6 +2295,7 @@ B<Markdown.pl> [B<--help>] [B<--html4tags>] [B<--htmlroot>=I<prefix>]
    -h                                   show short usage help
    --help                               show long detailed help
    --html4tags                          use <br> instead of <br />
+   --deprecated                         allow <dir> and <menu> tags
    --tabwidth=num                       expand tabs to num instead of 8
    -r prefix | --htmlroot=prefix        append relative non-img URLs
                                         to prefix
@@ -2333,6 +2348,21 @@ Use HTML 4 style for empty element tags, e.g.:
 instead of Markdown's default XHTML style tags, e.g.:
 
     <br />
+
+
+=item B<--deprecated>
+
+Both "<dir>" and "<menu>" are normally taken as literal text and the leading
+"<" will be automatically escaped.
+
+If this option is used, they are recognized as valid tags and passed through
+without being escaped.
+
+When dealing with program argument descriptions "<dir>" can be particularly
+problematic therefore use of this option is not recommended.
+
+Other deprecated tags (such as "<font>" and "<center>" for example) continue
+to be recognized and passed through even without using this option.
 
 
 =item B<--tabwidth>=I<num>
