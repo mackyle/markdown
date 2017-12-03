@@ -191,7 +191,7 @@ Version History
 
 + Markdown.pl: retain square brackets around footnotes
 
-+ Markdown.pl: treat '*' in <ol> like last marker
++ Markdown.pl: treat '*' in `<ol>` like last marker
 
 + Markdown.pl: normalize link white space
 
