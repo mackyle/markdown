@@ -2,7 +2,7 @@
 Markdown
 ========
 
-Version 1.1.4
+Version 1.1.5
 
 John Gruber  
 Kyle J. McKay
@@ -172,6 +172,13 @@ Markdown.pl source code for more information.
 ---------------
 Version History
 ---------------
+
+1.1.5 (07 Dec 2017):
+
+* Markdown.pl: support tables
+
+* Markdown.pl: make sure all alt= and title= text is escaped
+
 
 1.1.4 (24 Jun 2017):
 
