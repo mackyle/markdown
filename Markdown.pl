@@ -111,7 +111,7 @@ BEGIN {
 # Table of hash values for escaped characters:
 my %g_escape_table;
 BEGIN {
-    foreach my $char (split //, "\\\`*_~{}[]()>#+-.!|") {
+    foreach my $char (split //, "\\\`*_~{}[]()>#+-.!|:") {
 	$g_escape_table{$char} = block_id($char,1);
     }
 }
@@ -854,8 +854,7 @@ sub _DoAnchors {
 	    $url =~ s!([*_~])!$g_escape_table{$1}!g;
 	    $result = "<a href=\"$url\"";
 	    if ( defined $g_titles{$link_id} ) {
-		my $title = $g_titles{$link_id};
-		$title =~ s!([*_~])!$g_escape_table{$1}!g;
+		my $title = _EncodeAttText($g_titles{$link_id});
 		$result .=  " title=\"$title\"";
 	    }
 	    $link_text = '[' . $link_text . ']' if $link_text =~ /^\d{1,3}$/;
@@ -891,7 +890,7 @@ sub _DoAnchors {
 	my $whole_match = $1;
 	my $link_text	= $2;
 	my $url		= $3;
-	my $title	= _strip($6);
+	my $title	= _EncodeAttText($6);
 
 	$url = _PrefixURL($url);
 	# We've got to encode these to avoid conflicting
@@ -900,8 +899,6 @@ sub _DoAnchors {
 	$result = "<a href=\"$url\"";
 
 	if (defined $title) {
-	    $title =~ s/\042/&quot;/g;
-	    $title =~ s!([*_~])!$g_escape_table{$1}!g;
 	    $result .= " title=\"$title\"";
 	}
 
@@ -934,8 +931,7 @@ sub _DoAnchors {
 	    $url =~ s!([*_~])!$g_escape_table{$1}!g;
 	    $result = "<a href=\"$url\"";
 	    if ( defined $g_titles{$link_id} ) {
-		my $title = $g_titles{$link_id};
-		$title =~ s!([*_~])!$g_escape_table{$1}!g;
+		my $title = _EncodeAttText($g_titles{$link_id});
 		$result .=  " title=\"$title\"";
 	    }
 	    $link_text = '[' . $link_text . ']' if $link_text =~ /^\d{1,3}$/;
@@ -984,7 +980,7 @@ sub _DoImages {
 	    $link_id = lc $alt_text; # for shortcut links like ![this][].
 	}
 
-	$alt_text =~ s/"/&quot;/g;
+	$alt_text = _EncodeAttText($alt_text);
 	if (defined $g_urls{$link_id}) {
 	    my $url = _PrefixURL($g_urls{$link_id});
 	    # We've got to encode these to avoid conflicting
@@ -992,8 +988,7 @@ sub _DoImages {
 	    $url =~ s!([*_~])!$g_escape_table{$1}!g;
 	    $result = "<img src=\"$url\" alt=\"$alt_text\"";
 	    if (defined $g_titles{$link_id}) {
-		my $title = $g_titles{$link_id};
-		$title =~ s!([*_~])!$g_escape_table{$1}!g;
+		my $title = _EncodeAttText($g_titles{$link_id});
 		$result .=  " title=\"$title\"";
 	    }
 	    $result .= $opt{empty_element_suffix};
@@ -1030,22 +1025,19 @@ sub _DoImages {
     }{
 	my $result;
 	my $whole_match = $1;
-	my $alt_text	= _strip($2);
+	my $alt_text	= _EncodeAttText($2);
 	my $url		= $3;
 	my $title	= '';
 	if (defined($6)) {
-	    $title	= _strip($6);
+	    $title	= _EncodeAttText($6);
 	}
 
 	$url = _PrefixURL($url);
-	$alt_text =~ s/"/&quot;/g;
-	$title	  =~ s/"/&quot;/g;
 	# We've got to encode these to avoid conflicting
 	# with italics, bold and strike through.
 	$url =~ s!([*_~])!$g_escape_table{$1}!g;
 	$result = "<img src=\"$url\" alt=\"$alt_text\"";
 	if (defined $title) {
-	    $title =~ s!([*_~])!$g_escape_table{$1}!g;
 	    $result .= " title=\"$title\"";
 	}
 	$result .= $opt{empty_element_suffix};
@@ -1068,7 +1060,7 @@ sub _DoImages {
 	my $alt_text	= _strip($2);
 	my $link_id	= lc $alt_text;
 
-	$alt_text =~ s/"/&quot;/g;
+	$alt_text = _EncodeAttText($alt_text);
 	if (defined $g_urls{$link_id}) {
 	    my $url = _PrefixURL($g_urls{$link_id});
 	    # We've got to encode these to avoid conflicting
@@ -1076,8 +1068,7 @@ sub _DoImages {
 	    $url =~ s!([*_~])!$g_escape_table{$1}!g;
 	    $result = "<img src=\"$url\" alt=\"$alt_text\"";
 	    if (defined $g_titles{$link_id}) {
-		my $title = $g_titles{$link_id};
-		$title =~ s!([*_~])!$g_escape_table{$1}!g;
+		my $title = _EncodeAttText($g_titles{$link_id});
 		$result .=  " title=\"$title\"";
 	    }
 	    $result .= $opt{empty_element_suffix};
@@ -1090,6 +1081,16 @@ sub _DoImages {
 	$result;
     }xsge;
 
+    return $text;
+}
+
+sub _EncodeAttText {
+    my $text = shift;
+    defined($text) or return undef;
+    $text = _EncodeAmps(_strip($text));
+    $text =~ s/\042/&quot;/g;
+    $text =~ s/</&lt;/g;
+    $text =~ s!([*_~:])!$g_escape_table{$1}!g;
     return $text;
 }
 
@@ -1978,6 +1979,17 @@ sub _DoTag {
 	}
 	$tag =~ s/</&lt;/g;
 	return $tag;
+}
+
+
+sub _EncodeAmps {
+    my $text = shift;
+
+    # Ampersand-encoding based entirely on Nat Irons's Amputator MT plugin:
+    #   http://bumppo.net/projects/amputator/
+    $text =~ s/&(?!#?[xX]?(?:[0-9a-fA-F]+|\w+);)/&amp;/g;
+
+    return $text;
 }
 
 
