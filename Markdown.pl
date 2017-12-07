@@ -111,7 +111,7 @@ BEGIN {
 # Table of hash values for escaped characters:
 my %g_escape_table;
 BEGIN {
-    foreach my $char (split //, "\\\`*_~{}[]()>#+-.!") {
+    foreach my $char (split //, "\\\`*_~{}[]()>#+-.!|") {
 	$g_escape_table{$char} = block_id($char,1);
     }
 }
@@ -695,6 +695,8 @@ sub _RunBlockGamut {
     $text = _DoCodeBlocks($text);
 
     $text = _DoBlockQuotes($text);
+
+    $text = _DoTables($text);
 
     # We already ran _HashHTMLBlocks() before, in Markdown(), but that
     # was to escape raw HTML in the original Markdown source. This time,
@@ -1798,6 +1800,98 @@ sub _DoBlockQuotes {
 }
 
 
+my ($LEAD, $TRAIL, $LEADBAR, $LEADSP, $COLPL, $SEP);
+BEGIN {
+    $LEAD = qr/(?>[ ]*(?:\|[ ]*)?)/o;
+    $TRAIL = qr/\|[ ]*/o;
+    $LEADBAR = qr/(?>[ ]*\|[ ]*)/o;
+    $LEADSP = qr/(?>[ ]*)/o;
+    $COLPL = qr/(?:[^\n|\\]|\\[^\n])+/o;
+    $SEP = qr/[ ]*:?-+:?[ ]*/o;
+}
+
+sub _DoTables {
+    my $text = shift;
+
+    $text =~ s{
+	(				# Wrap whole thing to avoid $&
+	 (?: (?<=\n\n) | \A\n? )	# Preceded by blank line or beginning of string
+	 ^(				# Header line
+	    $LEADBAR \| [^\n]* |
+	    $LEADBAR $COLPL [^\n]* |
+	    $LEADSP $COLPL \| [^\n]*
+	  )\n
+	  (				# Separator line
+	    $LEADBAR $SEP (?: \| $SEP )* (?: \| [ ]*)? |
+	    $SEP (?: \| $SEP )+ (?: \| [ ]*)? |
+	    $SEP \| [ ]*
+	  )\n
+	  ((?:				# Rows (0+)
+	    $LEADBAR \| [^\n]* \n |
+	    $LEADBAR $COLPL [^\n]* \n |
+	    $LEADSP $COLPL \| [^\n]* \n
+	  )*)
+	)
+    } {
+	my ($w, $h, $s, $rows) = ($1, $2, $3, $4);
+	my @heads = _SplitTableRow($h);
+	my @seps = _SplitTableRow($s);
+	if (@heads == @seps) {
+	    my @align = map {
+		if (/^:-+:$/) {" align=\"center\""}
+		elsif (/^:/) {" align=\"left\""}
+		elsif (/:$/) {" align=\"right\""}
+		else {""}
+	    } @seps;
+	    my $headers = _MakeTableRow("th", \@align, @heads);
+	    my $tab ="\n<table border=\"1\" cellspacing=\"0\" cellpadding=\"2\" class=\"$opt{style_prefix}table\">\n" .
+		"  <tr class=\"$opt{style_prefix}row-hdr\">" . _MakeTableRow("th", \@align, @heads) . "</tr>\n";
+	    my $cnt = 0;
+	    my @classes = ("class=\"$opt{style_prefix}row-even\"", "class=\"$opt{style_prefix}row-odd\"");
+	    $tab .= "  <tr " . $classes[++$cnt % 2] . ">" . _MakeTableRow("td", \@align, _SplitTableRow($_)) . "</tr>\n"
+		    foreach split(/\n/, $rows);
+	    $tab .= "</table>\n\n";
+	} else {
+	    $w;
+	}
+    }egmx;
+
+    return $text;
+}
+
+
+sub _SplitTableRow {
+    my $row = shift;
+    $row =~ s/^$LEAD//;
+    $row =~ s/$TRAIL$//;
+    $row =~ s!\\\\!$g_escape_table{'\\'}!go; # Must process escaped backslashes first.
+    $row =~ s!\\\|!$g_escape_table{'|'}!go; # Then do \|
+    my @elems = map {
+      s!$g_escape_table{'|'}!|!go;
+      s!$g_escape_table{'\\'}!\\!go;
+      s/^[ ]+//;
+      s/[ ]+$//;
+      $_;
+    } split(/[ ]*\|[ ]*/, $row, -1);
+    @elems or push(@elems, "");
+    return @elems;
+}
+
+
+sub _MakeTableRow {
+    my $etype = shift;
+    my $align = shift;
+    my $row = "";
+    for (my $i = 0; $i < @$align; ++$i) {
+	my $data = $_[$i];
+	defined($data) or $data = "";
+	$row .= "<" . $etype . $$align[$i] . ">" .
+	    _RunSpanGamut($data) . "</" . $etype . ">";
+    }
+    return $row;
+}
+
+
 sub _FormParagraphs {
 #
 # Params:
@@ -2149,6 +2243,15 @@ div.%(base)code-bt > pre > code, div.%(base)code > pre > code {
 	padding: 0.5em 0;
 	border-top: thin dotted;
 	border-bottom: thin dotted;
+}
+
+table.%(base)table {
+	margin-bottom: 0.5em;
+}
+table.%(base)table, table.%(base)table th, table.%(base)table td {
+	border-collapse: collapse;
+	border-spacing: 0;
+	border: thin solid;
 }
 
 ol.%(base)ol {

@@ -198,6 +198,26 @@ Output:
       </ul>
 
 
+~~~~~~
+Tables
+~~~~~~
+
+Markdown supports simple tables like so:
+
+    | Item | Price | Description |
+    | ---- | -----:| ----------- |
+    | Nut  | $1.29 | Delicious   |
+    | Bean | $0.37 | Fiber       |
+
+Output:
+
+    <table>
+      <tr><th>Item</th><th align="right">Price</th><th>Description</th></tr>
+      <tr><td>Nut</td><td align="right">$1.29</td><td>Delicious</td></tr>
+      <tr><td>Bean</td><td align="right">$0.37</td><td>Fiber</td></tr>
+    </table>
+
+
 ~~~~~
 Links
 ~~~~~

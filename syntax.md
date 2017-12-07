@@ -17,6 +17,7 @@ Markdown: Syntax
     *   [Headers]
     *   [Blockquotes]
     *   [Lists]
+    *   [Tables]
     *   [Style Sheet]
     *   [Code Blocks]
     *   [Horizontal Rules]
@@ -552,6 +553,65 @@ So the above, by itself without the escaped ".", will not start a list
 when it's outside of any list unless it's preceded by a blank line or
 immediately followed by another line that looks like a list item (either
 of the same kind or of a sublist).
+
+
+~~~~~~
+Tables
+~~~~~~
+
+Markdown supports simple tables like so:
+
+    | Item | Price | Description |
+    | ---- | -----:| ----------- |
+    | Nut  | $1.29 | Delicious   |
+    | Bean | $0.37 | Fiber       |
+
+Output:
+
+    <table>
+      <tr><th>Item</th><th align="right">Price</th><th>Description</th></tr>
+      <tr><td>Nut</td><td align="right">$1.29</td><td>Delicious</td></tr>
+      <tr><td>Bean</td><td align="right">$0.37</td><td>Fiber</td></tr>
+    </table>
+
+The leading and trailing `|` on each line are optional unless there is only
+a single column in which case at least one `|` is always required -- two if
+the single column contains only whitespace.
+
+Leading and trailing whitespace are always trimmed from each column's value
+before using it.
+
+To include a literal `|` (veritical bar) character in a column's value, precede
+it with a `\` (backslash).  To include a literal `\` use `\\` (double them).
+
+The number of columns in the separator row must match exactly the number of
+columns in the header row in order for the table to be recognized.
+
+Each separator in the separator line must be one or more `-` (dash) characters
+optionally with a `:` (colon) on either or both ends.  With no colons the
+column alignment will be the default.  With a colon only on the left the
+alignment will be `left`.  With a colon only on the right the alignment will
+be `right`.  And finally, with a colon on both ends the alignment will be
+`center`.  The alignment will be applied to the column in both header and body
+rows.
+
+Body rows that contain fewer columns than the header row have empty columns
+added.  Body rows that contain more columns than the header row have the
+extra columns dropped.
+
+The vertical bars do not need to be lined up, sloppy tables work just fine.
+The above example could be rewritten like so:
+
+    Item|Price|Description
+    -|-:|-
+    Nut|$1.29|Delicious
+    Bean|$0.37|Fiber
+
+Inline markup is recognized just fine within each column:
+
+    |Example
+    |:-
+    |~~Strikeout~~ `code` _etc._
 
 
 ~~~~~~~~~~~
@@ -1091,3 +1151,4 @@ Markdown provides backslash escapes for the following characters:
       -   minus sign (hyphen)
       .   dot
       !   exclamation mark
+      |   vertical bar (escape only needed/recognized in tables)
