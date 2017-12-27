@@ -489,23 +489,27 @@ sub _HashBTCodeBlocks {
 #   Process Markdown backticks (```) delimited code blocks
 #
     my $text = shift;
+    my $less_than_indent = $opt{indent_width} - 1;
 
     $text =~ s{
 	    (?:(?<=\n)|\A)
-		``(`+)[ \t]*(?:([\w.+-]+)[ \t]*)?\n
-	     ( # $3 = the code block -- one or more lines, starting with ```
+		([ ]{0,$less_than_indent})``(`+)[ \t]*(?:([\w.+-]+)[ \t]*)?\n
+	     ( # $4 = the code block -- one or more lines, starting with ```
 	      (?:
 		.*\n+
 	      )+?
 	     )
-	    (?:(?:``\1[ \t]*(?:\n|\Z))|\Z) # and ending with ``` or end of document
+	    # and ending with ``` or end of document
+	    (?:(?:[ ]{0,$less_than_indent}``\2[ \t]*(?:\n|\Z))|\Z)
 	}{
 	    # $2 contains syntax highlighting to use if defined
-	    my $codeblock = $3;
+	    my $leadsp = length($1);
+	    my $codeblock = $4;
 	    $codeblock =~ s/[ \t]+$//mg; # trim trailing spaces on lines
 	    $codeblock = _Detab($codeblock, 8); # physical tab stops are always 8
 	    $codeblock =~ s/\A\n+//; # trim leading newlines
 	    $codeblock =~ s/\s+\z//; # trim trailing whitespace
+	    $codeblock =~ s/^ {1,$leadsp}//mg if $leadsp; # trim leading space(s)
 	    $codeblock = _EncodeCode($codeblock); # or run highlighter here
 	    $codeblock = "<div class=\"$opt{style_prefix}code-bt\"><pre style=\"display:none\"></pre><pre><code>"
 		. $codeblock . "\n</code></pre></div>";
