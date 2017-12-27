@@ -662,12 +662,12 @@ sub _HashHTMLBlocks {
 		(		    # save in $1
 		    [ ]{0,$less_than_indent}
 		    (?s:
-			<!
-			(--.*?--\s*)+
-			>
+			<!--
+			(?:[^-]|(?:-(?!-)))*
+			-->
 		    )
 		    [ ]*
-		    (?=\n{2,}|\Z)   # followed by a blank line or end of document
+		    (?=\n{1,}|\Z)   # followed by end of line or end of document
 		)
 	    }{
 		my $key = block_id($1);
