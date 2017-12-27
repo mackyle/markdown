@@ -2202,7 +2202,7 @@ sub _PrefixURL {
     return $url if $url =~ m,^//, || $url =~ /^[A-Za-z][A-Za-z0-9+.-]*:/;
     my $ans = $opt{url_prefix};
     $ans = $opt{img_prefix}
-	if $opt{img_prefix} ne '' && $url =~ /\.(?:png|gif|jpe?g|svg?z)$/i;
+	if $opt{img_prefix} ne '' && $url =~ /\.(?:png|gif|jpe?g|svgz?)$/i;
     return $url unless $ans ne '';
     $ans .= '/' if substr($ans, -1, 1) ne '/';
     $ans .= substr($url, 0, 1) eq '/' ? substr($url, 1) : $url;
