@@ -1979,10 +1979,51 @@ sub _DoTag {
 	if (($tag =~ m{^<($g_possible_tag_name)(?:[\s>]|/>$)} || $tag =~ m{^</($g_possible_tag_name)\s*>}) &&
 	    $ok_tag_name{lc($1)}) {
 
+	    return _ProcessURLTag("href", $tag) if $tag =~ /^<a\s/i;
+	    return _ProcessURLTag("src", $tag) if $tag =~ /^<img\s/i;
 	    return $tag;
 	}
 	$tag =~ s/</&lt;/g;
 	return $tag;
+}
+
+
+sub _ProcessURLTag {
+    my $att = shift;
+    my $tag = shift;
+
+    $att = lc($att) . "=";
+    if ($tag =~ /^(<[^\s>]+\s+)/g) {
+	    my $out = $1;
+	    while ($tag =~ /\G([^\s\042\047>]+=)([\042\047])((?:(?!\2)(?!>).)*)(\2\s*)/gc) {
+		    my ($p, $q, $v, $s) = ($1, $2, $3, $4);
+		    if (lc($p) eq $att && $v ne "") {
+			    $v = _HTMLEncode(_PrefixURL($v));
+		    }
+		    $out .= $p . $q . $v . $s;
+	    }
+	    $out .= substr($tag, pos($tag));
+	    return $out;
+    }
+
+    return $tag;
+}
+
+
+sub _HTMLEncode {
+    my $text = shift;
+
+    # Ampersand-encoding based entirely on Nat Irons's Amputator MT plugin:
+    #   http://bumppo.net/projects/amputator/
+    $text =~ s/&(?!#?[xX]?(?:[0-9a-fA-F]+|\w+);)/&amp;/g;
+
+    # Remaining entities now
+    $text =~ s/\042/&quot;/g;
+    $text =~ s/\047/&apos;/g;
+    $text =~ s/</&lt;/g;
+    $text =~ s/>/&gt;/g;
+
+    return $text;
 }
 
 
