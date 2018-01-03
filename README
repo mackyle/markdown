@@ -2,7 +2,7 @@
 Markdown
 ========
 
-Version 1.1.5
+Version 1.1.6
 
 John Gruber  
 Kyle J. McKay
@@ -172,6 +172,17 @@ Markdown.pl source code for more information.
 ---------------
 Version History
 ---------------
+
+1.1.6 (03 Jan 2018):
+
+* Markdown.pl: be more flexible parsing backticks-delimited code blocks
+
+* Markdown.pl: improve XML comment parsing
+
+* Markdown.pl: correct .svg extension matching rule
+
+* Markdown.pl: apply -i and -r options to a and img tags
+
 
 1.1.5 (07 Dec 2017):
 
@@ -413,7 +424,7 @@ Copyright and License
 ---------------------
 
 Copyright (C) 2003-2004 John Gruber  
-Copyright (C) 2015-2017 Kyle J. McKay  
+Copyright (C) 2015-2018 Kyle J. McKay  
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
