@@ -25,7 +25,7 @@ BEGIN {*COPYRIGHT =
 Copyright (C) 2015,2016,2017,2018 Kyle J. McKay
 All rights reserved.
 ";
-*VERSION = \"1.1.6"
+*VERSION = \"1.1.7-PRE"
 }
 
 require Exporter;
