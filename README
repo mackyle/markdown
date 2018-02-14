@@ -2,7 +2,7 @@
 Markdown
 ========
 
-Version 1.1.6
+Version 1.1.7
 
 John Gruber  
 Kyle J. McKay
@@ -172,6 +172,11 @@ Markdown.pl source code for more information.
 ---------------
 Version History
 ---------------
+
+1.1.7 (14 Feb 2018):
+
+* Markdown.pl: _PrefixURL more intelligently
+
 
 1.1.6 (03 Jan 2018):
 
