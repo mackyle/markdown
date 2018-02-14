@@ -111,6 +111,7 @@ BEGIN {
 # Table of hash values for escaped characters:
 my %g_escape_table;
 BEGIN {
+    $g_escape_table{""} = "\2\3";
     foreach my $char (split //, "\\\`*_~{}[]()>#+-.!|:") {
 	$g_escape_table{$char} = block_id($char,1);
     }
@@ -2238,16 +2239,20 @@ sub _PrefixURL {
 # Add URL prefix if needed
 #
     my $url = shift;
+    $url =~ s/^\s+//;
+    $url =~ s/\s+$//;
+    $url = "#" unless $url ne "";
 
     return $url unless $opt{url_prefix} ne '' || $opt{img_prefix} ne '';
-    return $url if $url =~ m,^//, || $url =~ /^[A-Za-z][A-Za-z0-9+.-]*:/;
+    return $url if $url =~ m"^\002\003" || $url =~ m"^#" ||
+	    $url =~ m,^//, || $url =~ /^[A-Za-z][A-Za-z0-9+.-]*:/;
     my $ans = $opt{url_prefix};
     $ans = $opt{img_prefix}
-	if $opt{img_prefix} ne '' && $url =~ /\.(?:png|gif|jpe?g|svgz?)$/i;
+	if $opt{img_prefix} ne '' && $url =~ m"^[^#]*\.(?:png|gif|jpe?g|svgz?)(?:#|$)"i;
     return $url unless $ans ne '';
     $ans .= '/' if substr($ans, -1, 1) ne '/';
     $ans .= substr($url, 0, 1) eq '/' ? substr($url, 1) : $url;
-    return $ans;
+    return "\2\3".$ans;
 }
 
 
