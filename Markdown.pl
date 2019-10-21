@@ -4,7 +4,7 @@
 # Markdown -- A text-to-HTML conversion tool for web writers
 #
 # Copyright (C) 2004 John Gruber
-# Copyright (C) 2015,2016,2017,2018 Kyle J. McKay
+# Copyright (C) 2015,2016,2017,2018,2019 Kyle J. McKay
 # All rights reserved.
 # License is Modified BSD (aka 3-clause BSD) License\n";
 # See LICENSE file (or <https://opensource.org/licenses/BSD-3-Clause>)
@@ -22,10 +22,10 @@ use vars qw($COPYRIGHT $VERSION @ISA @EXPORT_OK);
 
 BEGIN {*COPYRIGHT =
 \"Copyright (C) 2004 John Gruber
-Copyright (C) 2015,2016,2017,2018 Kyle J. McKay
+Copyright (C) 2015,2016,2017,2018,2019 Kyle J. McKay
 All rights reserved.
 ";
-*VERSION = \"1.1.7"
+*VERSION = \"1.1.8-PRE"
 }
 
 require Exporter;
@@ -2263,7 +2263,7 @@ BEGIN {
 /* <![CDATA[ */
 
 /* Markdown.pl fancy style sheet
-** Copyright (C) 2017,2018 Kyle J. McKay.
+** Copyright (C) 2017,2018,2019 Kyle J. McKay.
 ** All rights reserved.
 **
 ** Redistribution and use in source and binary forms, with or without
@@ -2670,7 +2670,7 @@ Z<> See the F<README> file for detailed release notes for this version.
 
 =item Copyright (C) 2003-2004 John Gruber
 
-=item Copyright (C) 2015-2018 Kyle J. McKay
+=item Copyright (C) 2015-2019 Kyle J. McKay
 
 =item All rights reserved.
 
