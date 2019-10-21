@@ -1797,7 +1797,7 @@ sub _DoBlockQuotes {
 	  (			# Wrap whole match in $1
 	    (
 	      ^[ ]*>[ ]?	# '>' at the start of a line
-		.+\n		# rest of the first line
+		.*\n		# rest of the first line
 	      (.+\n)*		# subsequent consecutive lines
 	      \n*		# blanks
 	    )+
