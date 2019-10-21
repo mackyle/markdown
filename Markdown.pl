@@ -75,6 +75,7 @@ my %g_titles;
 my %g_anchors;
 my %g_anchors_id;
 my %g_block_ids;
+my %g_code_block_ids;
 my %g_html_blocks;
 my %g_code_blocks;
 my %opt;
@@ -88,9 +89,10 @@ my %opt;
 # else, it's prefixed with a control character and suffixed with another
 # both of which are not allowed by the XML standard or Unicode.
 sub block_id {
-    $_[1] ?
-    "\2".refaddr(\$g_perm_block_ids{$_[0]})."\3" :
-    "\5".refaddr(\$g_block_ids{$_[0]})."\6";
+    $_[1] or return "\5".refaddr(\$g_block_ids{$_[0]})."\6";
+    $_[1] == 1 and return "\2".refaddr(\$g_perm_block_ids{$_[0]})."\3";
+    $_[1] == 2 and return "\25".refaddr(\$g_code_block_ids{$_[0]})."\26";
+    die "programmer error: bad block_id type $_[1]";
 }
 
 # Regex to match balanced [brackets]. See Friedl's
@@ -439,6 +441,7 @@ sub Markdown {
     %g_titles = ();
     %g_anchors = ();
     %g_block_ids = ();
+    %g_code_block_ids = ();
     %g_html_blocks = ();
     %g_code_blocks = ();
     $g_list_level = 0;
@@ -470,8 +473,11 @@ sub Markdown {
 
     $text = _RunBlockGamut($text, 1);
 
+    # Remove indentation markers
+    $text =~ s/\027+//gs;
+
     # Unhashify code blocks
-    $text =~ s/(\005\d+\006)/$g_code_blocks{$1}/g;
+    $text =~ s/(\025\d+\026)/$g_code_blocks{$1}/g;
 
     $text = _UnescapeSpecialChars($text);
 
@@ -578,6 +584,7 @@ BEGIN {
 sub _HashHTMLBlocks {
     my $text = shift;
     my $less_than_indent = $opt{indent_width} - 1;
+    my $idt = "\027" x $g_list_level;
 
     # Hashify HTML blocks:
     # We only want to do this for block-level HTML tags, such as headers,
@@ -600,10 +607,11 @@ sub _HashHTMLBlocks {
     $text =~ s{
 		(			# save in $1
 		    ^			# start of line (with /m)
-		    <($block_tags_a)	# start tag = $2
+		    ((?:\Q$idt\E)?)	# optional lead in = $2
+		    <($block_tags_a)	# start tag = $3
 		    \b			# word break
-		    (.*\n)*?		# any number of lines, minimally matching
-		    </\2>		# the matching end tag
+		    (?:.*\n)*?		# any number of lines, minimally matching
+		    \2</\3>		# the matching end tag
 		    [ ]*		# trailing spaces
 		    (?=\n+|\Z) # followed by a newline or end of document
 		)
@@ -620,9 +628,10 @@ sub _HashHTMLBlocks {
     $text =~ s{
 		(			# save in $1
 		    ^			# start of line (with /m)
+		    (?:\Q$idt\E)?	# optional lead in
 		    <($block_tags_b)	# start tag = $2
 		    \b			# word break
-		    (.*\n)*?		# any number of lines, minimally matching
+		    (?:.*\n)*?		# any number of lines, minimally matching
 		    .*</\2>		# the matching end tag
 		    [ ]*		# trailing spaces
 		    (?=\n+|\Z) # followed by a newline or end of document
@@ -642,9 +651,9 @@ sub _HashHTMLBlocks {
 		)
 		(			# save in $1
 		    [ ]{0,$less_than_indent}
-		    <(hr)		# start tag = $2
+		    <(?:hr)		# start tag
 		    \b			# word break
-		    ([^<>])*?		#
+		    (?:[^<>])*?		#
 		    /?>			# the matching end tag
 		    [ ]*
 		    (?=\n{2,}|\Z)	# followed by a blank line or end of document
@@ -1422,7 +1431,8 @@ sub _DoLists {
 		    $list_att .= " start=\"$first_marker_num\"" unless $first_marker_num == 1;
 		}
 	}
-	$result = "<$list_type$list_att$list_class>\n$list_incr" . $result . "</$list_type>\n";
+	my $idt = "\027" x $g_list_level;
+	$result = "$idt<$list_type$list_att$list_class>\n$list_incr" . $result . "$idt</$list_type>\n\n";
 	$result;
     };
 
@@ -1513,6 +1523,7 @@ sub _ProcessListItems {
     # starting cardinal number; e.g. "1." or "a.".
 
     $g_list_level++;
+    my $idt = "\027" x $g_list_level;
     my $marker_kind = $list_type eq "ul" ? $marker_ul : $marker_ol;
     my $first_marker;
     my $first_marker_type;
@@ -1639,12 +1650,12 @@ sub _ProcessListItems {
 	}
 
 	# Append to $result
-	$result .= "$incr<li$liatt>" . $checkbox . $item . "</li>\n";
+	$result .= "$incr$idt<li$liatt>" . $checkbox . $item . "$idt</li>\n";
     }
     if ($fancy) {
 	# remove "incrlevel=$g_list_level " parts
 	$result =~ s{<span incrlevel=$g_list_level class="$opt{style_prefix}ol-incr((?:-\d{1,2})?)">}
-	    {<span class="$opt{style_prefix}ol-incr$1">}g;
+	    {$idt<span class="$opt{style_prefix}ol-incr$1">}g;
     } else {
 	# remove the $g_list_level incr spans entirely
 	$result =~ s{<span incrlevel=$g_list_level class="$opt{style_prefix}ol-incr(?:-\d{1,2})?"></span>\n}{}g;
@@ -1687,7 +1698,7 @@ sub _DoCodeBlocks {
 
 	    my $result = "<div class=\"$opt{style_prefix}code\"><pre style=\"display:none\"></pre><pre><code>"
 		. $codeblock . "\n</code></pre></div>";
-	    my $key = block_id($result);
+	    my $key = block_id($result, 2);
 	    $g_code_blocks{$key} = $result;
 	    "\n\n" . $key . "\n\n";
 	}egmx;
