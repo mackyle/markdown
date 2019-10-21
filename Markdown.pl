@@ -551,9 +551,9 @@ sub _StripLinkDefinitions {
 			  [ ]*
 			(?:
 			    (?<=\s)	    # lookbehind for whitespace
-			    ["(]
-			    (.+?)	    # title = $3
-			    [")]
+			    (?:(['"])|(\()) # title quote char
+			    (.+?)	    # title = $5
+			    (?(4)\)|\3)	    # match same quote
 			    [ ]*
 			)?  # title is optional
 			(?:\n+|\Z)
@@ -561,7 +561,7 @@ sub _StripLinkDefinitions {
 		    {}mx) {
 	my $id = _strip(lc $1); # Link IDs are case-insensitive
 	my $url = $2;
-	my $title = _strip($3);
+	my $title = _strip($5);
 	$url =~ s/\\\n\s*//gs;
 	if ($id ne "") {
 		$g_urls{$id} = _EncodeAmpsAndAngles($url);
