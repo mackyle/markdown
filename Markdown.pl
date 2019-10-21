@@ -539,7 +539,7 @@ sub _StripLinkDefinitions {
 			  [ ]*
 			  \n?		    # maybe *one* newline
 			  [ ]*
-			<?(\S+?)>?	    # url = $2
+			<?((?:\S(?:\\\n\s*[^\s"(])?)+?)>? # url = $2
 			  [ ]*
 			  \n?		    # maybe one newline
 			  [ ]*
@@ -556,6 +556,7 @@ sub _StripLinkDefinitions {
 	my $id = _strip(lc $1); # Link IDs are case-insensitive
 	my $url = $2;
 	my $title = _strip($3);
+	$url =~ s/\\\n\s*//gs;
 	if ($id ne "") {
 		$g_urls{$id} = _EncodeAmpsAndAngles($url);
 		if (defined($title) && $title ne "") {
@@ -2258,7 +2259,7 @@ sub _PrefixURL {
 	    $url =~ m,^//, || $url =~ /^[A-Za-z][A-Za-z0-9+.-]*:/;
     my $ans = $opt{url_prefix};
     $ans = $opt{img_prefix}
-	if $opt{img_prefix} ne '' && $url =~ m"^[^#]*\.(?:png|gif|jpe?g|svgz?)(?:#|$)"i;
+	if $opt{img_prefix} ne '' && $url =~ m"^[^#?]*\.(?:png|gif|jpe?g|svgz?)(?:[#?]|$)"i;
     return $url unless $ans ne '';
     $ans .= '/' if substr($ans, -1, 1) ne '/';
     $ans .= substr($url, 0, 1) eq '/' ? substr($url, 1) : $url;

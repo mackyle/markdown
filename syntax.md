@@ -1096,6 +1096,37 @@ The first dimension sets the "width" attribute and the second
 dimension sets the "height" attribute.  The dimensions are then
 removed from the "title" attribute.
 
+It's possible to wrap the url when it's specified in a reference.
+Both of these examples:
+
+      [id]: url/\
+            t\
+            o/image
+            "Optional title"
+
+      [id]: url/to/image "Optional title"
+
+Produce identical "img" tags.  Only the url can be wrapped and
+only when it's in a reference.  The backslash ("\") must be the
+last character on the line and the next line (after optional
+ignored leading whitespace) must contain at least one additional
+character that's part of the URL.
+
+This can be useful for data: urls like so:
+
+      ![image][1]
+
+      [1]: data:image/gif;base64,R0lGODlhFwAXAPMAMf///+7u7t3d3czMzLu7u6qqqp\
+           mZmYiIiHd3d2ZmZlVVVURERDMzMyIiIhEREQAAACwAAAAAFwAXAAAExxDISau9Mg\
+           She8DURhhHWRLDB26FkSjKqxxFqlbBWOwF4fOGgsCycRkInI+ocEAQNBNWq0caCJ\
+           i9aSqqGwwIL4MAsRATeMMMEykYHBLIt7DNHETrAPrBihVwDAh2ansBXygaAj5sa1\
+           x7iTUAKomEBU53B0hGVoVMTleEg0hkCD0DJAhwAlVcQT6nLwgHR1liUQNaqgkMDT\
+           NWXWkSbS6lZ0eKTUIWuTSbGzlNlkS3LSYksjtPK6YJCzEwNMAgbT9nKBwg6Onq6B\
+           EAOw== "title (100x100)"
+
+Thus allowing small amounts of image data to be embedded directly in the
+source "text" file with minimal fuss.
+
 
 - - - - -
 
