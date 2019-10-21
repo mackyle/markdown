@@ -73,6 +73,7 @@ my %g_perm_block_ids;
 my %g_urls;
 my %g_titles;
 my %g_anchors;
+my %g_anchors_id;
 my %g_block_ids;
 my %g_html_blocks;
 my %g_code_blocks;
@@ -794,6 +795,22 @@ sub _ProcessWikiLink {
 }
 
 
+# Return a suitably encoded <a...> tag string
+# On input NONE of $url, $text or $title should be xmlencoded
+# but $url should already be url-encoded if needed, but NOT g_escape_table'd
+sub _MakeATag {
+	my ($url, $text, $title) = @_;
+	defined($url) or $url="";
+	defined($text) or $text="";
+	defined($title) or $title="";
+
+	my $result = "<a href=\"" . _EncodeAttText($url) . "\"";
+	$title = _strip($title);
+	$result .= " title=\"" . _EncodeAttText($title) . "\"" if $title ne "";
+	return $result . ">" . $text . "</a>";
+}
+
+
 sub _DoAnchors {
 #
 # Turn Markdown link shortcuts into XHTML <a> tags.
@@ -845,25 +862,16 @@ sub _DoAnchors {
 	my $result;
 	my $whole_match = $1;
 	my $link_text	= $2;
-	my $link_id	= _strip(lc $3);
+	my $link_id	= $3;
 
-	if ($link_id eq "") {
-	    $link_id = _strip(lc $link_text);	  # for shortcut links like [this][].
-	}
+	$link_id ne "" or $link_id = $link_text; # for shortcut links like [this][].
+	$link_id = _strip(lc $link_id);
 
 	if (defined($g_urls{$link_id}) || defined($g_anchors{$link_id})) {
 	    my $url = $g_urls{$link_id};
 	    $url = defined($url) ? _PrefixURL($url) : $g_anchors{$link_id};
-	    # We've got to encode these to avoid conflicting
-	    # with italics, bold and strike through.
-	    $url =~ s!([*_~])!$g_escape_table{$1}!g;
-	    $result = "<a href=\"$url\"";
-	    if ( defined $g_titles{$link_id} ) {
-		my $title = _EncodeAttText($g_titles{$link_id});
-		$result .=  " title=\"$title\"";
-	    }
 	    $link_text = '[' . $link_text . ']' if $link_text =~ /^\d{1,3}$/;
-	    $result .= ">$link_text</a>";
+	    $result = _MakeATag($url, $link_text, $g_titles{$link_id});
 	}
 	else {
 	    $result = $whole_match;
@@ -891,26 +899,27 @@ sub _DoAnchors {
 	  \)
 	)
     }{
-	my $result;
+	#my $result;
 	my $whole_match = $1;
 	my $link_text	= $2;
 	my $url		= $3;
-	my $title	= _EncodeAttText($6);
+	my $title	= $6;
 
-	$url = _PrefixURL($url);
-	# We've got to encode these to avoid conflicting
-	# with italics, bold and strike through.
-	$url =~ s!([*_~])!$g_escape_table{$1}!g;
-	$result = "<a href=\"$url\"";
-
-	if (defined $title) {
-	    $result .= " title=\"$title\"";
+	if ($url =~ /^#\S/) {
+	    my $idbase = _strip(lc(substr($url, 1)));
+	    my $id = _MakeAnchorId($idbase);
+	    if (defined($g_anchors_id{$id})) {
+		$url = $g_anchors_id{$id};
+	    } else {
+		$idbase =~ s/-/_/gs;
+		$id = _MakeAnchorId($idbase);
+		if (defined($g_anchors_id{$id})) {
+		    $url = $g_anchors_id{$id};
+		}
+	    }
 	}
-
 	$link_text = '[' . $link_text . ']' if $link_text =~ /^\d{1,3}$/;
-	$result .= ">$link_text</a>";
-
-	$result;
+	_MakeATag(_PrefixURL($url), $link_text, $title);
     }xsge;
 
     #
@@ -931,16 +940,8 @@ sub _DoAnchors {
 	if (defined($g_urls{$link_id}) || defined($g_anchors{$link_id})) {
 	    my $url = $g_urls{$link_id};
 	    $url = defined($url) ? _PrefixURL($url) : $g_anchors{$link_id};
-	    # We've got to encode these to avoid conflicting
-	    # with italics, bold and strike through.
-	    $url =~ s!([*_~])!$g_escape_table{$1}!g;
-	    $result = "<a href=\"$url\"";
-	    if ( defined $g_titles{$link_id} ) {
-		my $title = _EncodeAttText($g_titles{$link_id});
-		$result .=  " title=\"$title\"";
-	    }
 	    $link_text = '[' . $link_text . ']' if $link_text =~ /^\d{1,3}$/;
-	    $result .= ">$link_text</a>";
+	    $result = _MakeATag($url, $link_text, $g_titles{$link_id});
 	}
 	else {
 	    $result = $whole_match;
@@ -949,6 +950,35 @@ sub _DoAnchors {
     }xsge;
 
     return $text;
+}
+
+
+# Return a suitably encoded <img...> tag string
+# On input NONE of $url, $alt or $title should be xmlencoded
+# but $url should already be url-encoded if needed, but NOT g_escape_table'd
+sub _MakeIMGTag {
+    my ($url, $alt, $title) = @_;
+    defined($url) or $url="";
+    defined($alt) or $alt="";
+    defined($title) or $title="";
+    return "" unless $url ne "";
+
+    my $result = "<img src=\"" . _EncodeAttText($url) . "\"";
+    my ($w, $h) = (0, 0);
+    ($alt, $title) = (_strip($alt), _strip($title));
+    if ($title =~ /^(.*)\(([1-9][0-9]*)[xX]([1-9][0-9]*)\)$/os) {
+	($title, $w, $h) = (_strip($1), $2, $3);
+    } elsif ($title =~ /^(.*)\(\?[xX]([1-9][0-9]*)\)$/os) {
+	($title, $h) = (_strip($1), $2);
+    } elsif ($title =~ /^(.*)\(([1-9][0-9]*)[xX]\?\)$/os) {
+	($title, $w) = (_strip($1), $2);
+    }
+    $result .= " alt=\"" . _EncodeAttText($alt) . "\"" if $alt ne "";
+    $result .= " width=\"$w\"" if $w != 0;
+    $result .= " height=\"$h\"" if $h != 0;
+    $result .= " title=\"" . _EncodeAttText($title) . "\"" if $title ne "";
+    $result .= $opt{empty_element_suffix};
+    return $result;
 }
 
 
@@ -978,25 +1008,15 @@ sub _DoImages {
     }{
 	my $result;
 	my $whole_match = $1;
-	my $alt_text	= _strip($2);
-	my $link_id	= _strip(lc $3);
+	my $alt_text	= $2;
+	my $link_id	= $3;
 
-	if ($link_id eq "") {
-	    $link_id = lc $alt_text; # for shortcut links like ![this][].
-	}
+	$link_id ne "" or $link_id = $alt_text; # for shortcut links like ![this][].
+	$link_id = _strip(lc $link_id);
 
-	$alt_text = _EncodeAttText($alt_text);
 	if (defined $g_urls{$link_id}) {
-	    my $url = _PrefixURL($g_urls{$link_id});
-	    # We've got to encode these to avoid conflicting
-	    # with italics, bold and strike through.
-	    $url =~ s!([*_~])!$g_escape_table{$1}!g;
-	    $result = "<img src=\"$url\" alt=\"$alt_text\"";
-	    if (defined $g_titles{$link_id}) {
-		my $title = _EncodeAttText($g_titles{$link_id});
-		$result .=  " title=\"$title\"";
-	    }
-	    $result .= $opt{empty_element_suffix};
+	    $result = _MakeIMGTag(
+		_PrefixURL($g_urls{$link_id}), $alt_text, $g_titles{$link_id});
 	}
 	else {
 	    # If there's no such link ID, leave intact:
@@ -1028,26 +1048,15 @@ sub _DoImages {
 	  \)
 	)
     }{
-	my $result;
-	my $whole_match = $1;
-	my $alt_text	= _EncodeAttText($2);
+	#my $whole_match = $1;
+	my $alt_text	= $2;
 	my $url		= $3;
 	my $title	= '';
 	if (defined($6)) {
-	    $title	= _EncodeAttText($6);
+	    $title	= $6;
 	}
 
-	$url = _PrefixURL($url);
-	# We've got to encode these to avoid conflicting
-	# with italics, bold and strike through.
-	$url =~ s!([*_~])!$g_escape_table{$1}!g;
-	$result = "<img src=\"$url\" alt=\"$alt_text\"";
-	if (defined $title) {
-	    $result .= " title=\"$title\"";
-	}
-	$result .= $opt{empty_element_suffix};
-
-	$result;
+	_MakeIMGTag(_PrefixURL($url), $alt_text, $title);
     }xsge;
 
     #
@@ -1062,21 +1071,12 @@ sub _DoImages {
     }{
 	my $result;
 	my $whole_match = $1;
-	my $alt_text	= _strip($2);
-	my $link_id	= lc $alt_text;
+	my $alt_text	= $2;
+	my $link_id	= lc(_strip($alt_text));
 
-	$alt_text = _EncodeAttText($alt_text);
 	if (defined $g_urls{$link_id}) {
-	    my $url = _PrefixURL($g_urls{$link_id});
-	    # We've got to encode these to avoid conflicting
-	    # with italics, bold and strike through.
-	    $url =~ s!([*_~])!$g_escape_table{$1}!g;
-	    $result = "<img src=\"$url\" alt=\"$alt_text\"";
-	    if (defined $g_titles{$link_id}) {
-		my $title = _EncodeAttText($g_titles{$link_id});
-		$result .=  " title=\"$title\"";
-	    }
-	    $result .= $opt{empty_element_suffix};
+	    $result = _MakeIMGTag(
+		_PrefixURL($g_urls{$link_id}), $alt_text, $g_titles{$link_id});
 	}
 	else {
 	    # If there's no such link ID, leave intact:
@@ -1092,9 +1092,9 @@ sub _DoImages {
 sub _EncodeAttText {
     my $text = shift;
     defined($text) or return undef;
-    $text = _EncodeAmps(_strip($text));
-    $text =~ s/\042/&quot;/g;
-    $text =~ s/</&lt;/g;
+    $text = _HTMLEncode(_strip($text));
+    # We've got to encode these to avoid conflicting
+    # with italics, bold and strike through.
     $text =~ s!([*_~:])!$g_escape_table{$1}!g;
     return $text;
 }
@@ -1103,10 +1103,13 @@ sub _EncodeAttText {
 sub _MakeAnchorId {
     use bytes;
     my $link = shift;
+    $link = lc($link);
     $link =~ tr/-a-z0-9_/_/cs;
     return '' unless $link ne '';
-    $link = md5_hex($link) if length($link) > 64;
-    "_".$link."_";
+    $link = "_".$link."_";
+    $link =~ s/__+/_/gs;
+    $link = "_".md5_hex($link)."_" if length($link) > 66;
+    return $link;
 }
 
 
@@ -1116,6 +1119,13 @@ sub _GetNewAnchorId {
     my $id = _MakeAnchorId($link);
     return '' unless $id;
     $g_anchors{$link} = '#'.$id;
+    $g_anchors_id{$id} = $g_anchors{$link};
+    if ($id =~ /-/) {
+	my $id2 = $id;
+	$id2 =~ s/-/_/gs;
+	$id2 =~ s/__+/_/gs;
+	defined($g_anchors_id{$id2}) or $g_anchors_id{$id2} = $g_anchors{$link};
+    }
     $id;
 }
 

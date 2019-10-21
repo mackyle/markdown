@@ -876,6 +876,24 @@ already a previous definition with the same id.  You can use this
 to place a table-of-contents at the top of the document that links
 to subsections later in the document.  Just like this document.
 
+For example, all six of these links point to subsections later in
+the same document:
+
+      * Self Same
+        * [Introduction]
+        * [Part Two]
+        * [Part Three]
+      * Different
+        * [Introduction](#Part-Two)
+        * [Part Two](#Part_Three)
+        * [Part Three](#introduction)
+
+      ## Introduction
+
+      ## Part Two
+
+      ## Part Three
+
 Here's an example of reference links in action:
 
       I get 10 times more traffic from [Google] [1] than from
@@ -1064,9 +1082,19 @@ are defined using syntax identical to link references:
 
       [id]: url/to/image  "Optional title attribute"
 
-As of this writing, Markdown has no syntax for specifying the
-dimensions of an image; if this is important to you, you can simply
-use regular HTML `<img>` tags.
+To specify one or both dimensions of an image, include the dimensions
+in parentheses at the end of the title like so:
+
+      [id]: url/to/image  "Optional title attribute (512x342)"
+
+To resize in just one dimension, specify the other as a "?" like so:
+
+      [id]: url/to/image  "Optional title attribute (?x342)"
+      [id]: url/to/image  "Optional title attribute (512x?)"
+
+The first dimension sets the "width" attribute and the second
+dimension sets the "height" attribute.  The dimensions are then
+removed from the "title" attribute.
 
 
 - - - - -
