@@ -404,6 +404,10 @@ sub Markdown {
     my $_text = shift;
     defined $_text or $_text='';
 
+    {
+	use bytes;
+	$_text =~ s/[\x00-\x08\x0B\x0E-\x1F\x7F]+//gso;
+    }
     my $text;
     if (Encode::is_utf8($_text) || utf8::decode($_text)) {
 	$text = $_text;
