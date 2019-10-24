@@ -115,7 +115,7 @@ BEGIN {
 my %g_escape_table;
 BEGIN {
     $g_escape_table{""} = "\2\3";
-    foreach my $char (split //, "\\\`*_~{}[]()>#+-.!|:") {
+    foreach my $char (split //, "\\\`*_~{}[]()>#+-.!|:<") {
 	$g_escape_table{$char} = block_id($char,1);
     }
 }
@@ -568,10 +568,10 @@ sub _StripLinkDefinitions {
 	my $title = _strip($5);
 	$url =~ s/\\\n\s*//gs;
 	if ($id ne "") {
-		$g_urls{$id} = _EncodeAmpsAndAngles($url);
+		# These values always get passed through _MakeATag or _MakeIMGTag later
+		$g_urls{$id} = $url;
 		if (defined($title) && $title ne "") {
 		    $g_titles{$id} = $title;
-		    $g_titles{$id} =~ s/\042/&quot;/g;
 		}
 	}
     }
@@ -818,10 +818,12 @@ sub _MakeATag {
 	defined($text) or $text="";
 	defined($title) or $title="";
 
-	my $result = "<a href=\"" . _EncodeAttText($url) . "\"";
+	my $result = $g_escape_table{'<'}."a href=\"" . _EncodeAttText($url) . "\"";
 	$title = _strip($title);
+	$text =~ s{<(/?a)}{&lt;$1}sogi;
 	$result .= " title=\"" . _EncodeAttText($title) . "\"" if $title ne "";
-	return $result . ">" . $text . "</a>";
+	return $result . $g_escape_table{'>'} .
+	    $text . $g_escape_table{'<'}."/a".$g_escape_table{'>'};
 }
 
 
@@ -977,7 +979,7 @@ sub _MakeIMGTag {
     defined($title) or $title="";
     return "" unless $url ne "";
 
-    my $result = "<img src=\"" . _EncodeAttText($url) . "\"";
+    my $result = $g_escape_table{'<'}."img src=\"" . _EncodeAttText($url) . "\"";
     my ($w, $h) = (0, 0);
     ($alt, $title) = (_strip($alt), _strip($title));
     if ($title =~ /^(.*)\(([1-9][0-9]*)[xX]([1-9][0-9]*)\)$/os) {
@@ -991,7 +993,8 @@ sub _MakeIMGTag {
     $result .= " width=\"$w\"" if $w != 0;
     $result .= " height=\"$h\"" if $h != 0;
     $result .= " title=\"" . _EncodeAttText($title) . "\"" if $title ne "";
-    $result .= $opt{empty_element_suffix};
+    $result .= " /" unless $opt{empty_element_suffix} eq ">";
+    $result .= $g_escape_table{'>'};
     return $result;
 }
 
@@ -2025,11 +2028,13 @@ sub _ProcessURLTag {
 	    while ($tag =~ /\G([^\s\042\047>]+=)([\042\047])((?:(?!\2)(?!>).)*)(\2\s*)/gc) {
 		    my ($p, $q, $v, $s) = ($1, $2, $3, $4);
 		    if (lc($p) eq $att && $v ne "") {
-			    $v = _HTMLEncode(_PrefixURL($v));
+			    $v = _EncodeAttText(_PrefixURL($v));
 		    }
 		    $out .= $p . $q . $v . $s;
 	    }
 	    $out .= substr($tag, pos($tag));
+	    substr($out,0,1) = $g_escape_table{'<'};
+	    substr($out,-1,1) = $g_escape_table{'>'};
 	    return $out;
     }
 
@@ -2102,7 +2107,7 @@ sub _EncodeBackslashEscapes {
 sub _DoAutoLinks {
     local $_ = shift;
 
-    s{<((https?|ftps?):[^'\042>\s]+)>}{<a href="$1">&lt;$1&gt;</a>}gi;
+    s{<((https?|ftps?):[^'\042>\s]+)>(?!\s*</a>)}{_MakeATag($1, "&lt;".$1."&gt;")}gise;
 
     # Email addresses: <address@domain.foo>
     s{
@@ -2119,10 +2124,10 @@ sub _DoAutoLinks {
     }egix;
 
     # (kjm) I don't do "x" patterns
-    s{(?<![\042'<>])(?<!&[Ll][Tt];)(?<!&#60;)(?<!&#x3[Cc];)\b((?:https?|ftps?)://(?:[-a-zA-Z0-9./?\&\%=_~!*;:\@+\$,\x23](?:(?<![.,:;])|(?=[^\s])))+)}
-     {<a href="$1">$1</a>}sog;
+    s{(?:^|(?<=\s))((?:https?|ftps?)://(?:[-a-zA-Z0-9./?\&\%=_~!*;:\@+\$,\x23](?:(?<![.,:;])|(?=[^\s])))+)}
+     {_MakeATag($1, $1)}soge;
     s{(?<![][])(?<!\] )\[RFC( ?)([0-9]{1,5})\](?![][])(?! \[)}
-     {[<a href="http://tools.ietf.org/html/rfc$2">RFC$1$2</a>]}sog;
+     {"["._MakeATag("https://tools.ietf.org/html/rfc$2", "RFC$1$2", "RFC $2")."]"}soge;
 
     return $_;
 }
@@ -2177,7 +2182,7 @@ sub _EncodeEmailAddress {
 
     # strip the mailto: from the visible part
     (my $bareaddr = $addr) =~ s/^.+?://;
-    $addr = qq{<a href="$addr">$prefix$bareaddr$suffix</a>};
+    $addr = _MakeATag("$addr", $prefix.$bareaddr.$suffix);
 
     return $addr;
 }
