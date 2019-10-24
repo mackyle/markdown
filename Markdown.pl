@@ -2042,7 +2042,7 @@ sub _HTMLEncode {
 
     # Remaining entities now
     $text =~ s/\042/&quot;/g;
-    $text =~ s/\047/&apos;/g;
+    $text =~ s/\047/&#39;/g; # Some older browsers do not grok &apos;
     $text =~ s/</&lt;/g;
     $text =~ s/>/&gt;/g;
 
