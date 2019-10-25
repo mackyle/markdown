@@ -1904,10 +1904,10 @@ sub _DoBlockQuotes {
 my ($LEAD, $TRAIL, $LEADBAR, $LEADSP, $COLPL, $SEP);
 BEGIN {
     $LEAD = qr/(?>[ ]*(?:\|[ ]*)?)/o;
-    $TRAIL = qr/\|[ ]*/o;
+    $TRAIL = qr/[ ]*(?<!\\)\|[ ]*/o;
     $LEADBAR = qr/(?>[ ]*\|[ ]*)/o;
     $LEADSP = qr/(?>[ ]*)/o;
-    $COLPL = qr/(?:[^\n|\\]|\\[^\n])+/o;
+    $COLPL = qr/(?:[^\n|\\]|\\(?:(?>[^\n])|(?=\n|$)))+/o;
     $SEP = qr/[ ]*:?-+:?[ ]*/o;
 }
 
@@ -1944,7 +1944,6 @@ sub _DoTables {
 		elsif (/:$/) {" align=\"right\""}
 		else {""}
 	    } @seps;
-	    my $headers = _MakeTableRow("th", \@align, @heads);
 	    my $tab ="\n<table border=\"1\" cellspacing=\"0\" cellpadding=\"2\" class=\"$opt{style_prefix}table\">\n" .
 		"  <tr class=\"$opt{style_prefix}row-hdr\">" . _MakeTableRow("th", \@align, @heads) . "</tr>\n";
 	    my $cnt = 0;
@@ -1969,7 +1968,7 @@ sub _SplitTableRow {
     $row =~ s!\\\|!$g_escape_table{'|'}!go; # Then do \|
     my @elems = map {
       s!$g_escape_table{'|'}!|!go;
-      s!$g_escape_table{'\\'}!\\!go;
+      s!$g_escape_table{'\\'}!\\\\!go;
       s/^[ ]+//;
       s/[ ]+$//;
       $_;
