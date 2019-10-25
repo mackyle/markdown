@@ -792,17 +792,16 @@ sub _EscapeSpecialChars {
 
 sub _ProcessWikiLink {
     my ($link_text, $link_loc) = @_;
-    if (defined($link_loc) && $link_loc =~ m{^(?:http|ftp)s?://\S+$}i) {
+    if (defined($link_loc) &&
+	($link_loc =~ m{^#\S*$} || $link_loc =~ m{^(?:http|ftp)s?://\S+$}i)) {
 	# Just rewrite it to [...](...) form
 	return "[".$link_text."](".$link_loc.")";
     }
-    if (defined($link_loc)) {
-	# We don't handle any other kind of "bar" links yet
-	return undef;
-    }
-    if ($link_text =~ m{^(?:http|ftp)s?://\S+$}i) {
+    my $sloc;
+    if (!defined($link_loc) &&
+	($sloc = _strip($link_text)) =~ m{^(?:http|ftp)s?://\S+$}i) {
 	# Just rewrite it to [...](...) form
-	return "[".$link_text."](".$link_text.")";
+	return "[".$link_text."](".$sloc.")";
     }
     # We don't handle any other wiki-style links yet
     return undef;
@@ -850,7 +849,7 @@ sub _DoAnchors {
 
 	if ($link_text =~ /^(.*)\|(.*)$/s) {
 	    $link_text = $1;
-	    $link_loc = $2;
+	    $link_loc = _strip($2);
 	}
 
 	$result = _ProcessWikiLink($link_text, $link_loc);
