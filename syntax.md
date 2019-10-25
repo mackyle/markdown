@@ -752,9 +752,13 @@ Span Elements
 Links
 ~~~~~
 
-Markdown supports two style of links: *inline* and *reference*.
+Markdown supports two style of links: *inline* and *reference* by default.
 
 In both styles, the link text is delimited by [square brackets].
+
+Additionally, if enabled, Wiki Style Links are also supported, but
+they are delimited by doubled square brackets (e.g. `[[wiki link]]`)
+and have different semantics -- see the end of this section for that.
 
 To create an inline link, use a set of regular parentheses immediately
 after the link text's closing square bracket. Inside the parentheses,
@@ -939,6 +943,49 @@ closely resembles the final output, as rendered in a browser. By
 allowing you to move the markup-related metadata out of the paragraph,
 you can add links without interrupting the narrative flow of your
 prose.
+
+#### Wiki Style Links
+
+To create a wiki style link, simply use double brackets instead of
+single brackets like so:
+
+      [[wiki link]]
+      [[wiki link|alternate_destination]]
+
+Even when not explicitly enabled, a few, limited, wiki style links
+are always recognized:
+
+      [[http://example.com]]
+      [[link here|http://example.com]]
+      [[link here|#destination]]
+
+The "http:" part can also be "https:", "ftp:" and "ftps:".  The
+three above links generate these "a" tags:
+
+      <a href="http://example.com">http://example.com</a>
+      <a href="http://example.com">link here</a>
+      <a href="#destination">link here</a>
+
+If full wiki style links have been enabled (via the `--wiki` option),
+then additional links like these will work too:
+
+      [[another page]]
+      [[link here|another page]]
+      [[elsewhere#section]]
+      [[link here|elsewhere#section]]
+
+They will all generate "a" tags and are intended to link to another
+document.  Exactly what link is generated depends on the value
+passed to the `--wiki` option.  Using the default value, those four
+links above would generate these "a" tags:
+
+      <a href="another_page.html">another page</a>
+      <a href="another_page.html">link here</a>
+      <a href="elsewhere.html#section">elsewhere#section</a>
+      <a href="elsewhere.html#section">link here</a>
+
+See the command line help (`Markdown.pl --help`) for more details
+on exactly how the wiki style links are transformed into "a" tags.
 
 
 ~~~~~~~~

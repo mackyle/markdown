@@ -278,6 +278,7 @@ sub _main {
 	'deprecated',
 	'htmlroot|r=s',
 	'imageroot|i=s',
+	'wiki|w:s',
 	'tabwidth|tab-width=s',
 	'stylesheet|style-sheet',
 	'no-stylesheet|no-style-sheet',
@@ -322,6 +323,18 @@ sub _main {
     }
     if ($cli_opts{'imageroot'}) {	 # Use image URL prefix
 	$options{img_prefix} = $cli_opts{'imageroot'};
+    }
+    if (exists $cli_opts{'wiki'}) {	 # Enable wiki links
+	my $wpat = $cli_opts{'wiki'};
+	defined($wpat) or $wpat = "";
+	my $wopt = "s";
+	if ($wpat =~ /^(.*?)%\{([0-9A-Za-z]*)\}(.*)$/) {
+	    $options{wikipat} = $1 . "%{}" . $3;
+	    $wopt = $2;
+	} else {
+	    $options{wikipat} = $wpat . "%{}.html";
+	}
+	$options{wikiopt} = { map({$_ => 1} split(//,lc($wopt))) };
     }
     if ($cli_opts{'stylesheet'}) {  # Display the style sheet
 	$options{show_styles} = 1;
@@ -794,17 +807,71 @@ sub _ProcessWikiLink {
     my ($link_text, $link_loc) = @_;
     if (defined($link_loc) &&
 	($link_loc =~ m{^#\S*$} || $link_loc =~ m{^(?:http|ftp)s?://\S+$}i)) {
-	# Just rewrite it to [...](...) form
-	return "[".$link_text."](".$link_loc.")";
+	# Return the new link
+	return _MakeATag($link_loc, $link_text);
     }
-    my $sloc;
     if (!defined($link_loc) &&
-	($sloc = _strip($link_text)) =~ m{^(?:http|ftp)s?://\S+$}i) {
-	# Just rewrite it to [...](...) form
-	return "[".$link_text."](".$sloc.")";
+	($link_loc = _strip($link_text)) =~ m{^(?:http|ftp)s?://\S+$}i) {
+	# Return the new link
+	return _MakeATag($link_loc, $link_text);
     }
-    # We don't handle any other wiki-style links yet
+    return undef if $link_loc eq "" || $link_text eq "";
+    if ($link_loc =~ /^[A-Za-z][A-Za-z0-9+.-]*:/os) {
+	# Unrecognized scheme
+	return undef;
+    }
+    if ($opt{wikipat}) {
+	my $o = $opt{wikiopt};
+	my $qsfrag = "";
+	my $base = $link_loc;
+	if ($link_loc =~ /^(.*?)([?#].*)$/os) {
+	    ($base, $qsfrag) = ($1, $2);
+	}
+	$base = _wxform($base);
+	my $result = $opt{wikipat};
+	$result =~ s/%\{\}/$base/;
+	if ($qsfrag =~ /^([^#]*)(#.+)$/os) {
+	    my ($q,$f) = ($1,$2);
+	    #$f = _wxform($f) if $f =~ / /;
+	    $qsfrag = $q . $f;
+	}
+	$result .= $qsfrag;
+	{
+	    use bytes;
+	    $result =~ s/%(?![0-9A-Fa-f]{2})/%25/sog;
+	    if ($o->{r}) {
+		$result =~
+		s/([\x00-\x1F <>"{}|\\^`x7F])/sprintf("%%%02X",ord($1))/soge;
+	    } else {
+		$result =~
+		s/([\x00-\x1F <>"{}|\\^`\x7F-\xFF])/sprintf("%%%02X",ord($1))/soge;
+	    }
+	    $result =~ s/(%(?![0-9A-F]{2})[0-9A-Fa-f]{2})/uc($1)/soge;
+	}
+	# Return the new link
+	return _MakeATag($result, $link_text);
+    }
+    # leave it alone
     return undef;
+}
+
+
+sub _wxform {
+    my $w = shift;
+    my $o = $opt{wikiopt};
+    $w =~ s{[.][^./]*$}{} if $o->{s};
+    $w =~ tr{/}{ } if $o->{f};
+    $w =~ s{/+}{/}gos if !$o->{f} && !$o->{v};
+    if ($o->{d}) {
+	$w =~ tr{ }{-};
+	$w =~ s/-+/-/gos unless $o->{v};
+    } else {
+	$w =~ tr{ }{_};
+	$w =~ s/_+/_/gos unless $o->{v};
+    }
+    $w = uc($w) if $o->{u};
+    $w = lc($w) if $o->{l};
+    return $w;
 }
 
 
@@ -2496,6 +2563,7 @@ B<Markdown.pl> [B<--help>] [B<--html4tags>] [B<--htmlroot>=I<prefix>]
                                         to prefix
    -i prefix | --imageroot=prefix	append relative img URLs to
                                         prefix
+   -w [wikipat] | --wiki[=wikipat]      activate wiki links using wikipat
    -V | --version                       show version, authors, license
                                         and copyright
    -s | --shortversion                  show just the version number
@@ -2582,6 +2650,86 @@ Any non-absolute URLs have I<prefix> prepended.
 
 Any non-absolute URLs have I<prefix> prepended (overriding the B<-r> prefix
 if any) but only if they end in an image suffix.
+
+
+=item B<-w> [I<wikipat>], B<--wiki>[=I<wikipat>]
+
+Activate wiki links.  Any link enclosed in double brackets (e.g. "[[link]]") is
+considered a wiki link.  By default only absolute URL and fragment links are
+allowed in the "wiki link style" format.  Any other double-bracketed strings
+are left unmolested.
+
+If this option is given, all other wiki links are enabled as well.  Any
+non-absolute URL or fragment links will be transformed into a link using
+I<wikipat> where the default I<wikipat> if none is given is C<%{s}.html>.
+
+If the given I<wikipat> does not contain a C<%{...}> placeholder sequence
+then it will automatically have C<%{s}.html> suffixed to it.
+
+The C<...> part of the C<%{...}> sequence specifies zero or more case-insensitive
+single-letter options with the following effects:
+
+=over
+
+=item B<d>
+
+Convert spaces to dashes (ASCII 0x2D) instead of underscore (ASCII 0x5F).  Note
+that if this option is given then runs of multiple dashes will be converted to
+a single dash I<instead> but runs of multiple underscores will be left untouched.
+
+=item B<f>
+
+Flatten the resulting name by replacing forward slashes (ASCII 0x2F) as well.
+They will be converted to underscores unless the C<d> option is given (in which
+case they will be converted to dashes).  This conversion takes place before
+applying the runs-of-multiple reduction.
+
+=item B<l>
+
+Convert link target (excluding any query string and/or fragment) to lowercase.
+Takes precedence over any C<u> option, but specifically excludes C<%>-escapes
+which are always UPPERCASE hexadecimal.
+
+=item B<r>
+
+Leave raw UTF-8 characters in the result.  Normally anything not allowed
+directly in a URL ends up URL-encoded.  With this option, raw valid UTF-8
+sequences will be left untouched.  Use with care.
+
+=item B<s>
+
+After (temporarily) removing any query string and/or fragment, strip any final
+"dot" suffix so long as it occurs after the last slash (if any slash was present
+before applying the C<f> option).  The "dot" (ASCII 0x2E) and all following
+characters (if any) are removed.
+
+=item B<u>
+
+Convert link target (excluding any query string and/or fragment) to UPPERCASE.
+
+=item B<v>
+
+Leave runs-of-multiple characters alone (aka "verbatim").  Does not affect
+any of the other options except by eliminating the runs-of-multple reduction
+step.  Also does I<not> inhibit the initial whitespace trimming.
+
+=back
+
+The URL target of the wiki link is created by first trimming whitespace
+(starting and ending whitespace is removed and all other runs of consecutive
+whitespace are replaced with a single space) from the wiki link target,
+removing (temporarily) any query string and/or fragment, if no options are
+present, spaces are converted to underscores (C<_>) and runs of multiple
+consecutive underscores are replaced with a single underscore (ASCII 0x5F).
+Finally, the I<wikipat> string gets its first placeholder (the C<%{...}>
+sequence) replaced with this computed value and the original query string
+and/or fragment is re-appended (if any were originally present) and
+URL-encoding is applied as needed to produce the actual final target URL.
+
+See above option descriptions for possible available modifications.
+
+One of the commonly used hosting platforms does something substantially similar
+to using C<%{dfrsv}> as the placeholder.
 
 
 =item B<-V>, B<--version>
