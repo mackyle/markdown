@@ -574,14 +574,16 @@ Output:
       <tr><td>Bean</td><td align="right">$0.37</td><td>Fiber</td></tr>
     </table>
 
-The leading and trailing `|` on each line are optional unless there is only
-a single column in which case at least one `|` is always required -- two if
-the single column contains only whitespace.
+The leading `|` on each line is optional unless the first column contains only
+zero or more spaces and/or tabs.  The trailing `|` on each line is optional
+unless the last column contains only zero or more spaces and/or tabs.
+
+At least one `|` must be present in every row of the table.
 
 Leading and trailing whitespace are always trimmed from each column's value
 before using it.
 
-To include a literal `|` (veritical bar) character in a column's value, precede
+To include a literal `|` (vertical bar) character in a column's value, precede
 it with a `\` (backslash).  To include a literal `\` use `\\` (double them).
 
 The number of columns in the separator row must match exactly the number of
@@ -594,6 +596,10 @@ alignment will be `left`.  With a colon only on the right the alignment will
 be `right`.  And finally, with a colon on both ends the alignment will be
 `center`.  The alignment will be applied to the column in both header and body
 rows.
+
+If all columns in the header row are empty (i.e. contain only zero or more
+spaces and/or tabs), the header row will be omitted from the output.  Empty
+rows in the body of the table are always preserved in the output.
 
 Body rows that contain fewer columns than the header row have empty columns
 added.  Body rows that contain more columns than the header row have the

@@ -1944,8 +1944,12 @@ sub _DoTables {
 		elsif (/:$/) {" align=\"right\""}
 		else {""}
 	    } @seps;
-	    my $tab ="\n<table border=\"1\" cellspacing=\"0\" cellpadding=\"2\" class=\"$opt{style_prefix}table\">\n" .
-		"  <tr class=\"$opt{style_prefix}row-hdr\">" . _MakeTableRow("th", \@align, @heads) . "</tr>\n";
+	    my $nohdr = "";
+	    $nohdr = " $opt{style_prefix}table-nohdr" if join("", @heads) eq "";
+	    my $tab ="\n<table border=\"1\" cellspacing=\"0\" cellpadding=\"2\" class=\"$opt{style_prefix}table$nohdr\">\n";
+	    $tab .=
+		"  <tr class=\"$opt{style_prefix}row-hdr\">" . _MakeTableRow("th", \@align, @heads) . "</tr>\n"
+		unless $nohdr;
 	    my $cnt = 0;
 	    my @classes = ("class=\"$opt{style_prefix}row-even\"", "class=\"$opt{style_prefix}row-odd\"");
 	    $tab .= "  <tr " . $classes[++$cnt % 2] . ">" . _MakeTableRow("td", \@align, _SplitTableRow($_)) . "</tr>\n"
