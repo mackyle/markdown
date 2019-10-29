@@ -33,8 +33,10 @@ use Digest::MD5 qw(md5 md5_hex);
 use File::Basename qw(basename);
 use Scalar::Util qw(refaddr looks_like_number);
 use Pod::Usage;
-my ($hasxml, $hasxml_err);
+my ($hasxml, $hasxml_err); BEGIN { ($hasxml, $hasxml_err) = (0, "") }
 BEGIN { eval 'use XML::Simple; 1' and $hasxml = 1 or $hasxml_err = $@ }
+my ($hasxmlp, $hasxmlp_err); BEGIN { ($hasxmlp, $hasxmlp_err) = (0, "") }
+BEGIN { eval 'use XML::Parser; 1' and $hasxmlp = 1 or $hasxmlp_err = $@ unless $hasxml }
 @ISA = qw(Exporter);
 @EXPORT_OK = qw(Markdown);
 $INC{__PACKAGE__.'.pm'} = $INC{basename(__FILE__)} unless exists $INC{__PACKAGE__.'.pm'};
@@ -333,7 +335,7 @@ sub _main {
     }
     die "--html4tags and --validate-xml are incompatible\n"
 	if $cli_opts{'html4tags'} && $options{xmlcheck};
-    die $hasxml_err if $options{xmlcheck} && !$hasxml;
+    die "$hasxml_err$hasxmlp_err" if $options{xmlcheck} && !($hasxml || $hasxmlp);
     if ($cli_opts{'tabwidth'}) {
 	my $tw = $cli_opts{'tabwidth'};
 	die "invalid tab width (must be integer)\n" unless looks_like_number $tw;
@@ -428,15 +430,34 @@ HTML4
     if ($options{xmlcheck}) {
 	my ($good, $errs);
 	if ($stub) {
-	    eval { XMLin($hdr.$result.$ftr, KeepRoot=>1) && 1 } and $good = 1 or $errs = $@;
+	    ($good, $errs) = _xmlcheck($hdr.$result.$ftr);
 	} else {
-	    eval { XMLin("<div>".$result."</div>", KeepRoot=>1) && 1 } and $good = 1 or $errs = $@;
+	    ($good, $errs) = _xmlcheck("<div>".$result."</div>");
 	}
 	$good or die $errs;
     }
     print $hdr, $result, $ftr;
 
     exit 0;
+}
+
+
+sub _xmlcheck {
+	my $text = shift;
+	my ($good, $errs);
+	($hasxml ? eval { XML::Simple::XMLin($text, KeepRoot => 1) && 1 } :
+	 eval {
+		my $p = XML::Parser->new(Style => 'Tree', ErrorContext => 1);
+		$p->parse($text) && 1;
+	}) and $good = 1 or $errs = _trimerr($@);
+	($good, $errs);
+}
+
+
+sub _trimerr {
+	my $err = shift;
+	1 while $err =~ s{\s+at\s+\.?/[^,\s\n]+\sline\s+[0-9]+\.?(\n|$)}{$1}is;
+	$err;
 }
 
 
@@ -2827,10 +2848,10 @@ Use of this option is I<NOT RECOMMENDED>.
 =item B<--validate-xml>
 
 Perform XML validation on the output before it's output and die if
-it fails validation.  This requires the C<XML::Simple> module be
-present (it's only required if this option is given).  Any errors
-are reported to STDERR and the exit status will be non-zero on XML
-validation failure.
+it fails validation.  This requires the C<XML::Simple> or C<XML::Parser>
+module be present (one is only required if this option is given).
+Any errors are reported to STDERR and the exit status will be
+non-zero on XML validation failure.
 
 If the B<--stub> option has also been given, then the entire output is
 validated as-is.  Without the B<--stub> option, the output will be wrapped
@@ -2851,8 +2872,9 @@ used).  However, any raw tags in the input (that are on the "approved"
 list), could potentially result in invalid XML output (i.e. mismatched
 start and end tags, missing start or end tag etc.).
 
-Markdown.pl will I<NOT check> for these issues itself.  But with the
-B<--validate-xml> option will use C<XML::Simple> to do so.
+Markdown.pl will I<NOT check> for these issues itself.  But with
+the B<--validate-xml> option will use C<XML::Simple> or C<XML::Parser>
+to do so.
 
 Note that B<--no-validate-xml> is the default option.
 
