@@ -619,6 +619,61 @@ Inline markup is recognized just fine within each column:
     |:-
     |~~Strikeout~~ `code` _etc._
 
+Row text can be split over multiple rows by ending a row with a
+backslash (`\`) as the last character on the line.
+
+For example, this:
+
+    Item|Price|Description
+    -|-:|-
+    Nut|$1.29|Delicious
+    Bean|$0.37|Fiber
+    Squash|$1.83|Healthy
+
+Generates output something like this:
+
+    <table>
+      <tr><th>Item</th><th>Price</th><th>Description</th></tr>
+      <tr><td>Nut</td><td>$1.29</td><td>Delicious</td></tr>
+      <tr><td>Bean</td><td>$0.37</td><td>Fiber</td></tr>
+      <tr><td>Squash</td><td>$1.83</td><td>Healthy</td></tr>
+    </table>
+
+But adding a trailing `\` to the end of first table body row like
+so:
+
+    Item|Price|Description
+    -|-:|-
+    Nut|$1.29|Delicious \
+    Bean|$0.37|Fiber
+    Squash|$1.83|Healthy
+
+Generates this output instead:
+
+    <table>
+      <tr><th>Item</th><th>Price</th><th>Description</th></tr>
+      <tr><td>Nut Bean</td><td>$1.29 $0.37</td><td>Delicious Fiber</td></tr>
+      <tr><td>Squash</td><td>$1.83</td><td>Healthy</td></tr>
+    </table>
+
+The corresponding columns of the first two rows are merged.  It's
+possible to merge multiple rows.  Adding a trailing `\` to the
+second row too would result in a single row output table.
+
+The `\` must be the very last character on the line to be recognized
+as a "row-joiner".  If the optional trailing `|` has been included
+the "row-joiner" must appear after that like so:
+
+    Item|Price|Description|
+    -|-:|-|
+    Nut|$1.29|Delicious| \
+    Bean|$0.37|Fiber|
+    Squash|$1.83|Healthy|
+
+The advantage of including the optional trailing `|` when using a
+"row-joiner" is that renderers that do not support the "row-joiner"
+will see that as a superfluous extra column instead and discard it.
+
 
 ~~~~~~~~~~~
 Style Sheet

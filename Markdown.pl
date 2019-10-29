@@ -2005,8 +2005,8 @@ sub _DoTables {
 		unless $nohdr;
 	    my $cnt = 0;
 	    my @classes = ("class=\"$opt{style_prefix}row-even\"", "class=\"$opt{style_prefix}row-odd\"");
-	    $tab .= "  <tr " . $classes[++$cnt % 2] . ">" . _MakeTableRow("td", \@align, _SplitTableRow($_)) . "</tr>\n"
-		    foreach split(/\n/, $rows);
+	    $tab .= "  <tr " . $classes[++$cnt % 2] . ">" . _MakeTableRow("td", \@align, @$_) . "</tr>\n"
+		    foreach (_SplitMergeRows($rows));
 	    $tab .= "</table>\n\n";
 	} else {
 	    $w;
@@ -2014,6 +2014,49 @@ sub _DoTables {
     }egmx;
 
     return $text;
+}
+
+
+sub _SplitMergeRows {
+    my @rows = ();
+    my ($mergeprev, $mergenext) = (0,0);
+    foreach (split(/\n/, $_[0])) {
+	$mergeprev = $mergenext;
+	$mergenext = 0;
+	my @cols = _SplitTableRow($_);
+	if (_endswithbareslash($cols[$#cols])) {
+	    my $last = $cols[$#cols];
+	    substr($last, -1, 1) = "";
+	    $last =~ s/[ ]+$//;
+	    $cols[$#cols] = $last;
+	    $mergenext = 1;
+	}
+	if ($mergeprev) {
+	    for (my $i = 0; $i <= $#cols; ++$i) {
+		my $cell = $rows[$#rows]->[$i];
+		defined($cell) or $cell = "";
+		$rows[$#rows]->[$i] = _MergeCells($cell, $cols[$i]);
+	    }
+	} else {
+	    push(@rows, [@cols]);
+	}
+    }
+    return @rows;
+}
+
+
+sub _endswithbareslash {
+    return 0 unless substr($_[0], -1, 1) eq "\\";
+    my @parts = split(/\\\\/, $_[0], -1);
+    return substr($parts[$#parts], -1, 1) eq "\\";
+}
+
+
+sub _MergeCells {
+    my ($c1, $c2) = @_;
+    return $c1 if $c2 eq "";
+    return $c2 if $c1 eq "";
+    return $c1 . " " . $c2;
 }
 
 
