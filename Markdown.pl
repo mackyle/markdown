@@ -564,10 +564,9 @@ sub _HashBTCodeBlocks {
 	    my $leadsp = length($1);
 	    my $codeblock = $4;
 	    $codeblock =~ s/[ \t]+$//mg; # trim trailing spaces on lines
-	    $codeblock = _Detab($codeblock, 8); # physical tab stops are always 8
+	    $codeblock = _Detab($codeblock, 8, $leadsp); # physical tab stops are always 8
 	    $codeblock =~ s/\A\n+//; # trim leading newlines
 	    $codeblock =~ s/\s+\z//; # trim trailing whitespace
-	    $codeblock =~ s/^ {1,$leadsp}//mg if $leadsp; # trim leading space(s)
 	    $codeblock = _EncodeCode($codeblock); # or run highlighter here
 	    $codeblock = "<div class=\"$opt{style_prefix}code-bt\"><pre style=\"display:none\"></pre><pre><code>"
 		. $codeblock . "\n</code></pre></div>";
@@ -2495,6 +2494,8 @@ sub _Detab {
 #
     my $text = shift;
     my $ts = shift || $opt{tab_width};
+    my $leadsp = shift || 0;
+    $text =~ s/^ {1,$leadsp}//mg if $leadsp; # trim leading space(s)
     # From the Perl camel book "Fluent Perl" section (slightly modified)
     $text =~ s/(.*?)(\t+)/$1 . ' ' x (length($2) * $ts - length($1) % $ts)/ge;
     return $text;
