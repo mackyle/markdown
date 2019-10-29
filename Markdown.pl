@@ -276,6 +276,8 @@ sub _main {
 	'shortversion|short-version|s',
 	'html4tags',
 	'deprecated',
+	'sanitize',
+	'no-sanitize',
 	'htmlroot|r=s',
 	'imageroot|i=s',
 	'wiki|w:s',
@@ -311,6 +313,13 @@ sub _main {
     if ($cli_opts{'deprecated'}) {	 # Allow <dir> and <menu> tags to pass through
 	_SetAllowedTag("dir");
 	_SetAllowedTag("menu");
+    }
+    $options{sanitize} = 1; # sanitize by default
+    if ($cli_opts{'no-sanitize'}) {  # Do not sanitize
+	$options{sanitize} = 0;
+    }
+    if ($cli_opts{'sanitize'}) {  # --sanitize always wins
+	$options{sanitize} = 1;
     }
     if ($cli_opts{'tabwidth'}) {
 	my $tw = $cli_opts{'tabwidth'};
@@ -2039,7 +2048,7 @@ BEGIN {
     # note: length("blockquote") == 10
     $g_possible_tag_name = qr/(?i:[a-z]{1,10}|h[1-6])/o;
     %ok_tag_name = map({$_ => 1} qw(
-	a abbr acronym address
+	a abbr acronym address area
 	b basefont bdo big blockquote br
 	caption center cite code col colgroup
 	dd del dfn div dl dt
@@ -2049,6 +2058,7 @@ BEGIN {
 	i img ins
 	kbd
 	li
+	map
 	ol
 	p pre
 	q
@@ -2064,26 +2074,159 @@ BEGIN {
 
 
 sub _SetAllowedTag {
-	my ($tag, $forbid) = @_;
-	$ok_tag_name{$tag} = $forbid ? 0 : 1
-		if defined($tag) && exists($ok_tag_name{$tag});
+    my ($tag, $forbid) = @_;
+    $ok_tag_name{$tag} = $forbid ? 0 : 1
+	if defined($tag) && exists($ok_tag_name{$tag});
 }
 
 
 # Encode leading '<' of any non-tags
 # However, "<?", "<!" and "<$" are passed through (legacy on that "<$" thing)
 sub _DoTag {
-	my $tag = shift;
-	return $tag if $tag =~ /^<[?\$!]/;
-	if (($tag =~ m{^<($g_possible_tag_name)(?:[\s>]|/>$)} || $tag =~ m{^</($g_possible_tag_name)\s*>}) &&
-	    $ok_tag_name{lc($1)}) {
+    my $tag = shift;
+    return $tag if $tag =~ /^<[?\$!]/;
+    if (($tag =~ m{^<($g_possible_tag_name)(?:[\s>]|/>$)} || $tag =~ m{^</($g_possible_tag_name)\s*>}) &&
+	$ok_tag_name{lc($1)}) {
 
-	    return _ProcessURLTag("href", $tag) if $tag =~ /^<a\s/i;
-	    return _ProcessURLTag("src", $tag) if $tag =~ /^<img\s/i;
-	    return $tag;
-	}
-	$tag =~ s/</&lt;/g;
+	$tag = _Sanitize($tag) if $opt{sanitize};
+	return _ProcessURLTag("href", $tag) if $tag =~ /^<a\s/i;
+	return _ProcessURLTag("src", $tag) if $tag =~ /^<img\s/i;
 	return $tag;
+    }
+    $tag =~ s/</&lt;/g;
+    return $tag;
+}
+
+
+my %univatt;
+my %tagatt;
+my %tagmt;
+my %lcattval;
+my %impatt;
+BEGIN {
+    %univatt = map({$_ => 1} qw(class dir id lang style title xml:lang));
+    %tagatt = (
+	'a' => { map({$_ => 1} qw(href name)) },
+	'area' => { map({$_ => 1} qw(alt coords href nohref shape)) },
+	'basefont' => { map({$_ => 1} qw(color face size)) },
+	'br' => { map({$_ => 1} qw(clear)) },
+	'caption' => { map({$_ => 1} qw(align)) },
+	'col' => { map({$_ => 1} qw(align span width valign)) },
+	'colgroup' => { map({$_ => 1} qw(align span width valign)) },
+	'dir' => { map({$_ => 1} qw(compact)) },
+	'div' => { map({$_ => 1} qw(align)) },
+	'dl' => { map({$_ => 1} qw(compact)) },
+	'font' => { map({$_ => 1} qw(color face size)) },
+	'h1' => { map({$_ => 1} qw(align)) },
+	'h2' => { map({$_ => 1} qw(align)) },
+	'h3' => { map({$_ => 1} qw(align)) },
+	'h4' => { map({$_ => 1} qw(align)) },
+	'h5' => { map({$_ => 1} qw(align)) },
+	'h6' => { map({$_ => 1} qw(align)) },
+	'hr' => { map({$_ => 1} qw(align noshade size width)) },
+	# NO server-side image maps, therefore NOT ismap !
+	'img' => { map({$_ => 1} qw(align alt border height hspace src usemap vspace width)) },
+	'li' => { map({$_ => 1} qw(compact type value)) },
+	'map' => { map({$_ => 1} qw(name)) },
+	'menu' => { map({$_ => 1} qw(compact)) },
+	'ol' => { map({$_ => 1} qw(compact start type)) },
+	'p' => { map({$_ => 1} qw(align)) },
+	'pre' => { map({$_ => 1} qw(width)) },
+	'table' => { map({$_ => 1} qw(align border cellpadding cellspacing width)) },
+	'tbody' => { map({$_ => 1} qw(align valign)) },
+	'td' => { map({$_ => 1} qw(align colspan height nowrap rowspan valign width)) },
+	'th' => { map({$_ => 1} qw(align colspan height nowrap rowspan valign width)) },
+	'tr' => { map({$_ => 1} qw(align valign)) },
+	'ul' => { map({$_ => 1} qw(compact type)) }
+    );
+    %tagmt = map({$_ => 1} qw(area basefont br hr img));
+    %impatt = map({$_ => 1} qw(checked compact ismap nohref noshade nowrap));
+    %lcattval = map({$_ => 1} qw(
+	align border cellpadding cellspacing checked clear color colspan
+	compact coords height hspace ismap nohref noshade nowrap rowspan size
+	span shape valign vspace width
+    ));
+}
+
+
+sub _Sanitize {
+    my $tag = shift;
+    if ($tag =~ m{^</}) {
+	$tag =~ s/\s+>$/>/;
+	return lc($tag);
+    }
+    if ($tag =~ /^<([^\s<\/>]+)\s+/gs) {
+	my $tt = lc($1);
+	my $out = "<" . $tt . " ";
+	my $ok = $tagatt{$tt};
+	ref($ok) eq "HASH" or $ok = {};
+	while ($tag =~ /\G\s*([^\s\042\047<\/>=]+)((?>=)|\s*)/gcs) {
+	    my ($a,$s) = ($1, $2);
+	    if ($s eq "" && substr($tag, pos($tag), 1) =~ /^[\042\047]/) {
+		# pretend the "=" sign wasn't overlooked
+		$s = "=";
+	    }
+	    if (substr($s,0,1) ne "=") {
+		# it's one of "those" attributes (e.g. compact) or not
+		# _SanitizeAtt will fix it up if it is
+		$out .= _SanitizeAtt($a, '""', $ok);
+		next;
+	    }
+	    if ($tag =~ /\G([\042\047])((?:(?!\1)(?!<).)*)\1\s*/gcs) {
+		$out .= _SanitizeAtt($a, $1.$2.$1, $ok);
+		next;
+	    }
+	    if ($tag =~ /\G([\042\047])((?:(?!\1)(?![<>])(?![\/][>]).)*)/gcs) {
+		# what to do what to do what to do
+		# trim trailing \s+ and magically add the missing quote
+		my ($q, $v) = ($1, $2);
+		$v =~ s/\s+$//;
+		$out .= _SanitizeAtt($a, $q.$v.$q, $ok);
+		next;
+	    }
+	    if ($tag =~ /\G([^\s<\/>]+)\s*/gcs) {
+		# auto quote it
+		my $v = $1;
+		$v =~ s/\042/&quot;/go;
+		$out .= _SanitizeAtt($a, '"'.$v.'"', $ok);
+		next;
+	    }
+	    # give it an empty value
+	    $out .= _SanitizeAtt($a, '""', $ok);
+        }
+	my $sfx = substr($tag, pos($tag));
+	$out =~ s/\s+$//;
+	if ($tagmt{$tt}) {
+	    $out .= $opt{empty_element_suffix};
+	} else {
+	    $out .= ">";
+	    $out .= "</$tt>" if $tag =~ m,/>$,;
+	}
+	return $out;
+    } elsif ($tag =~ /^<([^\s<\/>]+)/gs) {
+	my $tt = lc($1);
+	if ($tagmt{$tt}) {
+	    return "<" . $tt . $opt{empty_element_suffix};
+	} elsif ($tag =~ m,/>$,) {
+	    return "<" . $tt . "></" . $tt . ">";
+	} else {
+	    return "<" . $tt . ">";
+	}
+    }
+    return lc($tag);
+}
+
+
+sub _SanitizeAtt {
+    my $att = lc($_[0]);
+    return "" unless $att =~ /^[_a-z:][_a-z:0-9.-]*$/; # no weirdo char att names
+    return "" unless $univatt{$att} || $_[2]->{$att};
+    $impatt{$att} and return $att."=".'"'.$att.'"';
+    if ($lcattval{$att}) {
+	return $att."=".lc($_[1])." ";
+    } else {
+	return $att."=".$_[1]." ";
+    }
 }
 
 
@@ -2094,7 +2237,7 @@ sub _ProcessURLTag {
     $att = lc($att) . "=";
     if ($tag =~ /^(<[^\s>]+\s+)/g) {
 	    my $out = $1;
-	    while ($tag =~ /\G([^\s\042\047>]+=)([\042\047])((?:(?!\2)(?!>).)*)(\2\s*)/gc) {
+	    while ($tag =~ /\G([^\s\042\047<\/>=]+=)([\042\047])((?:(?!\2)(?!<).)*)(\2\s*)/gcs) {
 		    my ($p, $q, $v, $s) = ($1, $2, $3, $4);
 		    if (lc($p) eq $att && $v ne "") {
 			    $v = _EncodeAttText(_PrefixURL($v));
@@ -2561,6 +2704,8 @@ B<Markdown.pl> [B<--help>] [B<--html4tags>] [B<--htmlroot>=I<prefix>]
    --help                               show long detailed help
    --html4tags                          use <br> instead of <br />
    --deprecated                         allow <dir> and <menu> tags
+   --sanitize                           sanitize tag attributes
+   --no-sanitize                        do not sanitize tag attributes
    --tabwidth=num                       expand tabs to num instead of 8
    -r prefix | --htmlroot=prefix        append relative non-img URLs
                                         to prefix
@@ -2629,6 +2774,24 @@ problematic therefore use of this option is not recommended.
 
 Other deprecated tags (such as "<font>" and "<center>" for example) continue
 to be recognized and passed through even without using this option.
+
+
+=item B<--sanitize>
+
+Remove troublesome tag attributes from embedded tags.  Only a very strictly
+limited set of tag attributes will be permitted, other attributes will be
+silently discarded.  The set of allowed attributes varies by tag.
+This is enabled by default.
+
+
+=item B<--no-sanitize>
+
+Do not sanitize tag attributes.  This option does not allow any tags that
+would not be allowed without this option, but it does completely suppress
+the attribute sanitation process.   If this option is specified, no
+attributes will be removed from any tag (although C<img> and C<a> tags will
+still be affected by B<--imageroot> and/or B<--htmlroot> options).
+Use of this option is I<NOT RECOMMENDED>.
 
 
 =item B<--tabwidth>=I<num>
