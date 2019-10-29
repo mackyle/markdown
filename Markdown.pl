@@ -33,6 +33,8 @@ use Digest::MD5 qw(md5 md5_hex);
 use File::Basename qw(basename);
 use Scalar::Util qw(refaddr looks_like_number);
 use Pod::Usage;
+my ($hasxml, $hasxml_err);
+BEGIN { eval 'use XML::Simple; 1' and $hasxml = 1 or $hasxml_err = $@ }
 @ISA = qw(Exporter);
 @EXPORT_OK = qw(Markdown);
 $INC{__PACKAGE__.'.pm'} = $INC{basename(__FILE__)} unless exists $INC{__PACKAGE__.'.pm'};
@@ -278,6 +280,8 @@ sub _main {
 	'deprecated',
 	'sanitize',
 	'no-sanitize',
+	'validate-xml',
+	'no-validate-xml',
 	'htmlroot|r=s',
 	'imageroot|i=s',
 	'wiki|w:s',
@@ -321,6 +325,15 @@ sub _main {
     if ($cli_opts{'sanitize'}) {  # --sanitize always wins
 	$options{sanitize} = 1;
     }
+    if ($cli_opts{'no-validate-xml'}) {  # Do not validate XML
+	$options{xmlcheck} = 0;
+    }
+    if ($cli_opts{'validate-xml'}) {  # Validate XML output
+	$options{xmlcheck} = 1;
+    }
+    die "--html4tags and --validate-xml are incompatible\n"
+	if $cli_opts{'html4tags'} && $options{xmlcheck};
+    die $hasxml_err if $options{xmlcheck} && !$hasxml;
     if ($cli_opts{'tabwidth'}) {
 	my $tw = $cli_opts{'tabwidth'};
 	die "invalid tab width (must be integer)\n" unless looks_like_number $tw;
@@ -354,9 +367,10 @@ sub _main {
     $options{show_styles} = 1 if $stub && !defined($options{show_styles});
     $options{tab_width} = 8 unless defined($options{tab_width});
 
-    my $hdr = sub {
+    my $hdrf = sub {
+	my $out = "";
 	if ($stub > 0) {
-	    print <<'HTML5';
+	    $out .= <<'HTML5';
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
@@ -364,7 +378,7 @@ sub _main {
 <meta http-equiv="content-type" content="text/html; charset=utf-8" />
 HTML5
 	} elsif ($stub < 0) {
-	    print <<'HTML4';
+	    $out .= <<'HTML4';
 <html>
 <head>
 <meta charset="utf-8">
@@ -377,22 +391,23 @@ HTML4
 	    if (defined($title) && $title ne "") {
 		$title =~ s/&/&amp;/g;
 		$title =~ s/</&lt;/g;
-		print "<title>$title</title>\n";
+		$out .= "<title>$title</title>\n";
 	    }
 	}
 	if ($options{show_styles}) {
 	    my $stylesheet = $g_style_sheet;
 	    $stylesheet =~ s/%\(base\)/$g_style_prefix/g;
-	    print $stylesheet;
+	    $out .= $stylesheet;
 	}
 	if ($stub) {
-	    print "</head>\n<body style=\"text-align:center\">\n",
+	    $out .= "</head>\n<body style=\"text-align:center\">\n" .
 		"<div style=\"display:inline-block;text-align:left;max-width:42pc\">\n";
 	}
+	$out;
     };
 
     #### Process incoming text: ###########################
-    my $didhdr;
+    my ($didhdr, $hdr, $result, $ftr) = (0, "", "", "");
     for (;;) {
 	local $_;
 	{
@@ -400,17 +415,26 @@ HTML4
 	    $_ = <>;
 	}
 	defined($_) or last;
-	my $result = Markdown($_, \%options);
+	$result = Markdown($_, \%options);
 	if ($result ne "") {
 	    if (!$didhdr) {
-		&$hdr();
+		$hdr = &$hdrf();
 		$didhdr = 1;
 	    }
-	    print $result;
 	}
     }
-    &$hdr() unless $didhdr;
-    print "</div>\n</body>\n</html>\n" if $stub;
+    $hdr = &$hdrf() unless $didhdr;
+    $ftr = "</div>\n</body>\n</html>\n" if $stub;
+    if ($options{xmlcheck}) {
+	my ($good, $errs);
+	if ($stub) {
+	    eval { XMLin($hdr.$result.$ftr, KeepRoot=>1) && 1 } and $good = 1 or $errs = $@;
+	} else {
+	    eval { XMLin("<div>".$result."</div>", KeepRoot=>1) && 1 } and $good = 1 or $errs = $@;
+	}
+	$good or die $errs;
+    }
+    print $hdr, $result, $ftr;
 
     exit 0;
 }
@@ -2706,6 +2730,8 @@ B<Markdown.pl> [B<--help>] [B<--html4tags>] [B<--htmlroot>=I<prefix>]
    --deprecated                         allow <dir> and <menu> tags
    --sanitize                           sanitize tag attributes
    --no-sanitize                        do not sanitize tag attributes
+   --validate-xml                       check if output is valid XML
+   --no-validate-xml                    do not check output for valid XML
    --tabwidth=num                       expand tabs to num instead of 8
    -r prefix | --htmlroot=prefix        append relative non-img URLs
                                         to prefix
@@ -2760,6 +2786,9 @@ instead of Markdown's default XHTML style tags, e.g.:
 
     <br />
 
+This option is I<NOT compatible> with the B<--validate-xml> option
+and will produce an immediate error if both are given.
+
 
 =item B<--deprecated>
 
@@ -2792,6 +2821,39 @@ the attribute sanitation process.   If this option is specified, no
 attributes will be removed from any tag (although C<img> and C<a> tags will
 still be affected by B<--imageroot> and/or B<--htmlroot> options).
 Use of this option is I<NOT RECOMMENDED>.
+
+
+=item B<--validate-xml>
+
+Perform XML validation on the output before it's output and die if
+it fails validation.  This requires the C<XML::Simple> module be
+present (it's only required if this option is given).  Any errors
+are reported to STDERR and the exit status will be non-zero on XML
+validation failure.
+
+If the B<--stub> option has also been given, then the entire output is
+validated as-is.  Without the B<--stub> option, the output will be wrapped
+in C<< <div>...</div> >> for validation purposes but that extra "div" added
+for validation will not be added to the final output.
+
+This option is I<NOT enabled by default>.
+
+This option is I<NOT compatible> with the B<--html4tags> option and will
+produce an immediate error if both are given.
+
+
+=item B<--no-validate-xml>
+
+Do not perform XML validation on the output.  Markdown.pl itself will
+normally generate valid XML sequences (unless B<--html4tags> has been
+used).  However, any raw tags in the input (that are on the "approved"
+list), could potentially result in invalid XML output (i.e. mismatched
+start and end tags, missing start or end tag etc.).
+
+Markdown.pl will I<NOT check> for these issues itself.  But with the
+B<--validate-xml> option will use C<XML::Simple> to do so.
+
+Note that B<--no-validate-xml> is the default option.
 
 
 =item B<--tabwidth>=I<num>
