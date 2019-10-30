@@ -44,6 +44,13 @@ $INC{__PACKAGE__.'.pm'} = $INC{basename(__FILE__)} unless exists $INC{__PACKAGE_
 close(DATA) if fileno(DATA);
 exit(&_main(@ARGV)||0) unless caller;
 
+sub fauxdie($) {
+    my $msg = join(" ", @_);
+    $msg =~ s/\s+$//os;
+    printf STDERR "%s: fatal: %s\n", basename($0), $msg;
+    exit 1;
+}
+
 my $encoder;
 BEGIN {
 	$encoder = Encode::find_encoding('Windows-1252') ||
@@ -410,19 +417,25 @@ HTML4
 
     #### Process incoming text: ###########################
     my ($didhdr, $hdr, $result, $ftr) = (0, "", "", "");
-    for (;;) {
-	local $_;
+    @ARGV or push(@ARGV, "-");
+    foreach (@ARGV) {
+	my ($fh, $contents, $oneresult);
+	$_ eq "-" or open $fh, '<', $_ or fauxdie "could not open \"$_\": $!\n";
 	{
 	    local $/; # Slurp the whole file
-	    $_ = <>;
+	    $_ eq "-" and $contents = <STDIN>;
+	    $_ ne "-" and $contents = <$fh>;
 	}
-	defined($_) or last;
-	$result = Markdown($_, \%options);
-	if ($result ne "") {
+	defined($contents) or fauxdie "could not read \"$_\": $!\n";
+	$_ eq "-" or close($fh);
+	$oneresult = Markdown($contents, \%options);
+	$oneresult =~ s/\s+$//os;
+	if ($oneresult ne "") {
 	    if (!$didhdr) {
 		$hdr = &$hdrf();
 		$didhdr = 1;
 	    }
+	    $result .= $oneresult . "\n";
 	}
     }
     $hdr = &$hdrf() unless $didhdr;
@@ -457,7 +470,8 @@ sub _xmlcheck {
 sub _trimerr {
 	my $err = shift;
 	1 while $err =~ s{\s+at\s+\.?/[^,\s\n]+\sline\s+[0-9]+\.?(\n|$)}{$1}is;
-	$err;
+	$err =~ s/\s+$//os;
+	$err . "\n";
 }
 
 
