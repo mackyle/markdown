@@ -568,6 +568,9 @@ sub Markdown {
 
     $text .= "\n" unless $text eq "";
 
+    # Sanitize all '<'...'>' tags if requested
+    $text = _SanitizeTags($text) if $opt{sanitize};
+
     utf8::encode($text);
     if (defined($opt{h1}) && $opt{h1} ne "" && ref($_[0]) eq "HASH") {
 	utf8::encode($opt{h1});
@@ -2189,13 +2192,55 @@ sub _DoTag {
     if (($tag =~ m{^<($g_possible_tag_name)(?:[\s>]|/>$)} || $tag =~ m{^</($g_possible_tag_name)\s*>}) &&
 	$ok_tag_name{lc($1)}) {
 
-	$tag = _Sanitize($tag) if $opt{sanitize};
 	return _ProcessURLTag("href", $tag) if $tag =~ /^<a\s/i;
 	return _ProcessURLTag("src", $tag) if $tag =~ /^<img\s/i;
 	return $tag;
     }
-    $tag =~ s/</&lt;/g;
+    $tag =~ s/^</&lt;/;
     return $tag;
+}
+
+
+# _SanitizeTags
+#
+# Inspect all '<'...'>' tags in the input and HTML encode those things
+# that cannot possibly be tags and at the same time sanitize them.
+#
+# $1 => text to process
+# <= sanitized text
+sub _SanitizeTags {
+    my $text = shift;
+    my $ans = "";
+    my $end = length($text);
+    pos($text) = 0;
+    while (pos($text) < $end) {
+	if ($text =~ /\G([^<]+)/gc) {
+	    $ans .= $1;
+	    next;
+	}
+	if ($text =~ /\G(<[^>]*>)/gc) {
+	    my $tag = $1;
+	    if ($tag =~ /^<!--/) { # pass "comments" through
+		$ans .= $tag;
+		next;
+	    }
+	    if (($tag =~ m{^<($g_possible_tag_name)(?:[\s>]|/>$)} ||
+		 $tag =~ m{^</($g_possible_tag_name)\s*>}) &&
+		$ok_tag_name{lc($1)})
+	    {
+		$ans .= _Sanitize($tag);
+		next;
+	    } else {
+		$tag =~ s/^</&lt;/;
+		$ans .= $tag;
+		next;
+	    }
+	}
+	# can only get here if "\G" char is an unmatched "<"
+	pos($text) += 1;
+	$ans .= "&lt;";
+    }
+    return $ans;
 }
 
 
@@ -2252,6 +2297,7 @@ BEGIN {
 
 sub _Sanitize {
     my $tag = shift;
+    my $seenatt = {};
     if ($tag =~ m{^</}) {
 	$tag =~ s/\s+>$/>/;
 	return lc($tag);
@@ -2270,11 +2316,11 @@ sub _Sanitize {
 	    if (substr($s,0,1) ne "=") {
 		# it's one of "those" attributes (e.g. compact) or not
 		# _SanitizeAtt will fix it up if it is
-		$out .= _SanitizeAtt($a, '""', $ok);
+		$out .= _SanitizeAtt($a, '""', $ok, $seenatt);
 		next;
 	    }
 	    if ($tag =~ /\G([\042\047])((?:(?!\1)(?!<).)*)\1\s*/gcs) {
-		$out .= _SanitizeAtt($a, $1.$2.$1, $ok);
+		$out .= _SanitizeAtt($a, $1.$2.$1, $ok, $seenatt);
 		next;
 	    }
 	    if ($tag =~ /\G([\042\047])((?:(?!\1)(?![<>])(?![\/][>]).)*)/gcs) {
@@ -2282,18 +2328,18 @@ sub _Sanitize {
 		# trim trailing \s+ and magically add the missing quote
 		my ($q, $v) = ($1, $2);
 		$v =~ s/\s+$//;
-		$out .= _SanitizeAtt($a, $q.$v.$q, $ok);
+		$out .= _SanitizeAtt($a, $q.$v.$q, $ok, $seenatt);
 		next;
 	    }
 	    if ($tag =~ /\G([^\s<\/>]+)\s*/gcs) {
 		# auto quote it
 		my $v = $1;
 		$v =~ s/\042/&quot;/go;
-		$out .= _SanitizeAtt($a, '"'.$v.'"', $ok);
+		$out .= _SanitizeAtt($a, '"'.$v.'"', $ok, $seenatt);
 		next;
 	    }
 	    # give it an empty value
-	    $out .= _SanitizeAtt($a, '""', $ok);
+	    $out .= _SanitizeAtt($a, '""', $ok, $seenatt);
         }
 	my $sfx = substr($tag, pos($tag));
 	$out =~ s/\s+$//;
@@ -2322,6 +2368,8 @@ sub _SanitizeAtt {
     my $att = lc($_[0]);
     return "" unless $att =~ /^[_a-z:][_a-z:0-9.-]*$/; # no weirdo char att names
     return "" unless $univatt{$att} || $_[2]->{$att};
+    return "" if $_[3]->{$att}; # no repeats
+    $_[3]->{$att} = 1;
     $impatt{$att} and return $att."=".'"'.$att.'"';
     if ($lcattval{$att}) {
 	return $att."=".lc($_[1])." ";
