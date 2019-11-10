@@ -542,7 +542,7 @@ sub Markdown {
     $text = _HashBTCodeBlocks($text);
 
     # Convert all tabs to spaces.
-    $text = _Detab($text);
+    $text = _DeTab($text);
 
     # Strip any lines consisting only of spaces.
     # This makes subsequent regexen easier to write, because we can
@@ -602,7 +602,7 @@ sub _HashBTCodeBlocks {
 	    my $leadsp = length($1);
 	    my $codeblock = $4;
 	    $codeblock =~ s/[ \t]+$//mg; # trim trailing spaces on lines
-	    $codeblock = _Detab($codeblock, 8, $leadsp); # physical tab stops are always 8
+	    $codeblock = _DeTab($codeblock, 8, $leadsp); # physical tab stops are always 8
 	    $codeblock =~ s/\A\n+//; # trim leading newlines
 	    $codeblock =~ s/\s+\z//; # trim trailing whitespace
 	    $codeblock = _EncodeCode($codeblock); # or run highlighter here
@@ -2614,17 +2614,46 @@ sub _Outdent {
 }
 
 
-sub _Detab {
+# _DeTab
 #
-# Expand tabs to spaces using $opt{tab_width} if no second argument
-#
+# $1 => input text
+# $2 => optional tab width (default is $opt{tab_width})
+# $3 => leading spaces to strip off each line first (default is 0 aka none)
+# <= result with tabs expanded
+sub _DeTab {
     my $text = shift;
     my $ts = shift || $opt{tab_width};
     my $leadsp = shift || 0;
-    $text =~ s/^ {1,$leadsp}//mg if $leadsp; # trim leading space(s)
-    # From the Perl camel book "Fluent Perl" section (slightly modified)
-    $text =~ s/(.*?)(\t+)/$1 . ' ' x (length($2) * $ts - length($1) % $ts)/ge;
-    return $text;
+    my $spr = qr/^ {1,$leadsp}/ if $leadsp;
+    pos($text) = 0;
+    my $end = length($text);
+    my $ans = "";
+    while (pos($text) < $end) {
+	my $line;
+	if ($text =~ /\G([^\n]*\n)/gc) {
+	    $line = $1;
+	} else {
+	    $line = substr($text, pos($text));
+	    pos($text) = $end;
+	}
+	$line =~ s/$spr// if $leadsp;
+	my $eline = length($line);
+	pos($line) = 0;
+	my $xline = "";
+	while (pos($line) < $eline) {
+	    if ($line =~ /\G([^\t]+)/gc) {
+		$xline .= $1;
+		next;
+	    }
+	    if ($line =~ /\G(\t+)/gc) {
+		$xline .= ' ' x (length($1) * $ts - (length($xline) % $ts));
+		next;
+	    }
+	    die "programmer error"; # cannot get here
+	}
+	$ans .= $xline;
+    }
+    return $ans;
 }
 
 
