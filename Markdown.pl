@@ -279,6 +279,7 @@ sub _main {
     #### Check for command-line switches: #################
     my %options = ();
     my %cli_opts;
+    my $raw = 0;
     use Getopt::Long;
     Getopt::Long::Configure(qw(bundling require_order pass_through));
     GetOptions(\%cli_opts,
@@ -295,6 +296,7 @@ sub _main {
 	'imageroot|i=s',
 	'wiki|w:s',
 	'tabwidth|tab-width=s',
+	'raw',
 	'stylesheet|style-sheet',
 	'no-stylesheet|no-style-sheet',
 	'stub',
@@ -367,6 +369,9 @@ sub _main {
 	}
 	$options{wikiopt} = { map({$_ => 1} split(//,lc($wopt))) };
     }
+    if ($cli_opts{'raw'}) {
+	$raw = 1;
+    }
     if ($cli_opts{'stylesheet'}) {  # Display the style sheet
 	$options{show_styles} = 1;
     }
@@ -428,21 +433,21 @@ HTML4
 	}
 	defined($contents) or fauxdie "could not read \"$_\": $!\n";
 	$_ eq "-" or close($fh);
-	$oneresult = Markdown($contents, \%options);
+	$oneresult = $raw ? ProcessRaw($contents, \%options) : Markdown($contents, \%options);
 	$oneresult =~ s/\s+$//os;
 	if ($oneresult ne "") {
-	    if (!$didhdr) {
+	    if (!$didhdr && !$raw) {
 		$hdr = &$hdrf();
 		$didhdr = 1;
 	    }
 	    $result .= $oneresult . "\n";
 	}
     }
-    $hdr = &$hdrf() unless $didhdr;
-    $ftr = "</div>\n</body>\n</html>\n" if $stub;
+    $hdr = &$hdrf() unless $didhdr || $raw;
+    $ftr = "</div>\n</body>\n</html>\n" if $stub && !$raw;
     if ($options{xmlcheck}) {
 	my ($good, $errs);
-	if ($stub) {
+	if ($stub && !$raw) {
 	    ($good, $errs) = _xmlcheck($hdr.$result.$ftr);
 	} else {
 	    ($good, $errs) = _xmlcheck("<div>".$result."</div>");
@@ -475,6 +480,50 @@ sub _trimerr {
 }
 
 
+sub _PrepareInput {
+    my $input = shift;
+    defined $input or $input = "";
+    {
+	use bytes;
+	$input =~ s/[\x00-\x08\x0B\x0E-\x1F\x7F]+//gso;
+    }
+    my $output;
+    if (Encode::is_utf8($input) || utf8::decode($input)) {
+	$output = $input;
+    } else {
+	$output = $encoder->decode($input, Encode::FB_DEFAULT);
+    }
+    # Standardize line endings:
+    $output =~ s{\r\n}{\n}g;  # DOS to Unix
+    $output =~ s{\r}{\n}g;    # Mac to Unix
+    return $output;
+}
+
+
+sub ProcessRaw {
+    my $text = _PrepareInput(shift);
+
+    %opt = (
+	empty_element_suffix	=> $g_empty_element_suffix,
+    );
+    my %args = ();
+    if (ref($_[0]) eq "HASH") {
+	%args = %{$_[0]};
+    } else {
+	%args = @_;
+    }
+    while (my ($k,$v) = each %args) {
+	$opt{$k} = $v;
+    }
+
+    # Sanitize all '<'...'>' tags if requested
+    $text = _SanitizeTags($text) if $opt{sanitize};
+
+    utf8::encode($text);
+    return $text;
+}
+
+
 sub Markdown {
 #
 # Primary function. The order in which other subs are called here is
@@ -482,20 +531,7 @@ sub Markdown {
 # _EscapeSpecialChars(), so that any *'s or _'s in the <a>
 # and <img> tags get encoded.
 #
-    my $_text = shift;
-    defined $_text or $_text='';
-
-    {
-	use bytes;
-	$_text =~ s/[\x00-\x08\x0B\x0E-\x1F\x7F]+//gso;
-    }
-    my $text;
-    if (Encode::is_utf8($_text) || utf8::decode($_text)) {
-	$text = $_text;
-    } else {
-	$text = $encoder->decode($_text, Encode::FB_DEFAULT);
-    }
-    $_text = undef;
+    my $text = _PrepareInput(shift);
 
     # Any remaining arguments after the first are options; either a single
     # hashref or a list of name, value paurs.
@@ -530,10 +566,6 @@ sub Markdown {
     %g_html_blocks = ();
     %g_code_blocks = ();
     $g_list_level = 0;
-
-    # Standardize line endings:
-    $text =~ s{\r\n}{\n}g;  # DOS to Unix
-    $text =~ s{\r}{\n}g;    # Mac to Unix
 
     # Make sure $text ends with a couple of newlines:
     $text .= "\n\n";
@@ -2897,6 +2929,7 @@ B<Markdown.pl> [B<--help>] [B<--html4tags>] [B<--htmlroot>=I<prefix>]
    -V | --version                       show version, authors, license
                                         and copyright
    -s | --shortversion                  show just the version number
+   --raw                                input contains only raw html
    --stylesheet                         output the fancy style sheet
    --no-stylesheet                      do not output fancy style sheet
    --stub                               wrap output in stub document
@@ -3125,6 +3158,24 @@ Display Markdown's version number and copyright information.
 =item B<-s>, B<--shortversion>
 
 Display the short-form version number.
+
+
+=item B<--raw>
+
+Input contains only raw HTML/XHTML.  All options other than
+B<--html4tags>, B<--deprecated>, B<--sanitize> (on by default) and
+B<--validate-xml> (and their B<--no-...> variants) are ignored.
+
+With this option, arbitrary HTML/XHTML input can be passed through
+the sanitizer and/or validator.  If sanitation is requested (the
+default), input must only contain the contents of the "<body>"
+section (i.e. no "<head>" or "<html>").  Output I<will> be converted
+to UTF-8 regardless of the input encoding.  All line endings will
+be normalized to C<\n> and input encodings other than UTF-8 or
+ISO-8859-1 or US-ASCII will end up mangled.
+
+Remember that any B<--stub> and/or B<--stylesheet> options are
+I<completely ignored> when B<--raw> is given.
 
 
 =item B<--stylesheet>
