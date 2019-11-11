@@ -32,11 +32,8 @@ require Exporter;
 use Digest::MD5 qw(md5 md5_hex);
 use File::Basename qw(basename);
 use Scalar::Util qw(refaddr looks_like_number);
-use Pod::Usage;
 my ($hasxml, $hasxml_err); BEGIN { ($hasxml, $hasxml_err) = (0, "") }
-BEGIN { eval 'use XML::Simple; 1' and $hasxml = 1 or $hasxml_err = $@ }
 my ($hasxmlp, $hasxmlp_err); BEGIN { ($hasxmlp, $hasxmlp_err) = (0, "") }
-BEGIN { eval 'use XML::Parser; 1' and $hasxmlp = 1 or $hasxmlp_err = $@ unless $hasxml }
 @ISA = qw(Exporter);
 @EXPORT_OK = qw(Markdown);
 $INC{__PACKAGE__.'.pm'} = $INC{basename(__FILE__)} unless exists $INC{__PACKAGE__.'.pm'};
@@ -172,13 +169,13 @@ sub story {
 my $_haveMT = eval {require MT; 1;}; # Test to see if we're running in MT
 my $_haveMT3 = $_haveMT && eval {require MT::Plugin; 1;}; # and MT >= MT 3.0.
 
-unless ($_haveMT) {
+if ($_haveMT) {
     require MT;
     import  MT;
     require MT::Template::Context;
     import  MT::Template::Context;
 
-    unless ($_haveMT3) {
+    if ($_haveMT3) {
 	require MT::Plugin;
 	import  MT::Plugin;
 	my $plugin = new MT::Plugin({
@@ -302,10 +299,12 @@ sub _main {
 	'stub',
     );
     if ($cli_opts{'help'}) {
-	pod2usage(-verbose => 2, -exitval => 0);
+	require Pod::Usage;
+	Pod::Usage::pod2usage(-verbose => 2, -exitval => 0);
     }
     if ($cli_opts{'h'}) {
-	pod2usage(-verbose => 0, -exitval => 0);
+	require Pod::Usage;
+	Pod::Usage::pod2usage(-verbose => 0, -exitval => 0);
     }
     if ($cli_opts{'version'}) { # Version info
 	print "\nThis is Markdown, version $VERSION.\n", $COPYRIGHT;
@@ -344,7 +343,11 @@ sub _main {
     }
     die "--html4tags and --validate-xml are incompatible\n"
 	if $cli_opts{'html4tags'} && $options{xmlcheck};
-    die "$hasxml_err$hasxmlp_err" if $options{xmlcheck} && !($hasxml || $hasxmlp);
+    if ($options{xmlcheck}) {
+	eval { require XML::Simple; 1 } and $hasxml = 1 or $hasxml_err = $@;
+	eval { require XML::Parser; 1 } and $hasxmlp = 1 or $hasxmlp_err = $@ unless $hasxml;
+	die "$hasxml_err$hasxmlp_err" unless $hasxml || $hasxmlp;
+    }
     if ($cli_opts{'tabwidth'}) {
 	my $tw = $cli_opts{'tabwidth'};
 	die "invalid tab width (must be integer)\n" unless looks_like_number $tw;
