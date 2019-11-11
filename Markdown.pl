@@ -288,6 +288,7 @@ sub _main {
 	'sanitize',
 	'no-sanitize',
 	'validate-xml',
+	'validate-xml-internal',
 	'no-validate-xml',
 	'htmlroot|r=s',
 	'imageroot|i=s',
@@ -335,15 +336,21 @@ sub _main {
     if ($cli_opts{'sanitize'}) {  # --sanitize always wins
 	$options{sanitize} = 1;
     }
+    $options{xmlcheck} = $options{sanitize} ? 2 : 0;
     if ($cli_opts{'no-validate-xml'}) {  # Do not validate XML
 	$options{xmlcheck} = 0;
     }
     if ($cli_opts{'validate-xml'}) {  # Validate XML output
 	$options{xmlcheck} = 1;
     }
+    if ($cli_opts{'validate-xml-internal'}) {  # Validate XML output internally
+	$options{xmlcheck} = 2;
+    }
     die "--html4tags and --validate-xml are incompatible\n"
-	if $cli_opts{'html4tags'} && $options{xmlcheck};
-    if ($options{xmlcheck}) {
+	if $cli_opts{'html4tags'} && $options{xmlcheck} == 1;
+    die "--no-sanitize and --validate-xml-internal are incompatible\n"
+	if !$options{'sanitize'} && $options{xmlcheck} == 2;
+    if ($options{xmlcheck} == 1) {
 	eval { require XML::Simple; 1 } and $hasxml = 1 or $hasxml_err = $@;
 	eval { require XML::Parser; 1 } and $hasxmlp = 1 or $hasxmlp_err = $@ unless $hasxml;
 	die "$hasxml_err$hasxmlp_err" unless $hasxml || $hasxmlp;
@@ -448,7 +455,7 @@ HTML4
     }
     $hdr = &$hdrf() unless $didhdr || $raw;
     $ftr = "</div>\n</body>\n</html>\n" if $stub && !$raw;
-    if ($options{xmlcheck}) {
+    if ($options{xmlcheck} == 1) {
 	my ($good, $errs);
 	if ($stub && !$raw) {
 	    ($good, $errs) = _xmlcheck($hdr.$result.$ftr);
@@ -518,9 +525,10 @@ sub ProcessRaw {
     while (my ($k,$v) = each %args) {
 	$opt{$k} = $v;
     }
+    $opt{xmlcheck} = 0 unless looks_like_number($opt{xmlcheck});
 
     # Sanitize all '<'...'>' tags if requested
-    $text = _SanitizeTags($text) if $opt{sanitize};
+    $text = _SanitizeTags($text, $opt{xmlcheck} == 2) if $opt{sanitize};
 
     utf8::encode($text);
     return $text;
@@ -556,6 +564,7 @@ sub Markdown {
     while (my ($k,$v) = each %args) {
 	$opt{$k} = $v;
     }
+    $opt{xmlcheck} = 0 unless looks_like_number($opt{xmlcheck});
 
     # Clear the globals. If we don't clear these, you get conflicts
     # from other articles when generating a page which contains more than
@@ -604,7 +613,7 @@ sub Markdown {
     $text .= "\n" unless $text eq "";
 
     # Sanitize all '<'...'>' tags if requested
-    $text = _SanitizeTags($text) if $opt{sanitize};
+    $text = _SanitizeTags($text, $opt{xmlcheck} == 2) if $opt{sanitize};
 
     utf8::encode($text);
     if (defined($opt{h1}) && $opt{h1} ne "" && ref($_[0]) eq "HASH") {
@@ -2244,7 +2253,8 @@ sub _DoTag {
 # $1 => text to process
 # <= sanitized text
 sub _SanitizeTags {
-    my $text = shift;
+    my ($text, $validate) = @_;
+    my @stack = ();
     my $ans = "";
     my $end = length($text);
     pos($text) = 0;
@@ -2253,6 +2263,7 @@ sub _SanitizeTags {
 	    $ans .= $1;
 	    next;
 	}
+	my $tstart = pos($text);
 	if ($text =~ /\G(<[^>]*>)/gc) {
 	    my $tag = $1;
 	    if ($tag =~ /^<!--/) { # pass "comments" through
@@ -2263,7 +2274,24 @@ sub _SanitizeTags {
 		 $tag =~ m{^</($g_possible_tag_name)\s*>}) &&
 		$ok_tag_name{lc($1)})
 	    {
-		$ans .= _Sanitize($tag);
+		my ($stag, $styp) = _Sanitize($tag);
+		$ans .= $stag;
+		if ($validate && ($styp == 1 || $styp == 2) && $stag =~ m{^</?([^/\s>]+)}) {
+		    my $tt = $1;
+		    if ($styp == 1) {
+			push(@stack,[$tt,$tstart]);
+		    } else {
+			!@stack and _xmlfail("closing tag $tt without matching open at " .
+			    _linecol($tstart, $text));
+			if ($stack[$#stack]->[0] eq $tt) {
+			    pop(@stack);
+			} else {
+			    my @i = @{$stack[$#stack]};
+			    _xmlfail("opening tag $i[0] at " . _linecol($i[1], $text) .
+				" mismatch with closing tag $tt at " . _linecol($tstart, $text));
+			}
+		    }
+		}
 		next;
 	    } else {
 		$tag =~ s/^</&lt;/;
@@ -2275,7 +2303,32 @@ sub _SanitizeTags {
 	pos($text) += 1;
 	$ans .= "&lt;";
     }
+    if ($validate && @stack) {
+	my @errs;
+	my $j;
+	for ($j = 0; $j <= $#stack; ++$j) {
+		my @i = @{$stack[$j]};
+		push(@errs, "opening tag $i[0] without matching close at " .
+			    _linecol($i[1], $text));
+	}
+	_xmlfail(@errs);
+    }
     return $ans;
+}
+
+
+sub _linecol {
+	my ($pos, $txt) = @_;
+	pos($txt) = 0;
+	my ($l, $p);
+	$l = 1;
+	++$l while ($p = pos($txt)), $txt =~ /\G[^\n]*\n/gc && pos($txt) <= $pos;
+	return "line $l col " . (1 + ($pos - $p));
+}
+
+
+sub _xmlfail {
+	die join("", map("$_\n", @_));
 }
 
 
@@ -2335,7 +2388,7 @@ sub _Sanitize {
     my $seenatt = {};
     if ($tag =~ m{^</}) {
 	$tag =~ s/\s+>$/>/;
-	return lc($tag);
+	return (lc($tag),2);
     }
     if ($tag =~ /^<([^\s<\/>]+)\s+/gs) {
 	my $tt = lc($1);
@@ -2378,24 +2431,26 @@ sub _Sanitize {
         }
 	my $sfx = substr($tag, pos($tag));
 	$out =~ s/\s+$//;
+	my $typ = 1;
 	if ($tagmt{$tt}) {
+	    $typ = 3;
 	    $out .= $opt{empty_element_suffix};
 	} else {
 	    $out .= ">";
-	    $out .= "</$tt>" if $tag =~ m,/>$,;
+	    $out .= "</$tt>" and $typ = 3 if $tag =~ m,/>$,;
 	}
-	return $out;
+	return ($out,$typ);
     } elsif ($tag =~ /^<([^\s<\/>]+)/gs) {
 	my $tt = lc($1);
 	if ($tagmt{$tt}) {
-	    return "<" . $tt . $opt{empty_element_suffix};
+	    return ("<" . $tt . $opt{empty_element_suffix}, 3);
 	} elsif ($tag =~ m,/>$,) {
-	    return "<" . $tt . "></" . $tt . ">";
+	    return ("<" . $tt . "></" . $tt . ">", 3);
 	} else {
-	    return "<" . $tt . ">";
+	    return ("<" . $tt . ">", 1);
 	}
     }
-    return lc($tag);
+    return (lc($tag),0);
 }
 
 
@@ -2922,6 +2977,7 @@ B<Markdown.pl> [B<--help>] [B<--html4tags>] [B<--htmlroot>=I<prefix>]
    --sanitize                           sanitize tag attributes
    --no-sanitize                        do not sanitize tag attributes
    --validate-xml                       check if output is valid XML
+   --validate-xml-internal              fast basic check if output is valid XML
    --no-validate-xml                    do not check output for valid XML
    --tabwidth=num                       expand tabs to num instead of 8
    -r prefix | --htmlroot=prefix        append relative non-img URLs
@@ -3020,8 +3076,12 @@ Use of this option is I<NOT RECOMMENDED>.
 Perform XML validation on the output before it's output and die if
 it fails validation.  This requires the C<XML::Simple> or C<XML::Parser>
 module be present (one is only required if this option is given).
+
 Any errors are reported to STDERR and the exit status will be
-non-zero on XML validation failure.
+non-zero on XML validation failure.  Note that all line and column
+numbers in the output refer to the entire output that would have
+been produced.  Re-run with B<--no-validate-xml> to see what's
+actually present at those line and column positions.
 
 If the B<--stub> option has also been given, then the entire output is
 validated as-is.  Without the B<--stub> option, the output will be wrapped
@@ -3032,6 +3092,40 @@ This option is I<NOT enabled by default>.
 
 This option is I<NOT compatible> with the B<--html4tags> option and will
 produce an immediate error if both are given.
+
+
+=item B<--validate-xml-internal>
+
+Perform XML validation on the output before it's output and die if
+it fails validation.  This uses a simple internal consistency checker
+that finds unmatched and mismatched open/close tags.
+
+Any errors are reported to STDERR and the exit status will be
+non-zero on XML validation failure.  Note that all line and column
+numbers in the output refer to the entire output that would have
+been produced without any B<--stub> or B<--stylesheet> options.
+Re-run with B<--no-validate-xml> and I<without> any B<--stub> or
+B<--stylesheet> options to see what's actually present at those
+line and column positions.
+
+This option validates the output I<prior to> adding any requested
+B<--stub> or B<--stylesheet>.  As the built-in stub and stylesheet
+have already been validated that speeds things up.  The output is
+I<NOT> wrapped (in a C<< <div>...</div> >>) for validation as that's
+not required for the internal checker.
+
+This option is I<IS enabled by default> unless B<--no-sanitize> is
+active.
+
+This option is I<IS compatible> with the B<--html4tags> option.
+
+This option requires the B<--sanitize> option and will produce an
+immediate error if both B<--no-sanitize> and B<--validate-xml-internal>
+are given.
+
+Note that B<--validate-xml-internal> is I<MUCH faster> than
+B<--validate-xml> and I<does NOT> require any extra XML modules to
+be present.
 
 
 =item B<--no-validate-xml>
@@ -3046,7 +3140,9 @@ Markdown.pl will I<NOT check> for these issues itself.  But with
 the B<--validate-xml> option will use C<XML::Simple> or C<XML::Parser>
 to do so.
 
-Note that B<--no-validate-xml> is the default option.
+Note that B<--validate-xml-internal> is the default option unless
+B<--no-sanitize> is used in which case B<--no-validate-xml> is the
+default option.
 
 
 =item B<--tabwidth>=I<num>
@@ -3166,8 +3262,9 @@ Display the short-form version number.
 =item B<--raw>
 
 Input contains only raw HTML/XHTML.  All options other than
-B<--html4tags>, B<--deprecated>, B<--sanitize> (on by default) and
-B<--validate-xml> (and their B<--no-...> variants) are ignored.
+B<--html4tags>, B<--deprecated>, B<--sanitize> (on by default),
+B<--validate-xml> and B<--validate-xml-internal> (and their B<--no-...>
+variants) are ignored.
 
 With this option, arbitrary HTML/XHTML input can be passed through
 the sanitizer and/or validator.  If sanitation is requested (the
