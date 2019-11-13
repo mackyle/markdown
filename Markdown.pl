@@ -2332,11 +2332,11 @@ sub _xmlfail {
 }
 
 
-my %univatt;
-my %tagatt;
-my %tagmt;
-my %lcattval;
-my %impatt;
+my %univatt;	# universally allowed attribute names
+my %tagatt;	# per-element allowed attribute names
+my %tagmt;	# empty element tags
+my %lcattval;	# names of attribute values to lowercase
+my %impatt;	# names of "implied" attributes
 BEGIN {
     %univatt = map({$_ => 1} qw(class dir id lang style title xml:lang));
     %tagatt = (
@@ -2366,14 +2366,16 @@ BEGIN {
 	'ol' => { map({$_ => 1} qw(compact start type)) },
 	'p' => { map({$_ => 1} qw(align)) },
 	'pre' => { map({$_ => 1} qw(width)) },
-	'table' => { map({$_ => 1} qw(align border cellpadding cellspacing width)) },
+	'table' => { map({$_ => 1} qw(align border cellpadding cellspacing summary width)) },
 	'tbody' => { map({$_ => 1} qw(align valign)) },
+	'tfoot' => { map({$_ => 1} qw(align valign)) },
+	'thead' => { map({$_ => 1} qw(align valign)) },
 	'td' => { map({$_ => 1} qw(align colspan height nowrap rowspan valign width)) },
 	'th' => { map({$_ => 1} qw(align colspan height nowrap rowspan valign width)) },
 	'tr' => { map({$_ => 1} qw(align valign)) },
 	'ul' => { map({$_ => 1} qw(compact type)) }
     );
-    %tagmt = map({$_ => 1} qw(area basefont br hr img));
+    %tagmt = map({$_ => 1} qw(area basefont br col hr img));
     %impatt = map({$_ => 1} qw(checked compact ismap nohref noshade nowrap));
     %lcattval = map({$_ => 1} qw(
 	align border cellpadding cellspacing checked clear color colspan
@@ -3059,6 +3061,11 @@ Remove troublesome tag attributes from embedded tags.  Only a very strictly
 limited set of tag attributes will be permitted, other attributes will be
 silently discarded.  The set of allowed attributes varies by tag.
 This is enabled by default.
+
+Also split empty minimized elements that are not one of the HTML allowed
+empty elements (C<area> C<basefont> C<br> C<col> C<hr> C<img>) into separate
+begin and end tags.  For example, C<< <p/> >> or C<< <p /> >> will be split
+into C<< <p></p> >>.
 
 
 =item B<--no-sanitize>
