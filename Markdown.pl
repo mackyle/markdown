@@ -2245,96 +2245,12 @@ sub _DoTag {
 }
 
 
-# _SanitizeTags
-#
-# Inspect all '<'...'>' tags in the input and HTML encode those things
-# that cannot possibly be tags and at the same time sanitize them.
-#
-# $1 => text to process
-# <= sanitized text
-sub _SanitizeTags {
-    my ($text, $validate) = @_;
-    my @stack = ();
-    my $ans = "";
-    my $end = length($text);
-    pos($text) = 0;
-    while (pos($text) < $end) {
-	if ($text =~ /\G([^<]+)/gc) {
-	    $ans .= $1;
-	    next;
-	}
-	my $tstart = pos($text);
-	if ($text =~ /\G(<[^>]*>)/gc) {
-	    my $tag = $1;
-	    if ($tag =~ /^<!--/) { # pass "comments" through
-		$ans .= $tag;
-		next;
-	    }
-	    if (($tag =~ m{^<($g_possible_tag_name)(?:[\s>]|/>$)} ||
-		 $tag =~ m{^</($g_possible_tag_name)\s*>}) &&
-		$ok_tag_name{lc($1)})
-	    {
-		my ($stag, $styp) = _Sanitize($tag);
-		$ans .= $stag;
-		if ($validate && ($styp == 1 || $styp == 2) && $stag =~ m{^</?([^/\s>]+)}) {
-		    my $tt = $1;
-		    if ($styp == 1) {
-			push(@stack,[$tt,$tstart]);
-		    } else {
-			!@stack and _xmlfail("closing tag $tt without matching open at " .
-			    _linecol($tstart, $text));
-			if ($stack[$#stack]->[0] eq $tt) {
-			    pop(@stack);
-			} else {
-			    my @i = @{$stack[$#stack]};
-			    _xmlfail("opening tag $i[0] at " . _linecol($i[1], $text) .
-				" mismatch with closing tag $tt at " . _linecol($tstart, $text));
-			}
-		    }
-		}
-		next;
-	    } else {
-		$tag =~ s/^</&lt;/;
-		$ans .= $tag;
-		next;
-	    }
-	}
-	# can only get here if "\G" char is an unmatched "<"
-	pos($text) += 1;
-	$ans .= "&lt;";
-    }
-    if ($validate && @stack) {
-	my @errs;
-	my $j;
-	for ($j = 0; $j <= $#stack; ++$j) {
-		my @i = @{$stack[$j]};
-		push(@errs, "opening tag $i[0] without matching close at " .
-			    _linecol($i[1], $text));
-	}
-	_xmlfail(@errs);
-    }
-    return $ans;
-}
-
-
-sub _linecol {
-	my ($pos, $txt) = @_;
-	pos($txt) = 0;
-	my ($l, $p);
-	$l = 1;
-	++$l while ($p = pos($txt)), $txt =~ /\G[^\n]*\n/gc && pos($txt) <= $pos;
-	return "line $l col " . (1 + ($pos - $p));
-}
-
-
-sub _xmlfail {
-	die join("", map("$_\n", @_));
-}
-
-
 my %univatt;	# universally allowed attribute names
 my %tagatt;	# per-element allowed attribute names
 my %tagmt;	# empty element tags
+my %tagocl;	# non-empty elements with optional closing tag
+my %tagacl;	# which %tagocl an opening %tagocl will close
+my %tagblk;	# block elements
 my %lcattval;	# names of attribute values to lowercase
 my %impatt;	# names of "implied" attributes
 BEGIN {
@@ -2376,12 +2292,147 @@ BEGIN {
 	'ul' => { map({$_ => 1} qw(compact type)) }
     );
     %tagmt = map({$_ => 1} qw(area basefont br col hr img));
+    %tagocl = map({$_ => 1} qw(colgroup dd dt li p tbody td tfoot th thead tr));
+    %tagacl = (
+	'colgroup' => \%tagocl,
+	'dd' => \%tagocl,
+	'dt' => \%tagocl,
+	'li' => \%tagocl,
+	'tbody' => \%tagocl,
+	'td' => { map({$_ => 1} qw(colgroup dd dt li p td tfoot th thead)) },
+	'tfoot' => \%tagocl,
+	'th' => { map({$_ => 1} qw(colgroup dd dt li p td tfoot th thead)) },
+	'thead' => \%tagocl,
+	'tr' => { map({$_ => 1} qw(colgroup dd dt li p td tfoot th thead tr)) },
+    );
+    %tagblk = map({$_ => 1} qw(address blockquote div dl h1 h2 h3 h4 h5 h6 hr ol p pre table));
     %impatt = map({$_ => 1} qw(checked compact ismap nohref noshade nowrap));
     %lcattval = map({$_ => 1} qw(
 	align border cellpadding cellspacing checked clear color colspan
 	compact coords height hspace ismap nohref noshade nowrap rowspan size
 	span shape valign vspace width
     ));
+}
+
+
+# _SanitizeTags
+#
+# Inspect all '<'...'>' tags in the input and HTML encode those things
+# that cannot possibly be tags and at the same time sanitize them.
+#
+# $1 => text to process
+# <= sanitized text
+sub _SanitizeTags {
+    my ($text, $validate) = @_;
+    $text =~ s/\s+$//;
+    $text ne "" or return "";
+    my @stack = ();
+    my $ans = "";
+    my $end = length($text);
+    pos($text) = 0;
+    my ($autoclose, $autoclopen);
+    my $lastmt = "";
+    $autoclose = sub {
+	my $s = $_[0] || "";
+	while (@stack && $stack[$#stack]->[0] ne $s &&
+		$tagocl{$stack[$#stack]->[0]}) {
+	    $ans .= "</" . $stack[$#stack]->[0] . ">";
+	    pop(@stack);
+	}
+    } if $validate;
+    $autoclopen = sub {
+	my $s = $_[0] || "";
+	my $c;
+	if ($tagblk{$s}) {$c = {p=>1}}
+	elsif ($tagocl{$s}) {$c = $tagacl{$s}}
+	else {return}
+	while (@stack && $c->{$stack[$#stack]->[0]}) {
+	    $ans .= "</" . $stack[$#stack]->[0] . ">";
+	    pop(@stack);
+	}
+    } if $validate;
+    while (pos($text) < $end) {
+	if ($text =~ /\G([^<]+)/gc) {
+	    $ans .= $1;
+	    $lastmt = "" if $1 =~ /\S/;
+	    next;
+	}
+	my $tstart = pos($text);
+	if ($text =~ /\G(<[^>]*>)/gc) {
+	    my $tag = $1;
+	    if ($tag =~ /^<!--/) { # pass "comments" through
+		$ans .= $tag;
+		next;
+	    }
+	    my $tt;
+	    if (($tag =~ m{^<($g_possible_tag_name)(?:[\s>]|/>$)} ||
+		 $tag =~ m{^</($g_possible_tag_name)\s*>}) &&
+		$ok_tag_name{$tt=lc($1)})
+	    {
+		my ($stag, $styp) = _Sanitize($tag);
+		if ($styp == 2 && $lastmt eq $tt) {
+		    $lastmt = "";
+		    next;
+		}
+		$lastmt = $styp == 3 ? $tt : "";
+		if ($validate && $styp) {
+		    &$autoclopen($tt) if $styp == 1 || $styp == 3;
+		    if ($styp == 1) {
+			push(@stack,[$tt,$tstart]);
+		    } elsif ($styp == 2) {
+			&$autoclose($tt) unless $tt eq "p";
+			!@stack and _xmlfail("closing tag $tt without matching open at " .
+			    _linecol($tstart, $text));
+			if ($stack[$#stack]->[0] eq $tt) {
+			    pop(@stack);
+			} else {
+			    my @i = @{$stack[$#stack]};
+			    _xmlfail("opening tag $i[0] at " . _linecol($i[1], $text) .
+				" mismatch with closing tag $tt at " . _linecol($tstart, $text));
+			}
+		    }
+		}
+		$ans .= $stag;
+		next;
+	    } else {
+		$tag =~ s/^</&lt;/;
+		$ans .= $tag;
+		$lastmt = "";
+		next;
+	    }
+	}
+	# can only get here if "\G" char is an unmatched "<"
+	pos($text) += 1;
+	$ans .= "&lt;";
+	$lastmt = "";
+    }
+    &$autoclose if $validate;
+    if ($validate && @stack) {
+	my @errs;
+	my $j;
+	for ($j = 0; $j <= $#stack; ++$j) {
+		my @i = @{$stack[$j]};
+		unshift(@errs, "opening tag $i[0] without matching close at " .
+			    _linecol($i[1], $text));
+	}
+	_xmlfail(@errs);
+    }
+    return $ans."\n";
+}
+
+
+sub _linecol {
+	my ($pos, $txt) = @_;
+	pos($txt) = 0;
+	my ($l, $p);
+	$l = 1;
+	++$l while ($p = pos($txt)), $txt =~ /\G[^\n]*\n/gc && pos($txt) <= $pos;
+	return "line $l col " . (1 + ($pos - $p));
+}
+
+
+sub _xmlfail {
+	die join("", map("$_\n", @_));
 }
 
 
@@ -3057,15 +3108,20 @@ to be recognized and passed through even without using this option.
 
 =item B<--sanitize>
 
-Remove troublesome tag attributes from embedded tags.  Only a very strictly
+Removes troublesome tag attributes from embedded tags.  Only a very strictly
 limited set of tag attributes will be permitted, other attributes will be
 silently discarded.  The set of allowed attributes varies by tag.
-This is enabled by default.
 
-Also split empty minimized elements that are not one of the HTML allowed
-empty elements (C<area> C<basefont> C<br> C<col> C<hr> C<img>) into separate
-begin and end tags.  For example, C<< <p/> >> or C<< <p /> >> will be split
-into C<< <p></p> >>.
+Splits empty minimized elements that are not one of the HTML allowed empty
+elements (C<area> C<basefont> C<br> C<col> C<hr> C<img>) into separate begin
+and end tags.  For example, C<< <p/> >> or C<< <p /> >> will be split into
+C<< <p></p> >>.
+
+Combines adjacent (whitespace separated only) opening and closing tags for
+the same HTML empty element into a single minimized tag.  For example,
+C<< <br></br> >> will become C<< <br /> >>.
+
+This is enabled by default.
 
 
 =item B<--no-sanitize>
@@ -3086,8 +3142,8 @@ module be present (one is only required if this option is given).
 
 Any errors are reported to STDERR and the exit status will be
 non-zero on XML validation failure.  Note that all line and column
-numbers in the output refer to the entire output that would have
-been produced.  Re-run with B<--no-validate-xml> to see what's
+numbers in the error output refer to the entire output that would
+have been produced.  Re-run with B<--no-validate-xml> to see what's
 actually present at those line and column positions.
 
 If the B<--stub> option has also been given, then the entire output is
@@ -3107,13 +3163,19 @@ Perform XML validation on the output before it's output and die if
 it fails validation.  This uses a simple internal consistency checker
 that finds unmatched and mismatched open/close tags.
 
+Non-empty elements that in HTML have optional closing tags (C<colgroup>
+C<dd> C<dt> C<li> C<p> C<tbody> C<td> C<tfoot> C<th> C<thead> C<tr>)
+will automatically have any omitted end tags inserted during the
+`--validate-xml-internal` process.
+
 Any errors are reported to STDERR and the exit status will be
 non-zero on XML validation failure.  Note that all line and column
-numbers in the output refer to the entire output that would have
-been produced without any B<--stub> or B<--stylesheet> options.
-Re-run with B<--no-validate-xml> and I<without> any B<--stub> or
-B<--stylesheet> options to see what's actually present at those
-line and column positions.
+numbers in the error output refer to the entire output that would
+have been produced before sanitization without any B<--stub> or
+B<--stylesheet> options.  Re-run with B<--no-sanitize> and
+B<--no-validate-xml> and I<without> any B<--stub> or B<--stylesheet>
+options to see what's actually present at those line and column
+positions.
 
 This option validates the output I<prior to> adding any requested
 B<--stub> or B<--stylesheet>.  As the built-in stub and stylesheet
