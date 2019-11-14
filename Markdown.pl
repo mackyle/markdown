@@ -2251,6 +2251,7 @@ my %tagmt;	# empty element tags
 my %tagocl;	# non-empty elements with optional closing tag
 my %tagacl;	# which %tagocl an opening %tagocl will close
 my %tagblk;	# block elements
+my %taga1p;	# open tags which require at least one attribute
 my %lcattval;	# names of attribute values to lowercase
 my %impatt;	# names of "implied" attributes
 BEGIN {
@@ -2312,6 +2313,7 @@ BEGIN {
 	compact coords height hspace ismap nohref noshade nowrap rowspan size
 	span shape valign vspace width
     ));
+    %taga1p = map({$_ => 1} qw(a area img map));
 }
 
 
@@ -2493,8 +2495,9 @@ sub _Sanitize {
 	    $out .= "</$tt>" and $typ = 3 if $tag =~ m,/>$,;
 	}
 	return ($out,$typ);
-    } elsif ($tag =~ /^<([^\s<\/>]+)/gs) {
+    } elsif ($tag =~ /^<([^\s<\/>]+)/s) {
 	my $tt = lc($1);
+	return ("&lt;" . substr($tag,1), 0) if $taga1p{$tt};
 	if ($tagmt{$tt}) {
 	    return ("<" . $tt . $opt{empty_element_suffix}, 3);
 	} elsif ($tag =~ m,/>$,) {
