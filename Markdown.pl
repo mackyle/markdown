@@ -1001,6 +1001,10 @@ sub _MakeATag {
 	my $result = $g_escape_table{'<'}."a href=\"" . _EncodeAttText($url) . "\"";
 	$title = _strip($title);
 	$text =~ s{<(/?a)}{&lt;$1}sogi;
+	$text = _DoItalicsAndBoldAndStrike($text);
+	# We've got to encode any of these remaining to avoid
+	# conflicting with other italics, bold and strike through.
+	$text =~ s!([*_~])!$g_escape_table{$1}!g;
 	$result .= " title=\"" . _EncodeAttText($title) . "\"" if $title ne "";
 	return $result . $g_escape_table{'>'} .
 	    $text . $g_escape_table{'<'}."/a".$g_escape_table{'>'};
