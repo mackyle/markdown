@@ -2001,11 +2001,30 @@ sub _EncodeCode {
 sub _DoItalicsAndBoldAndStrike {
     my $text = shift;
 
+    my $doital1 = sub {
+	my $text = shift;
+	$text =~ s{ \* (?=\S) (.+?) (?<=\S) \* }
+	    {<em>$1</em>}gsx;
+	# We've got to encode any of these remaining to
+	# avoid conflicting with other italics and bold.
+	$text =~ s!([*])!$g_escape_table{$1}!g;
+	$text;
+    };
+    my $doital2 = sub {
+	my $text = shift;
+	$text =~ s{ (?<!\w) _ (?=\S) (.+?) (?<=\S) _ (?!\w) }
+	    {<em>$1</em>}gsx;
+	# We've got to encode any of these remaining to
+	# avoid conflicting with other italics and bold.
+	$text =~ s!([_])!$g_escape_table{$1}!g;
+	$text;
+    };
+
     # <strong> must go first:
     $text =~ s{ \*\* (?=\S) (.+?[*_]*) (?<=\S) \*\* }
-	{<strong>$1</strong>}gsx;
+	{"<strong>".&$doital1($1)."</strong>"}gsex;
     $text =~ s{ (?<!\w) __ (?=\S) (.+?[*_]*) (?<=\S) __ (?!\w) }
-	{<strong>$1</strong>}gsx;
+	{"<strong>".&$doital2($1)."</strong>"}gsex;
 
     $text =~ s{ ~~ (?=\S) (.+?[*_]*) (?<=\S) ~~ }
 	{<strike>$1</strike>}gsx;
