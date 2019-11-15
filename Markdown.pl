@@ -1630,6 +1630,7 @@ sub _DoLists {
 	# paragraph for the last item in a list, if necessary:
 	$list =~ s/\n\n/\n\n\n/g;
 	my ($result, $first_marker, $fancy) = _ProcessListItems($list_type, $list);
+	defined($first_marker) or return $list;
 	my $list_marker_type = _GetListMarkerType($list_type, $first_marker);
 	if ($list_marker_type) {
 		$first_marker =~ s/[.\)]$//;
@@ -1887,6 +1888,18 @@ sub _ProcessListItems {
     $result .= _RunBlockGamut(substr($list_str, pos($list_str)));
 
     $g_list_level--;
+
+    # After all that, if we only got an ordered list with a single item
+    # and its first marker is a four-digit number >= 1492 and <= 2999
+    # or an UPPERCASE letter, then pretend we didn't see any list at all.
+
+    if ($first_marker_type && $first_marker_num + 1 == $next_num) {
+	if (($first_marker_type eq "1" && $first_marker_num >= 1492 && $first_marker_num <= 2999) ||
+	    ($first_marker_type eq "A" && !$fancy)) {
+	    return (undef, undef, undef);
+	}
+    }
+
     return ($result, $first_marker, $fancy);
 }
 
