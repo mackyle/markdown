@@ -1859,6 +1859,7 @@ sub _ProcessListItems {
 
 	if ($leading_line or ($item =~ m/\n{2,}/)) {
 	    $item = _RunBlockGamut(_Outdent($item));
+	    $item =~ s{(</[OUou][Ll]>)\s*\z}{$1} and $item .= "\n$idt<span style=\"display:none\">&#160;</span>";
 	}
 	else {
 	    # Recursion for sub-lists:
