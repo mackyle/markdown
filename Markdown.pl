@@ -1207,7 +1207,7 @@ sub _DoImages {
     $text =~ s{
 	(		# wrap whole match in $1
 	  !\[
-	    (.*?)	# alt text = $2
+	    ($g_nested_brackets) # alt text = $2
 	  \]
 
 	  [ ]?		# one optional space
@@ -1246,7 +1246,7 @@ sub _DoImages {
     $text =~ s{
 	(		# wrap whole match in $1
 	  !\[
-	    (.*?)	# alt text = $2
+	    ($g_nested_brackets) # alt text = $2
 	  \]
 	  \(		# literal paren
 	    [ ]*
@@ -1278,7 +1278,7 @@ sub _DoImages {
     $text =~ s{
 	(		# wrap whole match in $1
 	  !\[
-	    (.*?)	# alt text = $2
+	    ($g_nested_brackets) # alt text = $2
 	  \]
 	)
     }{
