@@ -1106,7 +1106,9 @@ sub _DoAnchors {
 	my $title	= $6;
 
 	if ($url =~ /^#\S/) {
+	    # try very hard to find a match
 	    my $idbase = _strip(lc(substr($url, 1)));
+	    my $idbase0 = $idbase;
 	    my $id = _MakeAnchorId($idbase);
 	    if (defined($g_anchors_id{$id})) {
 		$url = $g_anchors_id{$id};
@@ -1115,6 +1117,16 @@ sub _DoAnchors {
 		$id = _MakeAnchorId($idbase);
 		if (defined($g_anchors_id{$id})) {
 		    $url = $g_anchors_id{$id};
+		} else {
+		    $id = _MakeAnchorId($idbase0, 1);
+		    if (defined($g_anchors_id{$id})) {
+			$url = $g_anchors_id{$id};
+		    } else {
+			$id = _MakeAnchorId($idbase, 1);
+			if (defined($g_anchors_id{$id})) {
+			    $url = $g_anchors_id{$id};
+			}
+		    }
 		}
 	    }
 	}
@@ -1303,9 +1315,14 @@ sub _EncodeAttText {
 
 sub _MakeAnchorId {
     use bytes;
-    my $link = shift;
+    my ($link, $strip) = @_;
     $link = lc($link);
-    $link =~ tr/-a-z0-9_/_/cs;
+    if ($strip) {
+	$link =~ s/\s+/_/gs;
+	$link =~ tr/-a-z0-9_//cd;
+    } else {
+	$link =~ tr/-a-z0-9_/_/cs;
+    }
     return '' unless $link ne '';
     $link = "_".$link."_";
     $link =~ s/__+/_/gs;
@@ -1326,6 +1343,16 @@ sub _GetNewAnchorId {
 	$id2 =~ s/-/_/gs;
 	$id2 =~ s/__+/_/gs;
 	defined($g_anchors_id{$id2}) or $g_anchors_id{$id2} = $g_anchors{$link};
+    }
+    my $idd = _MakeAnchorId($link, 1);
+    if ($idd) {
+	defined($g_anchors_id{$idd}) or $g_anchors_id{$idd} = $g_anchors{$link};
+	if ($idd =~ /-/) {
+	    my $idd2 = $idd;
+	    $idd2 =~ s/-/_/gs;
+	    $idd2 =~ s/__+/_/gs;
+	    defined($g_anchors_id{$idd2}) or $g_anchors_id{$idd2} = $g_anchors{$link};
+	}
     }
     $id;
 }
