@@ -2840,28 +2840,16 @@ sub _DeTab {
     my $ans = "";
     while (pos($text) < $end) {
 	my $line;
-	if ($text =~ /\G([^\n]*\n)/gc) {
+	if ($text =~ /\G(.*?\n)/gcs) {
 	    $line = $1;
 	} else {
 	    $line = substr($text, pos($text));
 	    pos($text) = $end;
 	}
 	$line =~ s/$spr// if $leadsp;
-	my $eline = length($line);
-	pos($line) = 0;
-	my $xline = "";
-	while (pos($line) < $eline) {
-	    if ($line =~ /\G([^\t]+)/gc) {
-		$xline .= $1;
-		next;
-	    }
-	    if ($line =~ /\G(\t+)/gc) {
-		$xline .= ' ' x (length($1) * $ts - (length($xline) % $ts));
-		next;
-	    }
-	    die "programmer error"; # cannot get here
-	}
-	$ans .= $xline;
+	# From the Perl camel book section "Fluent Perl" but modified a bit
+	$line =~ s/(.*?)(\t+)/$1 . ' ' x (length($2) * $ts - length($1) % $ts)/ges;
+	$ans .= $line;
     }
     return $ans;
 }
