@@ -3050,6 +3050,7 @@ li.%(base)checkbox-on > span:first-child + span:before {
 	bottom: 1pt;
 	font-size: 125%;
 	line-height: 80%;
+	vertical-align: text-top;
 	content: "\2713";
 }
 
