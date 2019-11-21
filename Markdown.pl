@@ -1401,6 +1401,30 @@ sub _DoHeaders {
 	$h1 = $h if $h ne "";
     } : sub {};
 
+    # atx-style headers:
+    #   # Header 1
+    #   ## Header 2
+    #   ## Header 2 with closing hashes ##
+    #   ...
+    #   ###### Header 6
+    #
+    $text =~ s{
+	    ^(\#{1,6})	# $1 = string of #'s
+	    [ ]*
+	    ((?:(?:(?<![#])[^\s]|[^#\s]).*?)?) # $2 = Header text
+	    [ ]*
+	    \n+
+	}{
+	    my $h_level = length($1);
+	    my $h = $2;
+	    $h =~ s/#+$//;
+	    $h =~ s/\s+$//;
+	    my $id = $h eq "" ? "" : _GetNewAnchorId($h);
+	    &$geth1($h) if $h_level == 1 && $h ne "";
+	    $id = " id=\"$id\"" if $id ne "";
+	    "<h$h_level$id>" . _RunSpanGamut($h) . "</h$h_level>\n\n";
+	}egmx;
+
     # Setext-style headers:
     #     Header 1
     #     ========
@@ -1432,31 +1456,6 @@ sub _DoHeaders {
 	$id = " id=\"$id\"" if $id ne "";
 	"<h3$id>" . _RunSpanGamut($h) . "</h3>\n\n";
     }egmx;
-
-
-    # atx-style headers:
-    #   # Header 1
-    #   ## Header 2
-    #   ## Header 2 with closing hashes ##
-    #   ...
-    #   ###### Header 6
-    #
-    $text =~ s{
-	    ^(\#{1,6})	# $1 = string of #'s
-	    [ ]*
-	    ((?:(?:(?<![#])[^\s]|[^#\s]).*?)?) # $2 = Header text
-	    [ ]*
-	    \n+
-	}{
-	    my $h_level = length($1);
-	    my $h = $2;
-	    $h =~ s/#+$//;
-	    $h =~ s/\s+$//;
-	    my $id = $h eq "" ? "" : _GetNewAnchorId($h);
-	    &$geth1($h) if $h_level == 1 && $h ne "";
-	    $id = " id=\"$id\"" if $id ne "";
-	    "<h$h_level$id>" . _RunSpanGamut($h) . "</h$h_level>\n\n";
-	}egmx;
 
     $opt{h1} = $h1 if defined($h1) && $h1 ne "";
     return $text;
