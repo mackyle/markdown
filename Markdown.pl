@@ -1722,14 +1722,14 @@ sub _DoLists {
 	$text =~ s{
 		(?: (?<=\n\n) |
 		    \A\n? |
-		    (?:(?<=\n) # two of the same kind of marker lines
-		       (?=[ ]{0,$less_than_indent}$marker_ul[ ].*\n
-		          [ ]{0,$less_than_indent}$marker_ul[ ])) |
-		    (?:(?<=\n) # in a row will start a list
-		       (?=[ ]{0,$less_than_indent}$marker_ol[ ].*\n
+		    (?<=:\n) |
+		    (?:(?<=\n) # a list starts with one unordered marker line
+		       (?=[ ]{0,$less_than_indent}$marker_ul[ ])) |
+		    (?:(?<=\n) # or two ordered marker lines in a row
+		       (?=[ ]{0,$less_than_indent}$marker_ol[ ].*\n\n?
 		          [ ]{0,$less_than_indent}$marker_ol[ ])) |
 		    (?:(?<=\n) # or any marker and a sublist marker
-		       (?=[ ]{0,$less_than_indent}$marker_any[ ].*\n
+		       (?=[ ]{0,$less_than_indent}$marker_any[ ].*\n\n?
 		          [ ]{$indent,$less_than_double_indent}$marker_any[ ]))
 		)
 		$whole_list
