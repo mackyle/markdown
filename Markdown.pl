@@ -1451,7 +1451,7 @@ sub _DoHeaders {
 	}{
 	    my $h = $2;
 	    my $h_level = length($1);
-	    my $id = $h_level <= 3 ? _GetNewAnchorId($h) : '';
+	    my $id = _GetNewAnchorId($h);
 	    &$geth1($h) if $h_level == 1;
 	    $id = " id=\"$id\"" if $id ne "";
 	    "<h$h_level$id>" . _RunSpanGamut($h) . "</h$h_level>\n\n";
