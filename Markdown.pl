@@ -1364,7 +1364,7 @@ sub _MakeAnchorId {
 
 sub _GetNewAnchorId {
     my $link = _strip(lc(shift));
-    return '' if defined($g_anchors{$link});
+    return '' if $link eq "" || defined($g_anchors{$link});
     my $id = _MakeAnchorId($link);
     return '' unless $id;
     $g_anchors{$link} = '#'.$id;
@@ -1444,15 +1444,16 @@ sub _DoHeaders {
     $text =~ s{
 	    ^(\#{1,6})	# $1 = string of #'s
 	    [ ]*
-	    (.+?)	# $2 = Header text
+	    ((?:(?:(?<![#])[^\s]|[^#\s]).*?)?) # $2 = Header text
 	    [ ]*
-	    \#*		# optional closing #'s (not counted)
 	    \n+
 	}{
-	    my $h = $2;
 	    my $h_level = length($1);
-	    my $id = _GetNewAnchorId($h);
-	    &$geth1($h) if $h_level == 1;
+	    my $h = $2;
+	    $h =~ s/#+$//;
+	    $h =~ s/\s+$//;
+	    my $id = $h eq "" ? "" : _GetNewAnchorId($h);
+	    &$geth1($h) if $h_level == 1 && $h ne "";
 	    $id = " id=\"$id\"" if $id ne "";
 	    "<h$h_level$id>" . _RunSpanGamut($h) . "</h$h_level>\n\n";
 	}egmx;
