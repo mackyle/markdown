@@ -1055,7 +1055,7 @@ sub _DoAnchors {
 	  (?:\n[ ]*)?	    # one optional newline followed by spaces
 
 	  \[
-	    (.*?)	    # id = $3
+	    ($g_nested_brackets) # id = $3
 	  \]
 	)
     }{
@@ -1214,7 +1214,7 @@ sub _DoImages {
 	  (?:\n[ ]*)?	# one optional newline followed by spaces
 
 	  \[
-	    (.*?)	# id = $3
+	    ($g_nested_brackets) # id = $3
 	  \]
 
 	)
