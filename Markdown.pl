@@ -118,6 +118,19 @@ BEGIN {
     }ox
 }
 
+# Regex to match balanced (parentheses)
+my $g_nested_parens;
+BEGIN {
+    $g_nested_parens = qr{
+    (?>					# Atomic matching
+	[^\(\)]+			# Anything other than parentheses
+     |
+	\(
+	    (??{ $g_nested_parens })	# Recursive set of nested parentheses
+	\)
+    )*
+    }ox
+}
 
 # Table of hash values for escaped characters:
 my %g_escape_table;
@@ -1088,24 +1101,16 @@ sub _DoAnchors {
 	    ($g_nested_brackets) # link text = $2
 	  \]
 	  \(		# literal paren
-	    [ ]*
-	    <?(.*?)>?	# href = $3
-	    [ ]*
-	    (		# $4
-	      (['\042]) # quote char = $5
-	      (.*?)	# Title = $6
-	      \5	# matching quote
-	    )?		# title is optional
+	    ($g_nested_parens) # href and optional title = $3
 	  \)
 	)
     }{
 	#my $result;
 	my $whole_match = $1;
 	my $link_text	= $2;
-	my $url		= $3;
-	my $title	= $6;
+	my ($url, $title) = _SplitUrlTitlePart($3);
 
-	if ($url =~ /^#\S/) {
+	if (defined($url) && $url =~ /^#\S/) {
 	    # try very hard to find a match
 	    my $idbase = _strip(lc(substr($url, 1)));
 	    my $idbase0 = $idbase;
@@ -1130,8 +1135,13 @@ sub _DoAnchors {
 		}
 	    }
 	}
-	$link_text = '[' . $link_text . ']' if $link_text =~ /^\d{1,3}$/;
-	_MakeATag(_PrefixURL($url), $link_text, $title);
+	if (defined($url)) {
+		$link_text = '[' . $link_text . ']' if $link_text =~ /^\d{1,3}$/;
+		_MakeATag(_PrefixURL($url), $link_text, $title);
+	} else {
+		# The href/title part didn't match the pattern
+		$whole_match;
+	}
     }xsge;
 
     #
@@ -1162,6 +1172,40 @@ sub _DoAnchors {
     }xsge;
 
     return $text;
+}
+
+
+sub _PeelWrapped {
+	defined($_[0]) or return undef;
+	if (substr($_[0],0,1) eq "(") {
+		return substr($_[0], 1, length($_[0]) - (substr($_[0], -1, 1) eq ")" ? 2 : 1));
+	}
+	return $_[0];
+}
+
+
+sub _SplitUrlTitlePart {
+	return ("", undef) if $_[0] =~ m{^\s*$}; # explicitly allowed
+	my $u = $_[0];
+	$u =~ s/^\s*(['\042])/# $1/;
+	if ($u =~ m{
+	    ^		# match beginning
+	    \s*?
+	    <?([^\s'\042]\S*?)>? # URL = $1
+	    (?:		# optional grouping
+	      \s+	# must be distinct from URL
+	      (['\042]?) # quote char = $2
+	      (.*?)	# Title = $3
+	      \2?	# matching quote
+	    )?		# title is optional
+	    \s*
+	    \z		# match end
+	}osx) {
+		return (undef, undef) if $_[1] && ($1 eq "" || $1 eq "#");
+		return (_PeelWrapped($1), $2 ? $3 : _PeelWrapped($3));
+	} else {
+		return (undef, undef);
+	}
 }
 
 
@@ -1249,27 +1293,14 @@ sub _DoImages {
 	    ($g_nested_brackets) # alt text = $2
 	  \]
 	  \(		# literal paren
-	    [ ]*
-	    <?(\S+?)>?	# src url = $3
-	    [ ]*
-	    (		# $4
-	      (['\042]) # quote char = $5
-	      (.*?)	# title = $6
-	      \5	# matching quote
-	      [ ]*
-	    )?		# title is optional
+	    ($g_nested_parens) # src and optional title = $3
 	  \)
 	)
     }{
-	#my $whole_match = $1;
+	my $whole_match = $1;
 	my $alt_text	= $2;
-	my $url		= $3;
-	my $title	= '';
-	if (defined($6)) {
-	    $title	= $6;
-	}
-
-	_MakeIMGTag(_PrefixURL($url), $alt_text, $title);
+	my ($url, $title) = _SplitUrlTitlePart($3, 1);
+	defined($url) ?  _MakeIMGTag(_PrefixURL($url), $alt_text, $title) : $whole_match;
     }xsge;
 
     #
