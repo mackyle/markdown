@@ -850,11 +850,7 @@ sub _RunBlockGamut {
     $text =~ s{^ {0,3}\_(?: {0,2}\_){2,}[ ]*$}{\n<hr$opt{empty_element_suffix}\n}gm;
     $text =~ s{^ {0,3}\-(?: {0,2}\-){2,}[ ]*$}{\n<hr$opt{empty_element_suffix}\n}gm;
 
-    $text = _DoLists($text);
-
-    $text = _DoCodeBlocks($text);
-
-    $text = _DoBlockQuotes($text);
+    $text = _DoListsAndBlocks($text);
 
     $text = _DoTables($text);
 
@@ -867,6 +863,11 @@ sub _RunBlockGamut {
     $text = _FormParagraphs($text);
 
     return $text;
+}
+
+
+sub _DoListBlocks {
+    return _DoBlockQuotes(_DoCodeBlocks($_[0])) if $_[0] ne "";
 }
 
 
@@ -1620,7 +1621,7 @@ sub _IncrList {
 }
 
 
-sub _DoLists {
+sub _DoListsAndBlocks {
 #
 # Form HTML ordered (numbered) and unordered (bulleted) lists.
 #
@@ -1711,15 +1712,23 @@ sub _DoLists {
     # two cases much easier to grok all at once.
 
     if ($g_list_level) {
-	$text =~ s{
-		^
-		$whole_list
-	    }{
-		&$list_item_sub($1, $2, $3, $4);
-	    }egmx;
+	my $parse = $text;
+	$text = "";
+	pos($parse) = 0;
+	while ($parse =~ /\G(?s:.)*?^$whole_list/gmc) {
+	    my @captures = ($1, $2, $3, $4);
+	    if ($-[1] > $-[0]) {
+		$text .= _DoListBlocks(substr($parse, $-[0], $-[1] - $-[0]));
+	    }
+	    $text .= &$list_item_sub(@captures);
+	}
+	$text .= _DoListBlocks(substr($parse, pos($parse))) if pos($parse) < length($parse);
     }
     else {
-	$text =~ s{
+	my $parse = $text;
+	$text = "";
+	pos($parse) = 0;
+	while ($parse =~ m{\G(?s:.)*?
 		(?: (?<=\n\n) |
 		    \A\n? |
 		    (?<=:\n) |
@@ -1733,9 +1742,14 @@ sub _DoLists {
 		          [ ]{$indent,$less_than_double_indent}$marker_any[ ]))
 		)
 		$whole_list
-	    }{
-		&$list_item_sub($1, $2, $3, $4);
-	    }egmx;
+	    }gmcx) {
+	    my @captures = ($1, $2, $3, $4);
+	    if ($-[1] > $-[0]) {
+		$text .= _DoListBlocks(substr($parse, $-[0], $-[1] - $-[0]));
+	    }
+	    $text .= &$list_item_sub(@captures);
+	}
+	$text .= _DoListBlocks(substr($parse, pos($parse))) if pos($parse) < length($parse);
     }
 
     return $text;
@@ -1895,7 +1909,7 @@ sub _ProcessListItems {
 	}
 	else {
 	    # Recursion for sub-lists:
-	    $item = _DoLists(_Outdent($item));
+	    $item = _DoListsAndBlocks(_Outdent($item));
 	    chomp $item;
 	    $item = _RunSpanGamut($item);
 	}
@@ -1916,7 +1930,7 @@ sub _ProcessListItems {
     }
 
     # Anything left over (similar to $') goes into result, but this should always be empty
-    $result .= _RunBlockGamut(substr($list_str, pos($list_str)));
+    $result .= _RunBlockGamut(substr($list_str, pos($list_str))) if pos($list_str) < length($list_str);
 
     $g_list_level--;
 
@@ -2101,7 +2115,7 @@ sub _DoBlockQuotes {
 	    $bq =~ s/^[ ]+$//mg;	 # trim whitespace-only lines
 	    $bq = _RunBlockGamut($bq);	 # recurse
 
-	    $bq =~ s/^/  /mg;
+	    $bq =~ s/^/\027/mg;
 	    "<blockquote>\n$bq\n</blockquote>\n\n";
 	}egmx;
 
