@@ -2,7 +2,7 @@
 Markdown
 ========
 
-Version 1.1.7
+Version 1.1.8
 
 John Gruber  
 Kyle J. McKay
@@ -172,6 +172,48 @@ Markdown.pl source code for more information.
 ---------------
 Version History
 ---------------
+
+1.1.8 (22 Nov 2019):
+
+* correct a number of issues with improperly nested markup involving
+  links, blockquotes, strong and emphasis etc.
+
+* parse nested `[`...`]` and `(`...`)` properly when inside links
+
+* avoid getting confused by nested lists
+
+* allow first blockquote line to be empty
+
+* as-documented single-quote titles in link definitions now work
+
+* when escaping a single-quote use &#39; instead of &apos;
+
+* ignore control characters in input (other than whitespace)
+
+* wiki links can be processed by providing a new `--wiki` option
+
+* an empty table header row is omitted from the output
+
+* table rows can be joined with a trailing `\` (see syntax.md)
+
+* add several new XML validation options
+
+* perform XML validation and tag sanitation by default (see help)
+
+* tab expansion in shifted backticks-delimited code blocks has
+  been adjusted to better match expected behavior
+
+* all atx-style header levels now get anchors not just levels 1-3
+
+* internal document "fragment" links `[...](#section)` hook up to
+  the target section much more reliably now
+
+* backticks-delimited code blocks can now specify a syntax language
+  name that ends with a `#` character
+
+* more lists that were not being recognized before because they did
+  not have a preceding blank line are now recognized
+
 
 1.1.7 (14 Feb 2018):
 
