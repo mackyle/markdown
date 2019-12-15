@@ -726,8 +726,8 @@ sub _StripLinkDefinitions {
 
 my ($block_tags_a, $block_tags_b);
 BEGIN {
-    $block_tags_a = qr/p|div|h[1-6]|blockquote|pre|table|dl|ol|ul|script|noscript|form|fieldset|iframe|math|ins|del/o;
-    $block_tags_b = qr/p|div|h[1-6]|blockquote|pre|table|dl|ol|ul|script|noscript|form|fieldset|iframe|math/o;
+    $block_tags_a = qr/p|div|h[1-6]|blockquote|pre|table|dl|ol|ul|script|noscript|form|fieldset|iframe|math|ins|del/io;
+    $block_tags_b = qr/p|div|h[1-6]|blockquote|pre|table|dl|ol|ul|script|noscript|form|fieldset|iframe|math/io;
 }
 
 sub _HashHTMLBlocks {
@@ -768,7 +768,7 @@ sub _HashHTMLBlocks {
 		my $key = block_id($1);
 		$g_html_blocks{$key} = $1;
 		"\n\n" . $key . "\n\n";
-	    }egmx;
+	    }eigmx;
 
 
     #
@@ -789,14 +789,14 @@ sub _HashHTMLBlocks {
 		my $key = block_id($1);
 		$g_html_blocks{$key} = $1;
 		"\n\n" . $key . "\n\n";
-	    }egmx;
+	    }eigmx;
     # Special case just for <hr />. It was easier to make a special case than
     # to make the other regex more complicated.
     $text =~ s{
 		(?:
-		    (?<=\n\n)	    # Starting after a blank line
+		    (?<=\n)	    # Starting after end of line
 		    |		    # or
-		    \A\n?	    # the beginning of the doc
+		    \A		    # the beginning of the doc
 		)
 		(			# save in $1
 		    [ ]{0,$less_than_indent}
@@ -805,13 +805,13 @@ sub _HashHTMLBlocks {
 		    (?:[^<>])*?		#
 		    /?>			# the matching end tag
 		    [ ]*
-		    (?=\n{2,}|\Z)	# followed by a blank line or end of document
+		    (?=\n{1,}|\Z)	# followed by end of line or end of document
 		)
 	    }{
 		my $key = block_id($1);
 		$g_html_blocks{$key} = $1;
 		"\n\n" . $key . "\n\n";
-	    }egx;
+	    }eigx;
 
     # Special case for standalone HTML comments:
     $text =~ s{
