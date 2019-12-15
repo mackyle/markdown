@@ -2,7 +2,7 @@
 Markdown
 ========
 
-Version 1.1.8
+Version 1.1.9
 
 John Gruber  
 Kyle J. McKay
@@ -173,6 +173,13 @@ Markdown.pl source code for more information.
 Version History
 ---------------
 
+1.1.9 (15 Dec 2019):
+
+* improve bare fragment URL link handling and add fragment `--base` option
+
+* match block tags case-insensitively and relax `<hr>` matching rules
+
+
 1.1.8 (22 Nov 2019):
 
 * correct a number of issues with improperly nested markup involving
@@ -186,7 +193,7 @@ Version History
 
 * as-documented single-quote titles in link definitions now work
 
-* when escaping a single-quote use &#39; instead of &apos;
+* when escaping a single-quote use `&#39;` instead of `&apos;`
 
 * ignore control characters in input (other than whitespace)
 
