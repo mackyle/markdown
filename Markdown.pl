@@ -303,6 +303,7 @@ sub _main {
 	'validate-xml',
 	'validate-xml-internal',
 	'no-validate-xml',
+	'base|b=s',
 	'htmlroot|r=s',
 	'imageroot|i=s',
 	'wiki|w:s',
@@ -373,6 +374,10 @@ sub _main {
 	die "invalid tab width (must be integer)\n" unless looks_like_number $tw;
 	die "invalid tab width (must be >= 2 and <= 32)\n" unless $tw >= 2 && $tw <= 32;
 	$options{tab_width} = int(0+$tw);
+    }
+    $options{base_prefix} = ""; 	# no base prefix by default
+    if ($cli_opts{'base'}) {		# Use base prefix for fragment URLs
+	$options{base_prefix} = $cli_opts{'base'};
     }
     if ($cli_opts{'htmlroot'}) {	 # Use URL prefix
 	$options{url_prefix} = $cli_opts{'htmlroot'};
@@ -936,7 +941,7 @@ sub _ProcessWikiLink {
     if (defined($link_loc) &&
 	($link_loc =~ m{^#\S*$} || $link_loc =~ m{^(?:http|ftp)s?://\S+$}i)) {
 	# Return the new link
-	return _MakeATag($link_loc, $link_text);
+	return _MakeATag(_FindFragmentMatch($link_loc), $link_text);
     }
     if (!defined($link_loc) &&
 	($link_loc = _strip($link_text)) =~ m{^(?:http|ftp)s?://\S+$}i) {
@@ -1007,21 +1012,22 @@ sub _wxform {
 # On input NONE of $url, $text or $title should be xmlencoded
 # but $url should already be url-encoded if needed, but NOT g_escape_table'd
 sub _MakeATag {
-	my ($url, $text, $title) = @_;
-	defined($url) or $url="";
-	defined($text) or $text="";
-	defined($title) or $title="";
+    my ($url, $text, $title) = @_;
+    defined($url) or $url="";
+    defined($text) or $text="";
+    defined($title) or $title="";
 
-	my $result = $g_escape_table{'<'}."a href=\"" . _EncodeAttText($url) . "\"";
-	$title = _strip($title);
-	$text =~ s{<(/?a)}{&lt;$1}sogi;
-	$text = _DoItalicsAndBoldAndStrike($text);
-	# We've got to encode any of these remaining to avoid
-	# conflicting with other italics, bold and strike through.
-	$text =~ s!([*_~])!$g_escape_table{$1}!g;
-	$result .= " title=\"" . _EncodeAttText($title) . "\"" if $title ne "";
-	return $result . $g_escape_table{'>'} .
-	    $text . $g_escape_table{'<'}."/a".$g_escape_table{'>'};
+    $url =~ m"^#" and $url = $opt{base_prefix} . $url;
+    my $result = $g_escape_table{'<'}."a href=\"" . _EncodeAttText($url) . "\"";
+    $title = _strip($title);
+    $text =~ s{<(/?a)}{&lt;$1}sogi;
+    $text = _DoItalicsAndBoldAndStrike($text);
+    # We've got to encode any of these remaining to avoid
+    # conflicting with other italics, bold and strike through.
+    $text =~ s!([*_~])!$g_escape_table{$1}!g;
+    $result .= " title=\"" . _EncodeAttText($title) . "\"" if $title ne "";
+    return $result . $g_escape_table{'>'} .
+	$text . $g_escape_table{'<'}."/a".$g_escape_table{'>'};
 }
 
 
@@ -1111,37 +1117,13 @@ sub _DoAnchors {
 	my $link_text	= $2;
 	my ($url, $title) = _SplitUrlTitlePart($3);
 
-	if (defined($url) && $url =~ /^#\S/) {
-	    # try very hard to find a match
-	    my $idbase = _strip(lc(substr($url, 1)));
-	    my $idbase0 = $idbase;
-	    my $id = _MakeAnchorId($idbase);
-	    if (defined($g_anchors_id{$id})) {
-		$url = $g_anchors_id{$id};
-	    } else {
-		$idbase =~ s/-/_/gs;
-		$id = _MakeAnchorId($idbase);
-		if (defined($g_anchors_id{$id})) {
-		    $url = $g_anchors_id{$id};
-		} else {
-		    $id = _MakeAnchorId($idbase0, 1);
-		    if (defined($g_anchors_id{$id})) {
-			$url = $g_anchors_id{$id};
-		    } else {
-			$id = _MakeAnchorId($idbase, 1);
-			if (defined($g_anchors_id{$id})) {
-			    $url = $g_anchors_id{$id};
-			}
-		    }
-		}
-	    }
-	}
 	if (defined($url)) {
-		$link_text = '[' . $link_text . ']' if $link_text =~ /^\d{1,3}$/;
-		_MakeATag(_PrefixURL($url), $link_text, $title);
+	    $url = _FindFragmentMatch($url);
+	    $link_text = '[' . $link_text . ']' if $link_text =~ /^\d{1,3}$/;
+	    _MakeATag(_PrefixURL($url), $link_text, $title);
 	} else {
-		# The href/title part didn't match the pattern
-		$whole_match;
+	    # The href/title part didn't match the pattern
+	    $whole_match;
 	}
     }xsge;
 
@@ -1177,36 +1159,67 @@ sub _DoAnchors {
 
 
 sub _PeelWrapped {
-	defined($_[0]) or return undef;
-	if (substr($_[0],0,1) eq "(") {
-		return substr($_[0], 1, length($_[0]) - (substr($_[0], -1, 1) eq ")" ? 2 : 1));
-	}
-	return $_[0];
+    defined($_[0]) or return undef;
+    if (substr($_[0],0,1) eq "(") {
+	return substr($_[0], 1, length($_[0]) - (substr($_[0], -1, 1) eq ")" ? 2 : 1));
+    }
+    return $_[0];
 }
 
 
 sub _SplitUrlTitlePart {
-	return ("", undef) if $_[0] =~ m{^\s*$}; # explicitly allowed
-	my $u = $_[0];
-	$u =~ s/^\s*(['\042])/# $1/;
-	if ($u =~ m{
-	    ^		# match beginning
-	    \s*?
-	    <?([^\s'\042]\S*?)>? # URL = $1
-	    (?:		# optional grouping
-	      \s+	# must be distinct from URL
-	      (['\042]?) # quote char = $2
-	      (.*?)	# Title = $3
-	      \2?	# matching quote
-	    )?		# title is optional
-	    \s*
-	    \z		# match end
-	}osx) {
-		return (undef, undef) if $_[1] && ($1 eq "" || $1 eq "#");
-		return (_PeelWrapped($1), $2 ? $3 : _PeelWrapped($3));
+    return ("", undef) if $_[0] =~ m{^\s*$}; # explicitly allowed
+    my $u = $_[0];
+    $u =~ s/^\s*(['\042])/# $1/;
+    if ($u =~ m{
+	^		# match beginning
+	\s*?
+	<?([^\s'\042]\S*?)>? # URL = $1
+	(?:		# optional grouping
+	  \s+		# must be distinct from URL
+	  (['\042]?)	# quote char = $2
+	  (.*?)		# Title = $3
+	  \2?		# matching quote
+	)?		# title is optional
+	\s*
+	\z		# match end
+    }osx) {
+	return (undef, undef) if $_[1] && ($1 eq "" || $1 eq "#");
+	return (_PeelWrapped($1), $2 ? $3 : _PeelWrapped($3));
+    } else {
+	return (undef, undef);
+    }
+}
+
+
+sub _FindFragmentMatch {
+    my $url = shift;
+    if (defined($url) && $url =~ /^#\S/) {
+	# try very hard to find a match
+	my $idbase = _strip(lc(substr($url, 1)));
+	my $idbase0 = $idbase;
+	my $id = _MakeAnchorId($idbase);
+	if (defined($g_anchors_id{$id})) {
+	    $url = $g_anchors_id{$id};
 	} else {
-		return (undef, undef);
+	    $idbase =~ s/-/_/gs;
+	    $id = _MakeAnchorId($idbase);
+	    if (defined($g_anchors_id{$id})) {
+		$url = $g_anchors_id{$id};
+	    } else {
+		$id = _MakeAnchorId($idbase0, 1);
+		if (defined($g_anchors_id{$id})) {
+		    $url = $g_anchors_id{$id};
+		} else {
+		    $id = _MakeAnchorId($idbase, 1);
+		    if (defined($g_anchors_id{$id})) {
+			$url = $g_anchors_id{$id};
+		    }
+		}
+	    }
 	}
+    }
+    return $url;
 }
 
 
@@ -2345,7 +2358,7 @@ sub _DoTag {
     if (($tag =~ m{^<($g_possible_tag_name)(?:[\s>]|/>$)} || $tag =~ m{^</($g_possible_tag_name)\s*>}) &&
 	$ok_tag_name{lc($1)}) {
 
-	return _ProcessURLTag("href", $tag) if $tag =~ /^<a\s/i;
+	return _ProcessURLTag("href", $tag, 1) if $tag =~ /^<a\s/i;
 	return _ProcessURLTag("src", $tag) if $tag =~ /^<img\s/i;
 	return $tag;
     }
@@ -2635,23 +2648,31 @@ sub _SanitizeAtt {
 
 
 sub _ProcessURLTag {
-    my $att = shift;
-    my $tag = shift;
+    my ($att, $tag, $dofrag) = @_;
 
     $att = lc($att) . "=";
     if ($tag =~ /^(<[^\s>]+\s+)/g) {
-	    my $out = $1;
-	    while ($tag =~ /\G([^\s\042\047<\/>=]+=)([\042\047])((?:(?!\2)(?!<).)*)(\2\s*)/gcs) {
-		    my ($p, $q, $v, $s) = ($1, $2, $3, $4);
-		    if (lc($p) eq $att && $v ne "") {
-			    $v = _EncodeAttText(_PrefixURL($v));
+	my $out = $1;
+	while ($tag =~ /\G([^\s\042\047<\/>=]+=)([\042\047])((?:(?!\2)(?!<).)*)(\2\s*)/gcs) {
+	    my ($p, $q, $v, $s) = ($1, $2, $3, $4);
+	    if (lc($p) eq $att && $v ne "") {
+		if ($dofrag && $v =~ m"^#") {
+		    $v = _FindFragmentMatch($v);
+		    my $bp;
+		    if (($bp = $opt{base_prefix}) ne "") {
+			$v = "\2\3" . $bp . $v;
 		    }
-		    $out .= $p . $q . $v . $s;
+		} else {
+		    $v = _PrefixURL($v);
+		}
+		$v = _EncodeAttText($v);
 	    }
-	    $out .= substr($tag, pos($tag));
-	    substr($out,0,1) = $g_escape_table{'<'};
-	    substr($out,-1,1) = $g_escape_table{'>'};
-	    return $out;
+	    $out .= $p . $q . $v . $s;
+	}
+	$out .= substr($tag, pos($tag));
+	substr($out,0,1) = $g_escape_table{'<'};
+	substr($out,-1,1) = $g_escape_table{'>'};
+	return $out;
     }
 
     return $tag;
@@ -3134,10 +3155,9 @@ B<Markdown.pl> [B<--help>] [B<--html4tags>] [B<--htmlroot>=I<prefix>]
    --validate-xml-internal              fast basic check if output is valid XML
    --no-validate-xml                    do not check output for valid XML
    --tabwidth=num                       expand tabs to num instead of 8
-   -r prefix | --htmlroot=prefix        append relative non-img URLs
-                                        to prefix
-   -i prefix | --imageroot=prefix	append relative img URLs to
-                                        prefix
+   -b prefix | --base=prefix            prepend prefix to fragment-only URLs
+   -r prefix | --htmlroot=prefix        append relative non-img URLs to prefix
+   -i prefix | --imageroot=prefix       append relative img URLs to prefix
    -w [wikipat] | --wiki[=wikipat]      activate wiki links using wikipat
    -V | --version                       show version, authors, license
                                         and copyright
@@ -3231,7 +3251,7 @@ Do not sanitize tag attributes.  This option does not allow any tags that
 would not be allowed without this option, but it does completely suppress
 the attribute sanitation process.   If this option is specified, no
 attributes will be removed from any tag (although C<img> and C<a> tags will
-still be affected by B<--imageroot> and/or B<--htmlroot> options).
+still be affected by B<--imageroot>, B<--htmlroot> and/or B<--base> options).
 Use of this option is I<NOT RECOMMENDED>.
 
 
@@ -3326,6 +3346,15 @@ backticks-delimited code blocks will always be expanded to 8-character tab
 stop positions no matter what value is used for this option.
 
 The value must be S<2 <= I<num> <= 32>.
+
+
+=item B<-b> I<prefix>, B<--base>=I<prefix>
+
+Any fragment-only URLs have I<prefix> prepended.  The default is to prepend
+nothing and leave them as bare fragment URLs.  Use of this option may be
+necessary when embedding the output of Markdown.pl into a document that makes
+use of the C<< <base> >> tag in order for intra-document fragment URL links to
+work properly in such a document.
 
 
 =item B<-r> I<prefix>, B<--htmlroot>=I<prefix>
