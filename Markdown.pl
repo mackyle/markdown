@@ -388,14 +388,28 @@ sub _main {
     if (exists $cli_opts{'wiki'}) {	 # Enable wiki links
 	my $wpat = $cli_opts{'wiki'};
 	defined($wpat) or $wpat = "";
-	my $wopt = "s";
-	if ($wpat =~ /^(.*?)%\{([0-9A-Za-z]*)\}(.*)$/) {
+	my $wopt = "s(:md)";
+	if ($wpat =~ /^(.*?)%\{((?:[0-9A-Za-z]|[Ss]\([^)]*\))*)\}(.*)$/) {
 	    $options{wikipat} = $1 . "%{}" . $3;
 	    $wopt = $2;
 	} else {
 	    $options{wikipat} = $wpat . "%{}.html";
 	}
+	my $sval = 1;
+	while ($wopt =~ /^(.*?)s\(([^)]*)\)(.*)$/i) {
+	    my $sarg = $2;
+	    $wopt = $1 . "s" . $3;
+	    $sarg =~ s/^\s+//; $sarg =~ s/\s+$//;
+	    $sval = {} unless ref($sval) eq "HASH";
+	    s/^\.//, $sval->{lc($_)}=1 foreach split(/(?:\s*,\s*)|(?:(?<!,)\s+(?!,))/, $sarg);
+	    $sval = 1 unless scalar(keys(%$sval));
+	}
 	$options{wikiopt} = { map({$_ => 1} split(//,lc($wopt))) };
+	if (ref($sval) eq "HASH" && $sval->{':md'}) {
+	    delete $sval->{':md'};
+	    $sval->{$_} = 1 foreach qw(md rmd mkd mkdn mdwn mdown markdown litcoffee);
+	}
+	$options{wikiopt}->{'s'} = $sval if $options{wikiopt}->{'s'};
     }
     if ($cli_opts{'raw'}) {
 	$raw = 1;
@@ -992,7 +1006,17 @@ sub _ProcessWikiLink {
 sub _wxform {
     my $w = shift;
     my $o = $opt{wikiopt};
-    $w =~ s{[.][^./]*$}{} if $o->{s};
+    my $opt_s = $o->{s};
+    if ($opt_s) {
+	if (ref($opt_s)) {
+	    if ($w =~ m{^(.*)[.]([^./]*)$}) {
+		my ($base, $ext) = ($1, $2);
+		$w = $base if $opt_s->{lc($ext)};
+	    }
+	} else {
+	    $w =~ s{[.][^./]*$}{};
+	}
+    }
     $w =~ tr{/}{ } if $o->{f};
     $w =~ s{/+}{/}gos if !$o->{f} && !$o->{v};
     if ($o->{d}) {
@@ -3377,10 +3401,10 @@ are left unmolested.
 
 If this option is given, all other wiki links are enabled as well.  Any
 non-absolute URL or fragment links will be transformed into a link using
-I<wikipat> where the default I<wikipat> if none is given is C<%{s}.html>.
+I<wikipat> where the default I<wikipat> if none is given is C<%{s(:md)}.html>.
 
 If the given I<wikipat> does not contain a C<%{...}> placeholder sequence
-then it will automatically have C<%{s}.html> suffixed to it.
+then it will automatically have C<%{s(:md)}.html> suffixed to it.
 
 The C<...> part of the C<%{...}> sequence specifies zero or more case-insensitive
 single-letter options with the following effects:
@@ -3412,12 +3436,16 @@ Leave raw UTF-8 characters in the result.  Normally anything not allowed
 directly in a URL ends up URL-encoded.  With this option, raw valid UTF-8
 sequences will be left untouched.  Use with care.
 
-=item B<s>
+=item B<s> or B<s(>I<< <ext> >>[B<,>I<< <ext> >>]...B<)>
 
 After (temporarily) removing any query string and/or fragment, strip any final
-"dot" suffix so long as it occurs after the last slash (if any slash was present
-before applying the C<f> option).  The "dot" (ASCII 0x2E) and all following
-characters (if any) are removed.
+"dot" suffix so long as it occurs after the last slash (if any slash was
+present before applying the C<f> option).  The "dot" (ASCII 0x2E) and all
+following characters (if any) are removed.  If the optional C<< (<ext>,...) >>
+part is present then only strip the extension if it consists of a "dot"
+followed by one of the case-insensitive I<< <ext> >> values.  As a special
+case, using the value C<:md> for one of the I<< <ext> >> values causes that
+value to be expanded to all known markdown extensions.
 
 =item B<u>
 
@@ -3445,7 +3473,7 @@ URL-encoding is applied as needed to produce the actual final target URL.
 See above option descriptions for possible available modifications.
 
 One of the commonly used hosting platforms does something substantially similar
-to using C<%{dfrsv}> as the placeholder.
+to using C<%{dfv}> as the placeholder.
 
 
 =item B<-V>, B<--version>
