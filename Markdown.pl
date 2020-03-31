@@ -303,6 +303,7 @@ sub _main {
 	'validate-xml',
 	'validate-xml-internal',
 	'no-validate-xml',
+	'absroot|a=s',
 	'base|b=s',
 	'htmlroot|r=s',
 	'imageroot|i=s',
@@ -374,6 +375,12 @@ sub _main {
 	die "invalid tab width (must be integer)\n" unless looks_like_number $tw;
 	die "invalid tab width (must be >= 2 and <= 32)\n" unless $tw >= 2 && $tw <= 32;
 	$options{tab_width} = int(0+$tw);
+    }
+    $options{abs_prefix} = "";  	# no abs prefix by default
+    if ($cli_opts{'absroot'}) { 	# Use abs prefix for absolute path URLs
+	my $abs = $cli_opts{'absroot'};
+	$abs =~ s{/+$}{};
+	$options{abs_prefix} = $abs;
     }
     $options{base_prefix} = ""; 	# no base prefix by default
     if ($cli_opts{'base'}) {		# Use base prefix for fragment URLs
@@ -2954,9 +2961,10 @@ sub _PrefixURL {
     $url =~ s/\s+$//;
     $url = "#" unless $url ne "";
 
-    return $url unless $opt{url_prefix} ne '' || $opt{img_prefix} ne '';
-    return $url if $url =~ m"^\002\003" || $url =~ m"^#" ||
-	    $url =~ m,^//, || $url =~ /^[A-Za-z][A-Za-z0-9+.-]*:/;
+    return $url unless $opt{abs_prefix} ne '' || $opt{url_prefix} ne '' || $opt{img_prefix} ne '';
+    return $url if $url =~ m"^\002\003" || $url =~ m"^#" || $url =~ m,^//,;
+    $url = $opt{abs_prefix} . $url if $url =~ m,^/, && $opt{abs_prefix} ne '';
+    return $url if $url =~ /^[A-Za-z][A-Za-z0-9+.-]*:/ || $url =~ m,^//,;
     my $ans = $opt{url_prefix};
     $ans = $opt{img_prefix}
 	if $opt{img_prefix} ne '' && $url =~ m"^[^#?]*\.(?:png|gif|jpe?g|svgz?)(?:[#?]|$)"i;
@@ -3179,6 +3187,7 @@ B<Markdown.pl> [B<--help>] [B<--html4tags>] [B<--htmlroot>=I<prefix>]
    --validate-xml-internal              fast basic check if output is valid XML
    --no-validate-xml                    do not check output for valid XML
    --tabwidth=num                       expand tabs to num instead of 8
+   -a prefix | --absroot=prefix         append abspath URLs to prefix
    -b prefix | --base=prefix            prepend prefix to fragment-only URLs
    -r prefix | --htmlroot=prefix        append relative non-img URLs to prefix
    -i prefix | --imageroot=prefix       append relative img URLs to prefix
@@ -3271,11 +3280,11 @@ This is enabled by default.
 
 =item B<--no-sanitize>
 
-Do not sanitize tag attributes.  This option does not allow any tags that
-would not be allowed without this option, but it does completely suppress
-the attribute sanitation process.   If this option is specified, no
-attributes will be removed from any tag (although C<img> and C<a> tags will
-still be affected by B<--imageroot>, B<--htmlroot> and/or B<--base> options).
+Do not sanitize tag attributes.  This option does not allow any tags that would
+not be allowed without this option, but it does completely suppress the
+attribute sanitation process.   If this option is specified, no attributes will
+be removed from any tag (although C<img> and C<a> tags will still be affected
+by B<--imageroot>, B<--htmlroot>, B<--absroot> and/or B<--base> options).
 Use of this option is I<NOT RECOMMENDED>.
 
 
@@ -3370,6 +3379,19 @@ backticks-delimited code blocks will always be expanded to 8-character tab
 stop positions no matter what value is used for this option.
 
 The value must be S<2 <= I<num> <= 32>.
+
+
+=item B<-a> I<prefix>, B<--absroot>=I<prefix>
+
+Any absolute path URLs (i.e. URLs without a scheme starting with "/" but not
+"//") have I<prefix> prepended which prevents them from being acted upon by the
+B<--htmlroot> and/or B<--imageroot> options provided the result is a full
+absolute URL.  The default is to prepend nothing and leave them as absolute
+path URLs which will allow them to be processed by any B<--htmlroot> and/or
+B<--imageroot> options.
+
+This option can be helpful when documents are being formatted for display on a
+different system and the absolute path URLs need to be "fixed up".
 
 
 =item B<-b> I<prefix>, B<--base>=I<prefix>
