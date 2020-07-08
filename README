@@ -2,7 +2,7 @@
 Markdown
 ========
 
-Version 1.1.9
+Version 1.1.10
 
 John Gruber  
 Kyle J. McKay
@@ -172,6 +172,21 @@ Markdown.pl source code for more information.
 ---------------
 Version History
 ---------------
+
+1.1.10 (08 Jul 2020):
+
+* enhance --wiki "s" option operation
+
+* support new --absroot=prefix option
+
+* document ability to split link references
+
+* hook up fragment only link definitions
+
+* remove markup from <title> value
+
+* update links to https where possible
+
 
 1.1.9 (15 Dec 2019):
 
@@ -478,7 +493,7 @@ Copyright and License
 ---------------------
 
 Copyright (C) 2003-2004 John Gruber  
-Copyright (C) 2015-2018 Kyle J. McKay  
+Copyright (C) 2015-2020 Kyle J. McKay  
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
