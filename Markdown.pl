@@ -1442,6 +1442,8 @@ sub _DoHeaders {
     my $geth1 = $anchors && !defined($opt{h1}) ? sub {
 	return unless !defined($h1);
 	my $h = shift;
+	return unless defined($h) && $h !~ /^\s*$/;
+	$h = _StripTags(_UnescapeSpecialChars($h));
 	$h =~ s/^\s+//;
 	$h =~ s/\s+$//;
 	$h =~ s/\s+/ /g;
@@ -1467,9 +1469,10 @@ sub _DoHeaders {
 	    $h =~ s/#+$//;
 	    $h =~ s/\s+$//;
 	    my $id = $h eq "" ? "" : _GetNewAnchorId($h);
-	    &$geth1($h) if $h_level == 1 && $h ne "";
 	    $id = " id=\"$id\"" if $id ne "";
-	    "<h$h_level$id>" . _RunSpanGamut($h) . "</h$h_level>\n\n";
+	    my $rsg = _RunSpanGamut($h);
+	    &$geth1($rsg) if $h_level == 1 && $h ne "";
+	    "<h$h_level$id>" . $rsg . "</h$h_level>\n\n";
 	}egmx;
 
     # Setext-style headers:
@@ -1485,9 +1488,10 @@ sub _DoHeaders {
     $text =~ s{ ^(?:=+[ ]*\n)?[ ]*(.+?)[ ]*\n=+[ ]*\n+ }{
 	my $h = $1;
 	my $id = _GetNewAnchorId($h);
-	&$geth1($h);
 	$id = " id=\"$id\"" if $id ne "";
-	"<h1$id>" . _RunSpanGamut($h) . "</h1>\n\n";
+	my $rsg = _RunSpanGamut($h);
+	&$geth1($rsg);
+	"<h1$id>" . $rsg . "</h1>\n\n";
     }egmx;
 
     $text =~ s{ ^(?:-+[ ]*\n)?[ ]*(.+?)[ ]*\n-+[ ]*\n+ }{
@@ -2399,6 +2403,22 @@ sub _DoTag {
     return $tag;
 }
 
+# Strip out all tags that _DoTag would match
+sub _StripTags {
+    my $text = shift;
+    my $_StripTag = sub {
+	my $tag = shift;
+	return $tag if $tag =~ /^<[?\$!]/;
+	if (($tag =~ m{^<($g_possible_tag_name)(?:[\s>]|/>$)} || $tag =~ m{^</($g_possible_tag_name)\s*>}) &&
+	    $ok_tag_name{lc($1)}) {
+
+	    return ""; # strip it out
+	}
+	return $tag;
+    };
+    $text =~ s{(<[^>]*>)}{&$_StripTag($1)}ige;
+    return $text;
+}
 
 my %univatt;	# universally allowed attribute names
 my %tagatt;	# per-element allowed attribute names
