@@ -1120,9 +1120,10 @@ sub _DoAnchors {
 
 	if (defined($g_urls{$link_id}) || defined($g_anchors{$link_id})) {
 	    my $url = $g_urls{$link_id};
-	    $url = defined($url) ? _PrefixURL($url) : $g_anchors{$link_id};
+	    defined($url) or $url = $g_anchors{$link_id};
+	    $url = _FindFragmentMatch($url);
 	    $link_text = '[' . $link_text . ']' if $link_text =~ /^\d{1,3}$/;
-	    $result = _MakeATag($url, $link_text, $g_titles{$link_id});
+	    $result = _MakeATag(_PrefixURL($url), $link_text, $g_titles{$link_id});
 	}
 	else {
 	    $result = $whole_match;
@@ -1175,9 +1176,10 @@ sub _DoAnchors {
 
 	if (defined($g_urls{$link_id}) || defined($g_anchors{$link_id})) {
 	    my $url = $g_urls{$link_id};
-	    $url = defined($url) ? _PrefixURL($url) : $g_anchors{$link_id};
+	    defined($url) or $url = $g_anchors{$link_id};
+	    $url = _FindFragmentMatch($url);
 	    $link_text = '[' . $link_text . ']' if $link_text =~ /^\d{1,3}$/;
-	    $result = _MakeATag($url, $link_text, $g_titles{$link_id});
+	    $result = _MakeATag(_PrefixURL($url), $link_text, $g_titles{$link_id});
 	}
 	else {
 	    $result = $whole_match;
