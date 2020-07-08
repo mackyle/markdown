@@ -194,7 +194,7 @@ if ($_haveMT) {
 	my $plugin = new MT::Plugin({
 	    name => "Markdown",
 	    description => "A plain-text-to-HTML formatting plugin. (Version: $VERSION)",
-	    doc_link => 'http://daringfireball.net/projects/markdown/'
+	    doc_link => 'https://daringfireball.net/projects/markdown/'
 	});
 	MT->add_plugin( $plugin );
     }
@@ -216,7 +216,7 @@ if ($_haveMT) {
 
     MT->add_text_filter('markdown' => {
 	label     => 'Markdown',
-	docs      => 'http://daringfireball.net/projects/markdown/',
+	docs      => 'https://daringfireball.net/projects/markdown/',
 	on_format => sub {
 	    my $text = shift;
 	    my $ctx  = shift;
@@ -252,7 +252,7 @@ if ($_haveMT) {
     if ($smartypants) {
 	MT->add_text_filter('markdown_with_smartypants' => {
 	    label     => 'Markdown With SmartyPants',
-	    docs      => 'http://daringfireball.net/projects/markdown/',
+	    docs      => 'https://daringfireball.net/projects/markdown/',
 	    on_format => sub {
 		my $text = shift;
 		my $ctx  = shift;
@@ -2836,7 +2836,7 @@ sub _EncodeEmailAddress {
 #   &#64;&#101;x&#x61;&#109;&#x70;&#108;&#x65;&#x2E;&#99;&#111;&#109;</a>
 #
 # Based on a filter by Matthew Wickline, posted to the BBEdit-Talk
-# mailing list: <http://tinyurl.com/yu7ue>
+# mailing list: <https://tinyurl.com/yu7ue>
 #
 
     my ($addr, $prefix, $suffix) = @_;
@@ -2903,7 +2903,7 @@ sub _TokenizeHTML {
 #
 #
 # Derived from the _tokenize() subroutine from Brad Choate's MTRegex plugin.
-#   <http://www.bradchoate.com/past/mtregex.php>
+#   <https://web.archive.org/web/20041215155739/http://bradchoate.com/weblog/2002/07/27/mtregex>
 #
 
     my $str = shift;
@@ -3627,9 +3627,9 @@ Z<> See the F<README> file for detailed release notes for this version.
 
 =item John Gruber
 
-=item L<http://daringfireball.net>
+=item L<https://daringfireball.net>
 
-=item L<http://daringfireball.net/projects/markdown/>
+=item L<https://daringfireball.net/projects/markdown/>
 
 =item E<160>
 
@@ -3639,7 +3639,7 @@ Z<> See the F<README> file for detailed release notes for this version.
 
 =item PHP port and other contributions by Michel Fortin
 
-=item L<http://michelf.com>
+=item L<https://michelf.ca>
 
 =item E<160>
 

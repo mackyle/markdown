@@ -251,15 +251,15 @@ you define elsewhere in your document:
       I get 10 times more traffic from [Google][1] than from
       [Yahoo][2] or [MSN][3].
 
-      [1]: http://google.com/        "Google"
-      [2]: http://search.yahoo.com/  "Yahoo Search"
-      [3]: http://search.msn.com/    "MSN Search"
+      [1]: https://google.com/       "Google"
+      [2]: https://search.yahoo.com/ "Yahoo Search"
+      [3]: https://search.msn.com/   "MSN Search"
 
 Output:
 
-      <p>I get 10 times more traffic from <a href="http://google.com/"
-      title="Google">Google</a> than from <a href="http://search.yahoo.com/"
-      title="Yahoo Search">Yahoo</a> or <a href="http://search.msn.com/"
+      <p>I get 10 times more traffic from <a href="https://google.com/"
+      title="Google">Google</a> than from <a href="https://search.yahoo.com/"
+      title="Yahoo Search">Yahoo</a> or <a href="https://search.msn.com/"
       title="MSN Search">MSN</a>.</p>
 
 The title attribute is optional. Link names may contain letters,
@@ -268,12 +268,12 @@ numbers and spaces, but are *not* case sensitive:
       I start my morning with a cup of coffee and
       [The New York Times][NY Times].
 
-      [ny times]: http://www.nytimes.com/
+      [ny times]: https://www.nytimes.com/
 
 Output:
 
       <p>I start my morning with a cup of coffee and
-      <a href="http://www.nytimes.com/">The New York Times</a>.</p>
+      <a href="https://www.nytimes.com/">The New York Times</a>.</p>
 
 
 ~~~~~~

@@ -58,11 +58,11 @@ filters -- including [Setext] [1], [atx] [2], [Textile] [3], [reStructuredText] 
 [Grutatext] [5], and [EtText] [6] -- the single biggest source of
 inspiration for Markdown's syntax is the format of plain text email.
 
-  [1]: http://docutils.sourceforge.net/mirror/setext.html
+  [1]: https://docutils.sourceforge.io/mirror/setext.html
   [2]: http://www.aaronsw.com/2002/atx/
-  [3]: http://textism.com/tools/textile/
-  [4]: http://docutils.sourceforge.net/rst.html
-  [5]: http://www.triptico.com/software/grutatxt.html
+  [3]: https://www.booked.net/textism.html
+  [4]: https://docutils.sourceforge.io/rst.html
+  [5]: https://triptico.com/software/grutatxt.html
   [6]: http://ettext.taint.org/doc/
 
 To this end, Markdown's syntax is comprised entirely of punctuation
@@ -139,11 +139,11 @@ Ampersands in particular are bedeviling for web writers. If you want to
 write about 'AT&T', you need to write '`AT&amp;T`'. You even need to
 escape ampersands within URLs. Thus, if you want to link to:
 
-      http://images.google.com/images?num=30&q=larry+bird
+      https://images.google.com/images?num=30&q=larry+bird
 
 you need to encode the URL as:
 
-      http://images.google.com/images?num=30&amp;q=larry+bird
+      https://images.google.com/images?num=30&amp;q=larry+bird
 
 in your anchor tag `href` attribute. Needless to say, this is easy to
 forget, and is probably the single most common source of HTML validation
@@ -924,7 +924,7 @@ Or even just this:
 
 And then define the link:
 
-      [Google]: http://google.com/
+      [Google]: https://google.com/
 
 Because link names may contain spaces, this shortcut even works for
 multiple words in the link text:
@@ -933,7 +933,7 @@ multiple words in the link text:
 
 And then define the link:
 
-      [Daring Fireball]: http://daringfireball.net/
+      [Daring Fireball]: https://daringfireball.net/
 
 Text inside square brackets is left completely unchanged (including the
 surrounding brackets) _unless_ it matches a link definition.  Furthermore,
@@ -977,32 +977,32 @@ Here's an example of reference links in action:
       I get 10 times more traffic from [Google] [1] than from
       [Yahoo] [2] or [MSN] [3].
 
-      [1]: http://google.com/        "Google"
-      [2]: http://search.yahoo.com/  "Yahoo Search"
-      [3]: http://search.msn.com/    "MSN Search"
+      [1]: https://google.com/       "Google"
+      [2]: https://search.yahoo.com/ "Yahoo Search"
+      [3]: https://search.msn.com/   "MSN Search"
 
 Using the implicit link name shortcut, you could instead write:
 
       I get 10 times more traffic from [Google] than from
       [Yahoo] or [MSN].
 
-      [google]: http://google.com/        "Google"
-      [yahoo]:  http://search.yahoo.com/  "Yahoo Search"
-      [msn]:    http://search.msn.com/    "MSN Search"
+      [google]: https://google.com/       "Google"
+      [yahoo]:  https://search.yahoo.com/ "Yahoo Search"
+      [msn]:    https://search.msn.com/   "MSN Search"
 
 Both of the above examples will produce the following HTML output:
 
-      <p>I get 10 times more traffic from <a href="http://google.com/"
+      <p>I get 10 times more traffic from <a href="https://google.com/"
       title="Google">Google</a> than from
-      <a href="http://search.yahoo.com/" title="Yahoo Search">Yahoo</a>
-      or <a href="http://search.msn.com/" title="MSN Search">MSN</a>.</p>
+      <a href="https://search.yahoo.com/" title="Yahoo Search">Yahoo</a>
+      or <a href="https://search.msn.com/" title="MSN Search">MSN</a>.</p>
 
 For comparison, here is the same paragraph written using
 Markdown's inline link style:
 
-      I get 10 times more traffic from [Google](http://google.com/ "Google")
-      than from [Yahoo](http://search.yahoo.com/ "Yahoo Search") or
-      [MSN](http://search.msn.com/ "MSN Search").
+      I get 10 times more traffic from [Google](https://google.com/ "Google")
+      than from [Yahoo](https://search.yahoo.com/ "Yahoo Search") or
+      [MSN](https://search.msn.com/ "MSN Search").
 
 The point of reference-style links is not that they're easier to
 write. The point is that with reference-style links, your document

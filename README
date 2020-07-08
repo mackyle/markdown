@@ -66,7 +66,7 @@ MT 3.0 or later).
     option is the same as the regular "Markdown" formatter, except that
     automatically uses SmartyPants to create typographically correct
     curly quotes, em-dashes, and ellipses. See the SmartyPants web page
-    for more information: <http://daringfireball.net/projects/smartypants/>
+    for more information: <https://daringfireball.net/projects/smartypants/>
 
 4.  To make Markdown (or "Markdown with SmartyPants") your default
     text formatting option for new posts, go to Weblog Config ->
@@ -96,7 +96,7 @@ Markdown works with Blosxom version 2.x.
     rather than all of them, see Jason Clark's instructions for using
     Markdown in conjunction with Blosxom's Meta plugin:
 
-    <http://jclark.org/weblog/WebDev/Blosxom/Markdown.html>
+    <https://jclark.org/weblog/WebDev/Blosxom/Markdown.html>
 
 
 BBEdit
@@ -453,7 +453,7 @@ Version History
 
 + Fixed problem for links defined with urls that include parens, e.g.:
 
-          [1]: http://sources.wikipedia.org/wiki/Middle_East_Policy_(Chomsky)
+          [1]: https://sources.wikipedia.org/wiki/Middle_East_Policy_(Chomsky)
 
   "Chomsky" was being erroneously treated as the URL's title.
 
