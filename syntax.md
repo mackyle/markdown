@@ -886,6 +886,19 @@ or tabs for padding, which tends to look better with longer URLs:
       [id]: http://example.com/longish/path/to/resource/here
             "Optional Title Here"
 
+You can put the URL on the next line and use extra spaces
+or tabs for padding, which tends to look better with longer ids:
+
+      [a really really long link identifier]:
+            http://example.com/ "Optional Title Here"
+
+You can put both the title attribute and the URL on separate lines
+and use extra spaces or tabs for padding:
+
+      [a really really long link identifier]:
+            http://example.com/longish/path/to/resource/here
+            "Optional Title Here"
+
 Link definitions are only used for creating links during Markdown
 processing, and are stripped from your document in the HTML output.
 
