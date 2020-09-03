@@ -834,7 +834,7 @@ sub _HashHTMLBlocks {
 		"\n\n" . $key . "\n\n";
 	    }eigx;
 
-    # Special case for standalone HTML comments:
+    # Special case for standalone XML comments:
     $text =~ s{
 		(?:
 		    (?<=\n\n)	    # Starting after a blank line
@@ -2535,12 +2535,13 @@ sub _SanitizeTags {
 	    next;
 	}
 	my $tstart = pos($text);
+	if ($text =~ /\G(<!--(?:[^-]|(?:-(?!-)))*-->)/gc) {
+	    # pass "comments" through
+	    $ans .= $1;
+	    next;
+	}
 	if ($text =~ /\G(<[^>]*>)/gc) {
 	    my $tag = $1;
-	    if ($tag =~ /^<!--/) { # pass "comments" through
-		$ans .= $tag;
-		next;
-	    }
 	    my $tt;
 	    if (($tag =~ m{^<($g_possible_tag_name)(?:[\s>]|/>$)} ||
 		 $tag =~ m{^</($g_possible_tag_name)\s*>}) &&
