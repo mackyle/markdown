@@ -314,6 +314,8 @@ sub _main {
 	'validate-xml' => sub {$cli_opts{'validate-xml'} = 1},
 	'validate-xml-internal' => sub {$cli_opts{'validate-xml'} = 2},
 	'no-validate-xml' => sub {$cli_opts{'validate-xml'} = 0},
+	'stripcomments|strip-comments' => \$cli_opts{'stripcomments'},
+	'no-stripcomments|no-strip-comments' => sub {$cli_opts{'stripcomments'} = 0},
 	'absroot|a=s' => \$cli_opts{'absroot'},
 	'base|b=s' => \$cli_opts{'base'},
 	'htmlroot|r=s' => \$cli_opts{'htmlroot'},
@@ -341,10 +343,13 @@ sub _main {
     $options{sanitize} = $cli_opts{'sanitize'} if defined($cli_opts{'sanitize'});
     $options{xmlcheck} = $options{sanitize} ? 2 : 0;
     $options{xmlcheck} = $cli_opts{'validate-xml'} if defined($cli_opts{'validate-xml'});
+    $options{stripcomments} = $cli_opts{'stripcomments'} if defined($cli_opts{'stripcomments'});
     die "--html4tags and --validate-xml are incompatible\n"
 	if $cli_opts{'html4tags'} && $options{xmlcheck} == 1;
     die "--no-sanitize and --validate-xml-internal are incompatible\n"
 	if !$options{'sanitize'} && $options{xmlcheck} == 2;
+    die "--no-sanitize and --strip-comments are incompatible\n"
+	if !$options{'sanitize'} && $options{stripcomments};
     if ($options{xmlcheck} == 1) {
 	eval { require XML::Simple; 1 } and $hasxml = 1 or $hasxml_err = $@;
 	eval { require XML::Parser; 1 } and $hasxmlp = 1 or $hasxmlp_err = $@ unless $hasxml;
@@ -2511,8 +2516,8 @@ sub _SanitizeTags {
 	}
 	my $tstart = pos($text);
 	if ($text =~ /\G(<!--(?:[^-]|(?:-(?!-)))*-->)/gc) {
-	    # pass "comments" through
-	    $ans .= $1;
+	    # pass "comments" through unless stripping them
+	    $ans .= $1 unless $opt{stripcomments};
 	    next;
 	}
 	if ($text =~ /\G(<[^>]*>)/gc) {
@@ -3184,6 +3189,8 @@ B<Markdown.pl> [B<--help>] [B<--html4tags>] [B<--htmlroot>=I<prefix>]
    --validate-xml                       check if output is valid XML
    --validate-xml-internal              fast basic check if output is valid XML
    --no-validate-xml                    do not check output for valid XML
+   --strip-comments                     remove XML comments from output
+   --no-strip-comments                  do not remove XML comments (default)
    --tabwidth=num                       expand tabs to num instead of 8
    -a prefix | --absroot=prefix         append abspath URLs to prefix
    -b prefix | --base=prefix            prepend prefix to fragment-only URLs
@@ -3366,6 +3373,37 @@ B<--no-sanitize> is used in which case B<--no-validate-xml> is the
 default option.
 
 
+=item B<--strip-comments>
+
+Strip XML comments from the output.  Any XML comments encountered will
+be omitted from the output if this option is given.
+
+This option requires the B<--sanitize> option to be used (which is
+the default).
+
+However, note that the XML standard section 2.5 specifically prohibits
+a C<--> sequence within an XML comment (i.e. C<--> cannot occur after
+the comment start tag C<< <!-- >> unless it is immediately followed
+by C<< > >> which makes it the comment end tag C<< --> >>).
+
+In other words, S<C<< <!-- --> >>>, S<C<< <!-- - --> >>>, S<C<< <!----> >>>,
+and S<C<< <!--- --> >>> are all valid XML comments, but S<C<< <!-----> >>>
+and S<C<< <!-- ---> >>> are not!
+
+As part of the "sanitation" process (triggered by the B<--sanitize>
+option), any invalid tags have their leading C<< < >> escaped (to
+C<< &#lt; >>) thus making them ordinary text and this I<includes>
+invalid XML comments.
+
+What this means is that the B<--strip-comments> option I<will not> remove
+invalid XML comments (such as S<C<< <!-----> >>>)!
+
+
+=item B<--no-strip-comments>
+
+Do not strip XML comments from the output.  This is the default.
+
+
 =item B<--tabwidth>=I<num>
 
 Expand tabs to I<num> character wide tab stop positions instead of the default
@@ -3510,8 +3548,8 @@ Display the short-form version number.
 
 Input contains only raw HTML/XHTML.  All options other than
 B<--html4tags>, B<--deprecated>, B<--sanitize> (on by default),
-B<--validate-xml> and B<--validate-xml-internal> (and their B<--no-...>
-variants) are ignored.
+B<--strip-comments>, B<--validate-xml> and B<--validate-xml-internal>
+(and their B<--no-...> variants) are ignored.
 
 With this option, arbitrary HTML/XHTML input can be passed through
 the sanitizer and/or validator.  If sanitation is requested (the
