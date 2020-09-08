@@ -292,46 +292,39 @@ sub _main {
     my $raw = 0;
     use Getopt::Long;
     Getopt::Long::Configure(qw(bundling require_order pass_through));
-    GetOptions(\%cli_opts,
-	'help','h',
-	'version|V',
-	'shortversion|short-version|s',
-	'html4tags',
-	'deprecated',
-	'sanitize',
-	'no-sanitize',
-	'validate-xml',
-	'validate-xml-internal',
-	'no-validate-xml',
-	'absroot|a=s',
-	'base|b=s',
-	'htmlroot|r=s',
-	'imageroot|i=s',
-	'wiki|w:s',
-	'tabwidth|tab-width=s',
-	'raw',
-	'stylesheet|style-sheet',
-	'no-stylesheet|no-style-sheet',
-	'stub',
+    GetOptions(
+	'help' => sub {
+			require Pod::Usage;
+			Pod::Usage::pod2usage(-verbose => 2, -exitval => 0)},
+	'h' => sub {
+			require Pod::Usage;
+			Pod::Usage::pod2usage(-verbose => 0, -exitval => 0)},
+	'version|V' => sub { # Version info
+			print "\nThis is Markdown, version $VERSION.\n", $COPYRIGHT;
+			print "License is Modified BSD (aka 3-clause BSD) License\n";
+			print "<https://opensource.org/licenses/BSD-3-Clause>\n";
+			exit 0},
+	'shortversion|short-version|s' => sub { # Just the version number string
+			print $VERSION;
+			exit 0},
+	'html4tags' => \$cli_opts{'html4tags'},
+	'deprecated' => \$cli_opts{'deprecated'},
+	'sanitize' => \$cli_opts{'sanitize'},
+	'no-sanitize' => sub {$cli_opts{'sanitize'} = 0},
+	'validate-xml' => sub {$cli_opts{'validate-xml'} = 1},
+	'validate-xml-internal' => sub {$cli_opts{'validate-xml'} = 2},
+	'no-validate-xml' => sub {$cli_opts{'validate-xml'} = 0},
+	'absroot|a=s' => \$cli_opts{'absroot'},
+	'base|b=s' => \$cli_opts{'base'},
+	'htmlroot|r=s' => \$cli_opts{'htmlroot'},
+	'imageroot|i=s' => \$cli_opts{'imageroot'},
+	'wiki|w:s' => \$cli_opts{'wiki'},
+	'tabwidth|tab-width=s' => \$cli_opts{'tabwidth'},
+	'raw' => \$cli_opts{'raw'},
+	'stylesheet|style-sheet' => \$cli_opts{'stylesheet'},
+	'no-stylesheet|no-style-sheet' => sub {$cli_opts{'stylesheet'} = 0},
+	'stub' => \$cli_opts{'stub'},
     );
-    if ($cli_opts{'help'}) {
-	require Pod::Usage;
-	Pod::Usage::pod2usage(-verbose => 2, -exitval => 0);
-    }
-    if ($cli_opts{'h'}) {
-	require Pod::Usage;
-	Pod::Usage::pod2usage(-verbose => 0, -exitval => 0);
-    }
-    if ($cli_opts{'version'}) { # Version info
-	print "\nThis is Markdown, version $VERSION.\n", $COPYRIGHT;
-	print "License is Modified BSD (aka 3-clause BSD) License\n";
-	print "<https://opensource.org/licenses/BSD-3-Clause>\n";
-	exit 0;
-    }
-    if ($cli_opts{'shortversion'}) { # Just the version number string.
-	print $VERSION;
-	exit 0;
-    }
     my $stub = 0;
     if ($cli_opts{'stub'}) {
 	$stub = 1;
@@ -345,22 +338,9 @@ sub _main {
 	_SetAllowedTag("menu");
     }
     $options{sanitize} = 1; # sanitize by default
-    if ($cli_opts{'no-sanitize'}) {  # Do not sanitize
-	$options{sanitize} = 0;
-    }
-    if ($cli_opts{'sanitize'}) {  # --sanitize always wins
-	$options{sanitize} = 1;
-    }
+    $options{sanitize} = $cli_opts{'sanitize'} if defined($cli_opts{'sanitize'});
     $options{xmlcheck} = $options{sanitize} ? 2 : 0;
-    if ($cli_opts{'no-validate-xml'}) {  # Do not validate XML
-	$options{xmlcheck} = 0;
-    }
-    if ($cli_opts{'validate-xml'}) {  # Validate XML output
-	$options{xmlcheck} = 1;
-    }
-    if ($cli_opts{'validate-xml-internal'}) {  # Validate XML output internally
-	$options{xmlcheck} = 2;
-    }
+    $options{xmlcheck} = $cli_opts{'validate-xml'} if defined($cli_opts{'validate-xml'});
     die "--html4tags and --validate-xml are incompatible\n"
 	if $cli_opts{'html4tags'} && $options{xmlcheck} == 1;
     die "--no-sanitize and --validate-xml-internal are incompatible\n"
@@ -392,7 +372,7 @@ sub _main {
     if ($cli_opts{'imageroot'}) {	 # Use image URL prefix
 	$options{img_prefix} = $cli_opts{'imageroot'};
     }
-    if (exists $cli_opts{'wiki'}) {	 # Enable wiki links
+    if (defined($cli_opts{'wiki'})) {	 # Enable wiki links
 	my $wpat = $cli_opts{'wiki'};
 	defined($wpat) or $wpat = "";
 	my $wopt = "s(:md)";
@@ -421,12 +401,7 @@ sub _main {
     if ($cli_opts{'raw'}) {
 	$raw = 1;
     }
-    if ($cli_opts{'stylesheet'}) {  # Display the style sheet
-	$options{show_styles} = 1;
-    }
-    if ($cli_opts{'no-stylesheet'}) {  # Do not display the style sheet
-	$options{show_styles} = 0;
-    }
+    $options{show_styles} = $cli_opts{'stylesheet'} if defined($cli_opts{'stylesheet'});
     $options{show_styles} = 1 if $stub && !defined($options{show_styles});
     $options{tab_width} = 8 unless defined($options{tab_width});
 
