@@ -827,6 +827,12 @@ sub _HashHTMLBlocks {
 			<!--
 			(?:[^-]|(?:-(?!-)))*
 			-->
+			(?:
+			    (?:[ \t]*\n[ \t]*)?
+			    <!--
+			    (?:[^-]|(?:-(?!-)))*
+			    -->
+			)*
 		    )
 		    [ ]*
 		    (?=\n{1,}|\Z)   # followed by end of line or end of document
