@@ -27,8 +27,9 @@ Markdown: Syntax
     *   [Code]
     *   [Images]
 *   [Miscellaneous]
-    *   [Backslash Escapes]
     *   [Automatic Links]
+    *   [Backslash Escapes]
+    *   [XML Comments]
 
 
 **Note:** This document is itself written using Markdown; you
@@ -443,13 +444,13 @@ To create two distinct lists when there are only blank lines between the
 end of the first list and the start of the second, a separator line must
 be inserted.  ([Horizontal rules] work just fine for this).
 
-If desired, an HTML-style comment (e.g. `<!-- -->`) may be used for this
+If desired, an [XML-style comment][X] (e.g. `<!-- -->`) may be used for this
 purpose provided it is preceded and followed by at least one blank line.
 
 Any non-list-marker, non-blank, non-indented (relative to the current
-list nesting level) line may be used for this purpose but the HTML-style
-comment has the advantage of not causing anything extra to be shown when
-the HTML output is displayed in a browser.
+list nesting level) line may be used for this purpose but the [XML-style
+comment][X] has the advantage of not causing anything extra to be shown
+when the HTML output is displayed in a browser.
 
 To make lists look nice, you can wrap items with hanging indents:
 
@@ -553,6 +554,8 @@ So the above, by itself without the escaped ".", will not start a list
 when it's outside of any list unless it's preceded by a blank line or
 immediately followed by another line that looks like a list item (either
 of the same kind or of a sublist).
+
+[X]: #XML_Comments "XML Comments"
 
 
 ~~~~~~
@@ -1332,3 +1335,53 @@ Markdown provides backslash escapes for the following characters:
       .   dot
       !   exclamation mark
       |   vertical bar (escape only needed/recognized in tables)
+
+
+~~~~~~~~~~~~
+XML Comments
+~~~~~~~~~~~~
+
+[XML format comments][xml] may be used and, by default, will be
+passed through unchanged to the output (there's a non-default option
+available to remove them instead).
+
+However, to be recognized, they must match the [XML comments
+specification][xml] and _MUST NOT_ appear inside [code blocks] or
+be inside a [code] span where they are automatically escaped.
+
+Specifically, they must start with the "XML comment begin tag"
+`<!--` and end with the "XML comment end tag" `-->` and they _MUST
+NOT_ contain any double-hyphen sequences, "--", after the "XML
+comment begin tag" except when it's immediately followed by a right
+angle bracket `>` which means it's the "XML comment end tag".
+
+In other words, all of these are valid XML comments:
+
+    <!-- -->
+    <!-- - -->
+    <!-- - - - - - - - - - - -->
+    <!---->
+    <!--- -->
+    <!-- comment -->
+    <!--also-a-comment-->
+
+But _none of these are valid XML comments_:
+
+    <!----->
+    <!-- --->
+    <!-- -- -->
+    <!------------------------->
+    <!-- invalid--double-hyphens -->
+    <!--invalid--yes-->
+
+If an invalid XML comment is present, it will be recognized as such
+and the initial leading left angle bracket `<` will be automatically
+escaped resulting in the entire invalid XML comment being passed
+through to the output as ordinary, non-comment, plain text.
+
+Run `Markdown.pl` with the `--strip-comments` option to remove XML
+comments from the final output.
+
+
+[xml]: <https://www.w3.org/TR/xml/#sec-comments>
+       "XML Comments Specification"
