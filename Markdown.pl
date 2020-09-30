@@ -1255,11 +1255,11 @@ sub _MakeIMGTag {
     my $result = $g_escape_table{'<'}."img src=\"" . _EncodeAttText($url) . "\"";
     my ($w, $h) = (0, 0);
     ($alt, $title) = (_strip($alt), _strip($title));
-    if ($title =~ /^(.*)\(([1-9][0-9]*)[xX]([1-9][0-9]*)\)$/os) {
+    if ($title =~ /^(.*)\(([1-9][0-9]*)[xX\xd7]([1-9][0-9]*)\)$/os) {
 	($title, $w, $h) = (_strip($1), $2, $3);
-    } elsif ($title =~ /^(.*)\(\?[xX]([1-9][0-9]*)\)$/os) {
+    } elsif ($title =~ /^(.*)\(\?[xX\xd7]([1-9][0-9]*)\)$/os) {
 	($title, $h) = (_strip($1), $2);
-    } elsif ($title =~ /^(.*)\(([1-9][0-9]*)[xX]\?\)$/os) {
+    } elsif ($title =~ /^(.*)\(([1-9][0-9]*)[xX\xd7]\?\)$/os) {
 	($title, $w) = (_strip($1), $2);
     }
     $result .= " alt=\"" . _EncodeAttText($alt) . "\"" if $alt ne "";
@@ -1901,11 +1901,11 @@ sub _ProcessListItems {
 	my $checkbox = '';
 	my $incr = '';
 
-	if ($list_type eq "ul" && !$leading_item_space && $item =~ /^\[([ xX])\] +(.*)$/s) {
-	    my $checkmark = lc $1;
+	if ($list_type eq "ul" && !$leading_item_space && $item =~ /^\[([ xX\xd7])\] +(.*)$/s) {
+	    my $checkmark = $1;
 	    $item = $2;
 	    my ($checkbox_class, $checkbox_val);
-	    if ($checkmark eq "x") {
+	    if ($checkmark ne " ") {
 		($checkbox_class, $checkbox_val) = ("checkbox-on", "x");
 	    } else {
 		($checkbox_class, $checkbox_val) = ("checkbox-off", "&#160;");
