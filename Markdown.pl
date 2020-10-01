@@ -377,32 +377,7 @@ sub _main {
     if ($cli_opts{'imageroot'}) {	 # Use image URL prefix
 	$options{img_prefix} = $cli_opts{'imageroot'};
     }
-    if (defined($cli_opts{'wiki'})) {	 # Enable wiki links
-	my $wpat = $cli_opts{'wiki'};
-	defined($wpat) or $wpat = "";
-	my $wopt = "s(:md)";
-	if ($wpat =~ /^(.*?)%\{((?:[0-9A-Za-z]|[Ss]\([^)]*\))*)\}(.*)$/) {
-	    $options{wikipat} = $1 . "%{}" . $3;
-	    $wopt = $2;
-	} else {
-	    $options{wikipat} = $wpat . "%{}.html";
-	}
-	my $sval = 1;
-	while ($wopt =~ /^(.*?)s\(([^)]*)\)(.*)$/i) {
-	    my $sarg = $2;
-	    $wopt = $1 . "s" . $3;
-	    $sarg =~ s/^\s+//; $sarg =~ s/\s+$//;
-	    $sval = {} unless ref($sval) eq "HASH";
-	    s/^\.//, $sval->{lc($_)}=1 foreach split(/(?:\s*,\s*)|(?:(?<!,)\s+(?!,))/, $sarg);
-	    $sval = 1 unless scalar(keys(%$sval));
-	}
-	$options{wikiopt} = { map({$_ => 1} split(//,lc($wopt))) };
-	if (ref($sval) eq "HASH" && $sval->{':md'}) {
-	    delete $sval->{':md'};
-	    $sval->{$_} = 1 foreach qw(md rmd mkd mkdn mdwn mdown markdown litcoffee);
-	}
-	$options{wikiopt}->{'s'} = $sval if $options{wikiopt}->{'s'};
-    }
+    SetWikiOpts(\%options, $cli_opts{'wiki'}); # Set wiki links options
     if ($cli_opts{'raw'}) {
 	$raw = 1;
     }
@@ -482,6 +457,46 @@ HTML4
     print $hdr, $result, $ftr;
 
     exit 0;
+}
+
+
+# INPUT
+#   $1: HASH ref
+#   $2: value of --wiki= option (see docs) except
+#       that a value of undef turns off wiki links
+# OUTPUT
+#   $1->{wikipat}
+#   $1->{wikiopt}
+#
+sub SetWikiOpts {
+    my ($o, $wpat) = @_;
+    ref($o) eq "HASH" or die "internal error: first arg to SetWikiOpts must be HASH ref";
+    delete $o->{wikipat};
+    delete $o->{wikiopt};
+    defined($wpat) or return;
+    # Parse wiki links option setting
+    my $wopt = "s(:md)";
+    if ($wpat =~ /^(.*?)%\{((?:[0-9A-Za-z]|[Ss]\([^)]*\))*)\}(.*)$/) {
+	$o->{wikipat} = $1 . "%{}" . $3;
+	$wopt = $2;
+    } else {
+        $o->{wikipat} = $wpat . "%{}.html";
+    }
+    my $sval = 1;
+    while ($wopt =~ /^(.*?)s\(([^)]*)\)(.*)$/i) {
+	my $sarg = $2;
+	$wopt = $1 . "s" . $3;
+	$sarg =~ s/^\s+//; $sarg =~ s/\s+$//;
+	$sval = {} unless ref($sval) eq "HASH";
+	s/^\.//, $sval->{lc($_)}=1 foreach split(/(?:\s*,\s*)|(?:(?<!,)\s+(?!,))/, $sarg);
+	$sval = 1 unless scalar(keys(%$sval));
+    }
+    $o->{wikiopt} = { map({$_ => 1} split(//,lc($wopt))) };
+    if (ref($sval) eq "HASH" && $sval->{':md'}) {
+	delete $sval->{':md'};
+	$sval->{$_} = 1 foreach qw(md rmd mkd mkdn mdwn mdown markdown litcoffee);
+    }
+    $o->{wikiopt}->{'s'} = $sval if $o->{wikiopt}->{'s'};
 }
 
 
