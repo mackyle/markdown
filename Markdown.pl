@@ -936,6 +936,27 @@ sub _HashHTMLBlocks {
 		$g_html_blocks{$key} = $1;
 		"\n\n" . $key . "\n\n";
 	    }eigmx;
+
+    #
+    # Now match any empty block tags that should have been paired
+    #
+    $text =~ s{
+		(			# save in $1
+		    ^			# start of line (with /m)
+		    (?:\Q$idt\E)?	# optional lead in
+		    <(?:$block_tags_b)	# start tag = $2
+		    \b			# word break
+		    (?:[^<>])*?		#
+		    /?>			# the matching end tag
+		    [ ]*		# trailing spaces
+		    (?=\n+|\Z) # followed by a newline or end of document
+		)
+	    }{
+		my $key = block_id($1);
+		$g_html_blocks{$key} = $1;
+		"\n\n" . $key . "\n\n";
+	    }eigmx;
+
     # Special case just for <hr />. It was easier to make a special case than
     # to make the other regex more complicated.
     $text =~ s{
