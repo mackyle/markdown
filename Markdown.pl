@@ -437,11 +437,7 @@ HTML4
 		$out .= "<title>$title</title>\n";
 	    }
 	}
-	if ($options{show_styles}) {
-	    my $stylesheet = $g_style_sheet;
-	    $stylesheet =~ s/%\(base\)/$g_style_prefix/g;
-	    $out .= $stylesheet;
-	}
+	$out .= GenerateStyleSheet($g_style_prefix) if $options{show_styles};
 	if ($stub) {
 	    $out .= "</head>\n<body style=\"text-align:center\">\n" .
 		"<div style=\"display:inline-block;text-align:left;max-width:42pc\">\n";
@@ -486,6 +482,19 @@ HTML4
     print $hdr, $result, $ftr;
 
     exit 0;
+}
+
+
+# Return a copy of the fancy CSS style sheet that uses the
+# passed in prefix as a prefix for the CSS style names.
+# If no argument is passed in, use $g_style_prefix
+# as the CSS style name prefix.
+sub GenerateStyleSheet {
+    my $prefix = shift;
+    defined($prefix) or $prefix = $g_style_prefix;
+    my $stylesheet = $g_style_sheet;
+    $stylesheet =~ s/%\(base\)/$g_style_prefix/g;
+    return $stylesheet;
 }
 
 
