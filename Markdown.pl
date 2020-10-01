@@ -35,7 +35,7 @@ use Scalar::Util qw(refaddr looks_like_number);
 my ($hasxml, $hasxml_err); BEGIN { ($hasxml, $hasxml_err) = (0, "") }
 my ($hasxmlp, $hasxmlp_err); BEGIN { ($hasxmlp, $hasxmlp_err) = (0, "") }
 @ISA = qw(Exporter);
-@EXPORT_OK = qw(Markdown);
+@EXPORT_OK = qw(Markdown ProcessRaw GenerateStyleSheet SetWikiOpts);
 $INC{__PACKAGE__.'.pm'} = $INC{basename(__FILE__)} unless exists $INC{__PACKAGE__.'.pm'};
 
 close(DATA) if fileno(DATA);
@@ -3767,6 +3767,116 @@ the usage and options are shown.
 
 
 =back
+
+
+=head1 PERL MODULE
+
+Markdown can be used as a Perl module and can be "use"d like so:
+
+ use Markdown qw(...);
+
+Or like so:
+
+ BEGIN {require "Markdown.pl" && Markdown->import(qw(...))}
+
+where the C<...> part is the list of desired imports.
+
+The Markdown module does not export any functions by default.
+
+The C<Markdown.pm> file is a symbolic link to C<Markdown.pl>.
+
+=head2 Markdown module functions
+
+Any of these functions may be imported, but none of them
+are imported by default.
+
+=over
+
+
+=item * $result = Markdown::Markdown($string[, options...])
+
+Converts Markdown-format C<$string> to UTF-8 encoded XHTML and
+returns it.
+
+The C<options...> may be either a single HASH ref or one or more
+pairs of C<< key => value >>.
+
+See the comments for the C<_SanitizeOpts> function for a list of
+possible option keys.
+
+
+=item * $result = Markdown::ProcessRaw($string[, options...])
+
+Converts raw XHTML in C<$string> to XHTML and returns it.
+
+The C<options...> may be either a single HASH ref or one or more
+pairs of C<< key => value >>.
+
+See the comments for the C<_SanitizeOpts> function for a list of
+possible option keys.
+
+This function provides the ability to apply the internal XML
+validation and sanitation functionality to arbitrary XHTML without
+performing any of the Markdown format interpretation.
+
+
+=item * $stylesheet = Markdown::GenerateStyleSheet([$prefix])
+
+Returns an XHTML style sheet that supports the fancy Markdown styles
+such as checkboxes and right parenthesis lists.
+
+All of the style class names have C<$prefix> prepended.
+
+If C<$prefix> is omitted or C<undef> then the default S<"_markdown-">
+prefix will be used which is the same default prefix that the
+C<Markdown> function uses.
+
+The returned string value consists of a C<< <style type="text/css"> >>
+tag, the contents of the style sheet and ends with a C<< </style> >> tag.
+
+
+=item * Markdown::SetWikiOpts($hashref, $wikioption)
+
+The value of C<$wikioption> should be the value of the C<wikipat> value
+from the B<--wiki> option.  Use the empty string S<""> to enable wiki
+links using the defaults and use C<undef> to disable wiki links.
+
+The C<wikipat> and C<wikiopt> keys in C<$hashref> will both be
+affected by this call and they should be passed in to the Markdown
+function as options to enable processing of wiki links.
+
+The simplest way to do this is simply to pass a HASH ref as the
+second argument to the Markdown function after having used this
+function on it to properly set the C<wikipat> and C<wikiopt>
+keys and values.
+
+
+=back
+
+
+=head2 Example
+
+This rudimentary example approximates running
+S<C<Markdown.pl --stub --wiki>>
+on the input (files if given, standard input if not).
+
+ use Markdown qw(Markdown SetWikiOpts GenerateStyleSheet);
+
+ # just enough XML escaping
+ sub escxml {local $_ = shift; s/&/&amp;/g; s/</&lt;/g; return $_}
+
+ my $string;
+ {local $/; $string = <>;}
+ my %opts = ( h1 => "default title" );
+ SetWikiOpts(\%opts, ""); # enable default --wiki processing
+ my $xhtml = Markdown($string, \%opts);
+ print "<html xmlns=\"http://www.w3.org/1999/xhtml\">\n",
+   "<head>\n<title>".escxml($opts{h1})."</title>\n",
+   GenerateStyleSheet(),"</head>\n",
+   "<body style=\"text-align:center\">\n",
+   "<div style=\"".
+   "display:inline-block;text-align:left;max-width:42pc\">\n",
+   $xhtml, "</div></body></html>\n";
 
 
 =head1 VERSION HISTORY
