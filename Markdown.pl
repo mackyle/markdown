@@ -556,6 +556,9 @@ sub _PrepareInput {
 sub ProcessRaw {
     my $text = _PrepareInput(shift);
 
+    # Any remaining arguments after the first are options; either a single
+    # hashref or a list of name, value pairs.  See _SanitizeOpts comments.
+
     %opt = (
 	empty_element_suffix	=> $g_empty_element_suffix,
     );
@@ -568,13 +571,129 @@ sub ProcessRaw {
     while (my ($k,$v) = each %args) {
 	$opt{$k} = $v;
     }
-    $opt{xmlcheck} = 0 unless looks_like_number($opt{xmlcheck});
+    _SanitizeOpts(\%opt);
 
     # Sanitize all '<'...'>' tags if requested
     $text = _SanitizeTags($text, $opt{xmlcheck} == 2) if $opt{sanitize};
 
     utf8::encode($text);
     return $text;
+}
+
+
+# $1: HASH ref with the following key value semantics
+#
+#   sanitize => any-false-value (no action), any-true-value (sanitize).
+#               note that an xmlcheck value of 2 or a true value of
+#               stripcomments always forces sanitize to activate.
+#               tag attributes are sanitized by removing all "questionable"
+#               attributes (such as script attributes, unknown attributes
+#               and so forth) and normalizing the remaining ones (i.e.
+#               adding missing quotes and/or values etc.).
+#               effective for both ProcessRaw and Markdown.
+#   xmlcheck => 0 (no check), 1 (external check), 2 (internal check).
+#               note that the default if xmlcheck is not set/valid is 2.
+#               note that a value of 2 is effective for both ProcessRaw
+#               and Markdown, but a value of 1 is only effective for _main.
+#               note that a value of 2 automatically inserts the closing tag
+#               for auto-closing tags and converts empty tags to the correct
+#               format converting empty tags that shouldn't be to an open
+#               and close pair; since xmlcheck == 2 is a function of the
+#               sanitizer, tag attributes are also always sanitized whenever
+#               xmlcheck has a value of 2.
+#               note that an xmlcheck value of 2 WILL call "die" with a
+#               detailed indication of the error(s) if xml validation fails
+#               in which case any line/column numbers refer to the text that
+#               would be produced by a sanitize=>0, xmlcheck=>0 call to
+#               either ProcessRaw or Markdown, NOT the original input text.
+#   stripcomments => any-false-value (no action), any-true-value (strip).
+#               since the strip comments mechanism is a function of the
+#               sanitizer, if stripcomments is set to any-true-value then
+#               tag attributes will also always be sanitized.
+#               effective for both ProcessRaw and Markdown.
+#   empty_element_suffix => " />" or ">"
+#               will be forced to " />" if not valid or defined.
+#               effective for both ProcessRaw and Markdown.
+#
+#  The remaining key value pairs are ignored by ProcessRaw and are only
+#  effective when using Markdown or _main
+#
+#   tab_width => 1..32 which is how many spaces tabs are expanded to.
+#               will be forced to 8 if not in range.
+#   indent_width => 1..32 how many spaces make a new "indent" level.
+#               will be forced to 4 if not in range.
+#   style_prefix => prefix to prepend to all CSS style names in the
+#               fancy CSS style sheet.
+#               defaults to $g_style_prefix if not defined.
+#               note that _main actually adds the style sheet (when
+#               requested); use GenerateStyleSheet to retrieve the
+#               fancy style sheet when calling Markdown directly.
+#   abs_prefix => value to prefix to absolute path URLs (i.e. start with /).
+#               note that this does NOT get prepended to //host/path URLs.
+#   url_prefix => value to prefix to non-absolute URLs.
+#               note that this does NOT get prepended to //host/path URLs.
+#   img_prefix => value to prefix to non-absolute image URLs.
+#               note that this does NOT get prepended to //host/path URLs.
+#               note that if img_prefix is undef or empty ("") then
+#               url_prefix will be prepended to image URLs.
+#   base_prefix => value to prefix to fragment-only URLs (i.e. start with #).
+#               note that fragment-only URLs are always left undisturbed
+#               if this is not set.  Fragment-only URLs are NOT affected by
+#               any of abs_prefix, url_prefix or img_prefix.
+#   wikipat     => non-empty pattern string to enable wiki links.
+#               best set with SetWikiOpts (see SetWikiOpts comments).
+#   wikiopt     => HASH ref of options affecting wiki links processing.
+#               best set with SetWikiOpts (see SetWikiOpts comments).
+#
+#  The following are OUTPUT values that can only be retrieved when
+#  Markdown is called with a HASH ref as the second argument
+#
+#   h1         => will be set to the tag-stripped value of the first
+#               non-empty H1 generated by Markdown-style markup.
+#               note that literal <h1>...</h1> values are NOT picked up.
+#               will be left unchanged if no Markdown-style H1 detected.
+#               note that the value is NOT xml escaped but should be
+#               before embedding in an XHTML document.
+#
+sub _SanitizeOpts {
+    my $o = shift; # hashref
+    ref($o) eq "HASH" or return;
+
+    $o->{xmlcheck} = 2 unless looks_like_number($o->{xmlcheck}) && $o->{xmlcheck} >= 0;
+    $o->{xmlcheck} = int($o->{xmlcheck});
+    $o->{xmlcheck} = 2 if $o->{xmlcheck} > 2;
+    $o->{sanitize} = 1 if $o->{stripcomments} && !$o->{sanitize};
+    $o->{sanitize} = 1 if $o->{xmlcheck} == 2 && !$o->{sanitize};
+
+    defined($o->{empty_element_suffix}) &&
+    ($o->{empty_element_suffix} eq " />" || $o->{empty_element_suffix} eq ">")
+	or $o->{empty_element_suffix} = " />";
+
+    $o->{tab_width} = 8 unless looks_like_number($o->{tab_width}) &&
+	1 <= $o->{tab_width} && $o->{tab_width} <= 32;
+    $o->{tab_width} = int($o->{tab_width});
+
+    $o->{indent_width} = 4 unless looks_like_number($o->{indent_width}) &&
+	1 <= $o->{indent_width} && $o->{indent_width} <= 32;
+    $o->{indent_width} = int($o->{indent_width});
+
+    defined($o->{style_prefix}) or $o->{style_prefix} = $g_style_prefix;
+
+    defined($o->{abs_prefix}) or $o->{abs_prefix} = "";
+    defined($o->{url_prefix}) or $o->{url_prefix} = "";
+    defined($o->{img_prefix}) or $o->{img_prefix} = "";
+    defined($o->{base_prefix}) or $o->{base_prefix} = "";
+
+    ref($o->{wikiopt}) eq "HASH" or $o->{wikiopt} = {};
+
+    # Note that because Markdown makes a copy of the options
+    # before calling this function, this does not actually remove
+    # any "h1" key that might have been set by the caller of
+    # the Markdown function.  However, by deleting it here,
+    # this guarantees that any found value will actually be
+    # picked up and stored (which will not happen if the key
+    # already exists).
+    delete $o->{h1};
 }
 
 
@@ -588,15 +707,17 @@ sub Markdown {
     my $text = _PrepareInput(shift);
 
     # Any remaining arguments after the first are options; either a single
-    # hashref or a list of name, value paurs.
+    # hashref or a list of name, value pairs.  See _SanitizeOpts comments.
     %opt = (
 	# set initial defaults
 	style_prefix		=> $g_style_prefix,
 	empty_element_suffix	=> $g_empty_element_suffix,
 	tab_width		=> $g_tab_width,
 	indent_width		=> $g_indent_width,
+	abs_prefix		=> "", # Prefixed to absolute path URLs
 	url_prefix		=> "", # Prefixed to non-absolute URLs
 	img_prefix		=> "", # Prefixed to non-absolute image URLs
+	base_prefix		=> "", # Prefixed to fragment-only URLs
     );
     my %args = ();
     if (ref($_[0]) eq "HASH") {
@@ -607,7 +728,7 @@ sub Markdown {
     while (my ($k,$v) = each %args) {
 	$opt{$k} = $v;
     }
-    $opt{xmlcheck} = 0 unless looks_like_number($opt{xmlcheck});
+    _SanitizeOpts(\%opt);
 
     # Clear the globals. If we don't clear these, you get conflicts
     # from other articles when generating a page which contains more than
@@ -661,7 +782,7 @@ sub Markdown {
     utf8::encode($text);
     if (defined($opt{h1}) && $opt{h1} ne "" && ref($_[0]) eq "HASH") {
 	utf8::encode($opt{h1});
-	${$_[0]}{h1} = $opt{h1}
+	${$_[0]}{h1} = $opt{h1};
     }
     return $text;
 }
