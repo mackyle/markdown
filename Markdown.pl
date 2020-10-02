@@ -2689,7 +2689,13 @@ sub _SanitizeTags {
 	my $tstart = pos($text);
 	if ($text =~ /\G(<!--(?:[^-]|(?:-(?!-)))*-->)/gc) {
 	    # pass "comments" through unless stripping them
-	    $ans .= $1 unless $opt{stripcomments};
+	    if ($opt{stripcomments}) {
+		# strip any trailing whitespace + \n after comment if present
+		$text =~ /\G[ \t]*\n/gc;
+	    } else {
+		# pass the "comment" on through
+		$ans .= $1;
+	    }
 	    next;
 	}
 	if ($text =~ /\G(<[^>]*>)/gc) {
