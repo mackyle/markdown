@@ -646,6 +646,14 @@ sub ProcessRaw {
 #   wikiopt     => HASH ref of options affecting wiki links processing.
 #               best set with SetWikiOpts (see SetWikiOpts comments).
 #
+#  Special handling for abs_prefix, url_prefix, img_prefix and/or base_prefix
+#  may be activated by setting any subset (or all) of the values for these
+#  keys to a CODE ref.  The single argument is the URL and the result must
+#  be the adjusted URL.  For example, the equivalent CODE ref to setting
+#  url_prefix to $string is simply sub { $string.$_[0] }.  By using a
+#  CODE ref, behavior other than simply performing a prepend operation
+#  can be realized when necessary for unusual situations.
+#
 #  The following are OUTPUT values that can only be retrieved when
 #  Markdown is called with a HASH ref as the second argument
 #
@@ -680,10 +688,14 @@ sub _SanitizeOpts {
 
     defined($o->{style_prefix}) or $o->{style_prefix} = $g_style_prefix;
 
-    defined($o->{abs_prefix}) or $o->{abs_prefix} = "";
-    defined($o->{url_prefix}) or $o->{url_prefix} = "";
-    defined($o->{img_prefix}) or $o->{img_prefix} = "";
-    defined($o->{base_prefix}) or $o->{base_prefix} = "";
+    $o->{abs_prefix} = _MakePrefixCODERef($o->{abs_prefix}, 1)
+	unless ref($o->{abs_prefix}) eq 'CODE';
+    $o->{url_prefix} = _MakePrefixCODERef($o->{url_prefix}, 0)
+	unless ref($o->{url_prefix}) eq 'CODE';
+    $o->{img_prefix} = _MakePrefixCODERef($o->{img_prefix}, 0)
+	unless ref($o->{img_prefix}) eq 'CODE';
+    $o->{base_prefix} = _MakePrefixCODERef($o->{base_prefix}, -1)
+	unless ref($o->{base_prefix}) eq 'CODE';
 
     ref($o->{wikiopt}) eq "HASH" or $o->{wikiopt} = {};
 
@@ -695,6 +707,27 @@ sub _SanitizeOpts {
     # picked up and stored (which will not happen if the key
     # already exists).
     delete $o->{h1};
+}
+
+
+# Actually returns an empty string rather than a CODE ref
+# if an empty prefix is passed in.  Trailing "/"s are trimmed
+# off if the second argument is positive or the string does NOT
+# consist of only "/"s.  A trailing "/" is added unless the
+# trimmed prefix already has one or the second argument is true.
+# If the second argument is negative, the prefix is used as-is.
+sub _MakePrefixCODERef {
+    my ($prefix, $mtok) = @_;
+    defined($prefix) or $prefix = "";
+    looks_like_number($mtok) or $mtok = $mtok ? 1 : 0;
+    if ($mtok > 0) {
+	$prefix =~ s,/+$,,;
+    } elsif (!$mtok) {
+	$prefix =~ s,//+$,/,;
+    }
+    $prefix ne "" or return "";
+    $prefix .= '/' if !$mtok && substr($prefix, -1, 1) ne '/';
+    return sub { $prefix . $_[0] };
 }
 
 
@@ -1204,7 +1237,7 @@ sub _MakeATag {
     defined($text) or $text="";
     defined($title) or $title="";
 
-    $url =~ m"^#" and $url = $opt{base_prefix} . $url;
+    $url =~ m"^#" && ref($opt{base_prefix}) eq 'CODE' and $url = &{$opt{base_prefix}}($url);
     my $result = $g_escape_table{'<'}."a href=\"" . _EncodeAttText($url) . "\"";
     $title = _strip($title);
     $text =~ s{<(/?a)}{&lt;$1}sogi;
@@ -2885,9 +2918,9 @@ sub _ProcessURLTag {
 	    if (lc($p) eq $att && $v ne "") {
 		if ($dofrag && $v =~ m"^#") {
 		    $v = _FindFragmentMatch($v);
-		    my $bp;
-		    if (($bp = $opt{base_prefix}) ne "") {
-			$v = "\2\3" . $bp . $v;
+		    my $bpcr;
+		    if (ref($bpcr = $opt{base_prefix}) eq 'CODE') {
+			$v = "\2\3" . &$bpcr($v);
 		    }
 		} else {
 		    $v = _PrefixURL($v);
@@ -3157,17 +3190,18 @@ sub _PrefixURL {
     $url =~ s/\s+$//;
     $url = "#" unless $url ne "";
 
-    return $url unless $opt{abs_prefix} ne '' || $opt{url_prefix} ne '' || $opt{img_prefix} ne '';
+    return $url unless
+	ref($opt{abs_prefix}) eq 'CODE' ||
+	ref($opt{url_prefix}) eq 'CODE' ||
+	ref($opt{img_prefix}) eq 'CODE' ;
     return $url if $url =~ m"^\002\003" || $url =~ m"^#" || $url =~ m,^//,;
-    $url = $opt{abs_prefix} . $url if $url =~ m,^/, && $opt{abs_prefix} ne '';
+    $url = &{$opt{abs_prefix}}($url) if $url =~ m,^/, && ref($opt{abs_prefix}) eq 'CODE';
     return $url if $url =~ /^[A-Za-z][A-Za-z0-9+.-]*:/ || $url =~ m,^//,;
-    my $ans = $opt{url_prefix};
-    $ans = $opt{img_prefix}
-	if $opt{img_prefix} ne '' && $url =~ m"^[^#?]*\.(?:png|gif|jpe?g|svgz?)(?:[#?]|$)"i;
-    return $url unless $ans ne '';
-    $ans .= '/' if substr($ans, -1, 1) ne '/';
-    $ans .= substr($url, 0, 1) eq '/' ? substr($url, 1) : $url;
-    return "\2\3".$ans;
+    my $cr = $opt{url_prefix};
+    $cr = $opt{img_prefix}
+	if ref($opt{img_prefix}) eq 'CODE' && $url =~ m"^[^#?]*\.(?:png|gif|jpe?g|svgz?)(?:[#?]|$)"i;
+    return $url unless ref($cr) eq 'CODE';
+    return "\2\3".&$cr(substr($url, 0, 1) eq '/' ? substr($url, 1) : $url);
 }
 
 
