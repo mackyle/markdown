@@ -317,6 +317,7 @@ sub _main {
 	'no-validate-xml' => sub {$cli_opts{'validate-xml'} = 0},
 	'stripcomments|strip-comments' => \$cli_opts{'stripcomments'},
 	'no-stripcomments|no-strip-comments' => sub {$cli_opts{'stripcomments'} = 0},
+	'keepabs|keep-abs|k' => \$cli_opts{'keepabs'},
 	'absroot|a=s' => \$cli_opts{'absroot'},
 	'base|b=s' => \$cli_opts{'base'},
 	'htmlroot|r=s' => \$cli_opts{'htmlroot'},
@@ -362,6 +363,7 @@ sub _main {
 	die "invalid tab width (must be >= 2 and <= 32)\n" unless $tw >= 2 && $tw <= 32;
 	$options{tab_width} = int(0+$tw);
     }
+    $options{keepabs} = $cli_opts{'keepabs'};
     $options{abs_prefix} = "";  	# no abs prefix by default
     if ($cli_opts{'absroot'}) { 	# Use abs prefix for absolute path URLs
 	my $abs = $cli_opts{'absroot'};
@@ -629,6 +631,10 @@ sub ProcessRaw {
 #               note that _main actually adds the style sheet (when
 #               requested); use GenerateStyleSheet to retrieve the
 #               fancy style sheet when calling Markdown directly.
+#   keepabs    => any-false-value (no action), any-true-value (keep)
+#               if true, any absolute path URLs remaining after applying
+#               any abs_prefix value will be kept and not be subject
+#               to modification by any url_prefix or img_prefix value.
 #   abs_prefix => value to prefix to absolute path URLs (i.e. start with /).
 #               note that this does NOT get prepended to //host/path URLs.
 #   url_prefix => value to prefix to non-absolute URLs.
@@ -3196,7 +3202,8 @@ sub _PrefixURL {
 	ref($opt{img_prefix}) eq 'CODE' ;
     return $url if $url =~ m"^\002\003" || $url =~ m"^#" || $url =~ m,^//,;
     $url = &{$opt{abs_prefix}}($url) if $url =~ m,^/, && ref($opt{abs_prefix}) eq 'CODE';
-    return $url if $url =~ /^[A-Za-z][A-Za-z0-9+.-]*:/ || $url =~ m,^//,;
+    return $url if $url =~ /^[A-Za-z][A-Za-z0-9+.-]*:/ || $url =~ m,^//, ||
+	($opt{keepabs} && $url =~ m,^/,);
     my $cr = $opt{url_prefix};
     $cr = $opt{img_prefix}
 	if ref($opt{img_prefix}) eq 'CODE' && $url =~ m"^[^#?]*\.(?:png|gif|jpe?g|svgz?)(?:[#?]|$)"i;
@@ -3419,6 +3426,7 @@ B<Markdown.pl> [B<--help>] [B<--html4tags>] [B<--htmlroot>=I<prefix>]
    --strip-comments                     remove XML comments from output
    --no-strip-comments                  do not remove XML comments (default)
    --tabwidth=num                       expand tabs to num instead of 8
+   -k | --keep-abs                      keep abspath URLs despite -r/-i
    -a prefix | --absroot=prefix         append abspath URLs to prefix
    -b prefix | --base=prefix            prepend prefix to fragment-only URLs
    -r prefix | --htmlroot=prefix        append relative non-img URLs to prefix
@@ -3642,6 +3650,29 @@ backticks-delimited code blocks will always be expanded to 8-character tab
 stop positions no matter what value is used for this option.
 
 The value must be S<2 <= I<num> <= 32>.
+
+
+=item B<-k>, B<--keep-abs>
+
+Normally any absolute path URLs (i.e. URLs without a scheme starting
+with "/" but not "//") are subject to modification by any
+B<-r>/B<--htmlroot> or B<-i>/B<--imageroot> option.
+
+If the B<-a>/B<--absroot> option is used and it transforms these
+absolute path URLs into a full absolute URL (i.e. starts with a
+scheme or "//") then any subsequent B<-r>/B<--htmlroot> or
+B<-i>/B<--imageroot> processing will be skipped because the URL is
+no longer relative.
+
+If the B<--keep-abs> option is given, then (after applying any
+B<-a>/B<--absroot> option if present) absolute path URLs will be
+kept as-is and will not be processed further by any B<-r>/B<--htmlroot>
+or B<-i>/B<--imageroot> option.
+
+Note that if the B<-a>/B<--absroot> option transforms an absolute
+path URL into a relative PATH URL it I<will> be subject to subsequent
+B<-r>/B<--htmlroot> or B<-i>/B<--imageroot> processing regardless
+of the B<-k>/B<--keep-abs> option.
 
 
 =item B<-a> I<prefix>, B<--absroot>=I<prefix>
