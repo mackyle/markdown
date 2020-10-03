@@ -651,6 +651,24 @@ sub ProcessRaw {
 #               best set with SetWikiOpts (see SetWikiOpts comments).
 #   wikiopt     => HASH ref of options affecting wiki links processing.
 #               best set with SetWikiOpts (see SetWikiOpts comments).
+#   wikifunc    => if set to a CODE ref, the function will be called with
+#               five arguments like so:
+#                 $result = &$wikifunc($iresult, \%options, $link, $wbase, $qf)
+#               where on input $iresult is the result that would be produced
+#               if no wikifunc was provided and on output $result will be
+#               used as the wiki expansion.  $link is the original wiki
+#               destination as specified in the source, $wbase is the result
+#               of stripping off any query string and/or fragment from $link
+#               and then transforming that according to the wikiopt HASH ref.
+#               $qf contains either an empty string or the stripped off
+#               query string and/or fragment if one was originally present.
+#               The $iresult value is related to the other arguments like so:
+#                 $iresult = $options->{wikipat};
+#                 $iresult = s/%\{\}/$wbase/;
+#                 $iresult .= $qf;
+#               Any provided wikifunc should treat the %options HASH as
+#               read-only.  Modifying the %options HASH in wikifunc will
+#               likely result in unpredictable behavior!  Don't do it!
 #
 #  Special handling for abs_prefix, url_prefix, img_prefix and/or base_prefix
 #  may be activated by setting any subset (or all) of the values for these
@@ -1185,6 +1203,8 @@ sub _ProcessWikiLink {
 	    $qsfrag = $q . $f;
 	}
 	$result .= $qsfrag;
+	$result = &{$opt{wikifunc}}($result, \%opt, $link_loc, $base, $qsfrag)
+		if ref($opt{wikifunc}) eq 'CODE';
 	{
 	    use bytes;
 	    $result =~ s/%(?![0-9A-Fa-f]{2})/%25/sog;
