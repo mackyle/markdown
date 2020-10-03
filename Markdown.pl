@@ -381,6 +381,11 @@ sub _main {
 	$options{img_prefix} = $cli_opts{'imageroot'};
     }
     SetWikiOpts(\%options, $cli_opts{'wiki'}); # Set wiki links options
+    if (ref($options{wikiopt}) eq 'HASH') {
+	my $o = $options{wikiopt};
+	$o->{"f"} && $o->{"%"} and
+	    die "--wiki sub-options 'f' and '%' are mutually exclusive\n"
+    }
     if ($cli_opts{'raw'}) {
 	$raw = 1;
     }
@@ -479,7 +484,7 @@ sub SetWikiOpts {
     defined($wpat) or return;
     # Parse wiki links option setting
     my $wopt = "s(:md)";
-    if ($wpat =~ /^(.*?)%\{((?:[0-9A-Za-z]|[Ss]\([^)]*\))*)\}(.*)$/) {
+    if ($wpat =~ /^(.*?)%\{((?:[%0-9A-Za-z]|[Ss]\([^)]*\))*)\}(.*)$/) {
 	$o->{wikipat} = $1 . "%{}" . $3;
 	$wopt = $2;
     } else {
@@ -1239,6 +1244,9 @@ sub _wxform {
 	    $w =~ s{[.][^./]*$}{};
 	}
     }
+    $w = uc($w) if $o->{u};
+    $w = lc($w) if $o->{l};
+    $w =~ s{/+}{%252F}gos if $o->{"%"};
     $w =~ tr{/}{ } if $o->{f};
     $w =~ s{/+}{/}gos if !$o->{f} && !$o->{v};
     if ($o->{d}) {
@@ -1248,8 +1256,6 @@ sub _wxform {
 	$w =~ tr{ }{_};
 	$w =~ s/_+/_/gos unless $o->{v};
     }
-    $w = uc($w) if $o->{u};
-    $w = lc($w) if $o->{l};
     return $w;
 }
 
@@ -3755,10 +3761,18 @@ a single dash I<instead> but runs of multiple underscores will be left untouched
 
 =item B<f>
 
-Flatten the resulting name by replacing forward slashes (ASCII 0x2F) as well.
-They will be converted to underscores unless the C<d> option is given (in which
-case they will be converted to dashes).  This conversion takes place before
-applying the runs-of-multiple reduction.
+Flatten the resulting name by replacing forward slashes (ASCII 0x2F)
+as well.  They will be converted to underscores unless the C<d>
+option is given (in which case they will be converted to dashes).
+This conversion takes place before applying the runs-of-multiple
+reduction.  This option is incompatible with the B<%> option.
+
+=item B<%>
+
+Flatten the resulting name by replacing runs of one or more forward
+slashes (ASCII 0x2F) with C<%2F>.  Note that when encoded into a
+URL the C<%2F> actually becomes C<%252F>.  This option is incompatible
+with the B<f> option.
 
 =item B<l>
 
@@ -3793,6 +3807,9 @@ Leave runs-of-multiple characters alone (aka "verbatim").  Does not affect
 any of the other options except by eliminating the runs-of-multple reduction
 step.  Also does I<not> inhibit the initial whitespace trimming.
 
+Does not affect the runs-of-multiple "/" replacement performed by the B<%>
+option.
+
 =back
 
 The URL target of the wiki link is created by first trimming whitespace
@@ -3810,6 +3827,9 @@ See above option descriptions for possible available modifications.
 
 One of the commonly used hosting platforms does something substantially similar
 to using C<%{dfv}> as the placeholder.
+
+One of the commonly used wiki platforms does something similar to using C<%{%}>
+as the placeholder.
 
 
 =item B<-V>, B<--version>
