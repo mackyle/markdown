@@ -86,6 +86,7 @@ my %g_block_ids;
 my %g_code_block_ids;
 my %g_html_blocks;
 my %g_code_blocks;
+my @g_xml_comments;
 my %opt;
 
 # Return a "block id" to use to identify the block that does not contain
@@ -741,6 +742,7 @@ sub Markdown {
     %g_code_block_ids = ();
     %g_html_blocks = ();
     %g_code_blocks = ();
+    @g_xml_comments = ();
     $g_list_level = 0;
 
     # Make sure $text ends with a couple of newlines:
@@ -1005,6 +1007,8 @@ sub _HashHTMLBlocks {
 		)
 	    }{
 		my $key = block_id($1);
+		push(@g_xml_comments, $key)
+			if $opt{stripcomments} && !exists($g_html_blocks{$key});
 		$g_html_blocks{$key} = $1;
 		"\n\n" . $key . "\n\n";
 	    }egx;
@@ -1038,7 +1042,7 @@ sub _RunBlockGamut {
     # <p> tags around block-level tags.
     $text = _HashHTMLBlocks($text);
 
-    $text = _FormParagraphs($text);
+    $text = _FormParagraphs($text, $anchors);
 
     return $text;
 }
@@ -2469,7 +2473,7 @@ sub _FormParagraphs {
 # Params:
 #   $text - string to process with html <p> tags
 #
-    my $text = shift;
+    my ($text, $anchors) = @_;
 
     # Strip leading and trailing lines:
     $text =~ s/\A\n+//;
@@ -2486,6 +2490,17 @@ sub _FormParagraphs {
 	    s/^([ ]*)/<p>/;
 	    $_ .= "</p>";
 	}
+    }
+
+    #
+    # Strip standalone XML comments if requested
+    #
+    if ($anchors && $opt{stripcomments} && @g_xml_comments) {
+	my %xml_comment = ();
+	$xml_comment{$_} = 1 foreach @g_xml_comments;
+	my @grafs2 = ();
+	do { push(@grafs2, $_) unless $xml_comment{$_} } foreach @grafs;
+	@grafs = @grafs2;
     }
 
     #
