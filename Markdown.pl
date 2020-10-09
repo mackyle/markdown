@@ -1141,6 +1141,7 @@ sub _RunSpanGamut {
     $text = _DoItalicsAndBoldAndStrike($text);
 
     # Do hard breaks:
+    $text =~ s/ {3,}\n/<br clear=\"all\"$opt{empty_element_suffix}\n/g;
     $text =~ s/ {2,}\n/<br$opt{empty_element_suffix}\n/g;
 
     return $text;
@@ -1487,22 +1488,31 @@ sub _MakeIMGTag {
     defined($title) or $title="";
     return "" unless $url ne "";
 
-    my $result = $g_escape_table{'<'}."img src=\"" . _EncodeAttText($url) . "\"";
-    my ($w, $h) = (0, 0);
+    my ($w, $h, $lf, $rt) = (0, 0, '', '');
     ($alt, $title) = (_strip($alt), _strip($title));
-    if ($title =~ /^(.*)\(([1-9][0-9]*)[xX\xd7]([1-9][0-9]*)\)$/os) {
-	($title, $w, $h) = (_strip($1), $2, $3);
-    } elsif ($title =~ /^(.*)\(\?[xX\xd7]([1-9][0-9]*)\)$/os) {
-	($title, $h) = (_strip($1), $2);
-    } elsif ($title =~ /^(.*)\(([1-9][0-9]*)[xX\xd7]\?\)$/os) {
-	($title, $w) = (_strip($1), $2);
+    if ($title =~ /^(.*)\((<?)([1-9][0-9]*)[xX\xd7]([1-9][0-9]*)(>?)\)$/os) {
+	($title, $w, $h, $lf, $rt) = (_strip($1), $3, $4, $2, $5);
+    } elsif ($title =~ /^(.*)\((<?)\?[xX\xd7]([1-9][0-9]*)(>?)\)$/os) {
+	($title, $h, $lf, $rt) = (_strip($1), $3, $2, $4);
+    } elsif ($title =~ /^(.*)\((<?)([1-9][0-9]*)[xX\xd7]\?(>?)\)$/os) {
+	($title, $w, $lf, $rt) = (_strip($1), $3, $2, $4);
+    } elsif ($title =~ /^(.*)\((?!\))(<?)(>?)\)$/os) {
+	($title, $lf, $rt) = (_strip($1), $2, $3);
     }
+    my $result = '';
+    $result .= $g_escape_table{'<'}."center".$g_escape_table{'>'}
+	if $lf && $rt;
+    $result .= $g_escape_table{'<'}."img src=\"" . _EncodeAttText($url) . "\"";
+    $result .= " align=\"left\"" if $lf && !$rt;
+    $result .= " align=\"right\"" if $rt && !$lf;
     $result .= " alt=\"" . _EncodeAttText($alt) . "\"" if $alt ne "";
     $result .= " width=\"$w\"" if $w != 0;
     $result .= " height=\"$h\"" if $h != 0;
     $result .= " title=\"" . _EncodeAttText($title) . "\"" if $title ne "";
     $result .= " /" unless $opt{empty_element_suffix} eq ">";
     $result .= $g_escape_table{'>'};
+    $result .= $g_escape_table{'<'}."/center".$g_escape_table{'>'}
+	if $lf && $rt;
     return $result;
 }
 

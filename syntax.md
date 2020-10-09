@@ -209,6 +209,9 @@ character in a paragraph into a `<br />` tag.
 When you *do* want to insert a `<br />` break tag using Markdown, you
 end a line with two or more spaces, then type return.
 
+If you end a line with three or more spaces then a `<br clear="all" />`
+tag will be generated instead of the plain `<br />` tag.
+
 Yes, this takes a tad more effort to create a `<br />`, but a simplistic
 "every line break is a `<br />`" rule wouldn't work for Markdown.
 Markdown's email-style [blockquoting][bq] and multi-paragraph [list items][l]
@@ -1219,6 +1222,28 @@ To resize in just one dimension, specify the other as a "?" like so:
 The first dimension sets the "width" attribute and the second
 dimension sets the "height" attribute.  The dimensions are then
 removed from the "title" attribute.
+
+To float an image to the left or right include a "(<)" for left or
+"(>)" for right at the end of the title like so:
+
+      [id]: url/to/image  "Optional title attribute (<)"
+      [id]: url/to/image  "Optional title attribute (>)"
+
+These can be combined with the image dimensions like so:
+
+      [id]: url/to/image  "Optional title attribute (<512x342)"
+      [id]: url/to/image  "Optional title attribute (<?x342)"
+      [id]: url/to/image  "Optional title attribute (<512x?)"
+      [id]: url/to/image  "Optional title attribute (512x342>)"
+      [id]: url/to/image  "Optional title attribute (?x342>)"
+      [id]: url/to/image  "Optional title attribute (512x?>)"
+
+Providing both the "float left" (<) and "float right" (>) annotations
+at the same time will cause the image to end up centered in its
+own "div" like so:
+
+      [id]: url/to/image  "Optional title attribute (<>)"
+      [id]: url/to/image  "Optional title attribute (<512x342>)"
 
 It's possible to wrap the url when it's specified in a reference.
 Both of these examples:
