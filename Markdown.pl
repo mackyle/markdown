@@ -2793,9 +2793,17 @@ sub _SanitizeTags {
 	}
     } if $validate;
     while (pos($text) < $end) {
-	if ($text =~ /\G([^<]+)/gc) {
+	if ($text =~ /\G(\s+)/gc) {
 	    $ans .= $1;
-	    $lastmt = "" if $1 =~ /\S/;
+	    next;
+        }
+	if ($text =~ /\G([^<]+)/gc) {
+	    if ($validate && @stack && $stack[$#stack]->[0] eq "\20") {
+		push(@stack,["p",pos($text)-length($1)]);
+		$ans .= "<p>";
+	    }
+	    $ans .= $1;
+	    $lastmt = "";
 	    next;
 	}
 	my $tstart = pos($text);
