@@ -2779,7 +2779,12 @@ sub _SanitizeTags {
 	elsif ($tagocl{$s}) {$c = $tagacl{$s}}
 	else {return}
 	while (@stack && $c->{$stack[$#stack]->[0]}) {
-	    $ans .= "</" . $stack[$#stack]->[0] . ">";
+	    if ($stack[$#stack]->[2] &&
+		$stack[$#stack]->[1]+3 eq $_[1]) {
+		$ans .= "</\20>";
+	    } else {
+		$ans .= "</" . $stack[$#stack]->[0] . ">";
+	    }
 	    if ($stack[$#stack]->[2]) {
 		$stack[$#stack]->[0] = "\20";
 	    } else {
@@ -2820,7 +2825,7 @@ sub _SanitizeTags {
 		$lastmt = $styp == -3 ? $tt : "";
 		$tt = "p" if $autocloseflag;
 		if ($validate && $styp) {
-		    &$autoclopen($tt) if $styp != 2;
+		    &$autoclopen($tt, $tstart) if $styp != 2;
 		    if ($styp == 1) {
 			push(@stack,[$tt,$tstart,$autocloseflag]);
 		    } elsif ($styp == 2) {
@@ -2870,6 +2875,9 @@ sub _SanitizeTags {
 	}
 	_xmlfail(@errs) unless !@errs;
     }
+    # Remove any unwanted extra leading <p></p> sections
+    $ans =~ s{<p></\020>}{}gs if $validate;
+
     return $ans."\n";
 }
 
