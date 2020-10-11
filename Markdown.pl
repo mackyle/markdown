@@ -58,12 +58,15 @@ BEGIN {
 #
 # Global default settings:
 #
-my ($g_style_prefix, $g_empty_element_suffix, $g_indent_width, $g_tab_width);
+my ($g_style_prefix, $g_empty_element_suffix, $g_indent_width, $g_tab_width,
+    $g_start_p, $g_close_p);
 BEGIN {
     $g_style_prefix = "_markdown-";	# Prefix for markdown css class styles
     $g_empty_element_suffix = " />";	# Change to ">" for HTML output
     $g_indent_width = 4;		# Number of spaces considered new level
     $g_tab_width = 4;			# Legacy even though it's wrong
+    $g_start_p = "<p>";			# _FormParagraphs open paragraph tag
+    $g_close_p = "</p>";		# _FormParagraphs close paragraph tag
 }
 
 
@@ -703,6 +706,15 @@ sub _SanitizeOpts {
     $o->{sanitize} = 1 if $o->{stripcomments} && !$o->{sanitize};
     $o->{sanitize} = 1 if $o->{xmlcheck} == 2 && !$o->{sanitize};
 
+    # this is gross, but having the globals avoids unnecessary slowdown
+    if ($o->{sanitize} && $o->{xmlcheck} == 2) {
+	$g_start_p = "<\20>";
+	$g_close_p = "</\20>";
+    } else {
+	$g_start_p = "<p>";
+	$g_close_p = "</p>";
+    }
+
     defined($o->{empty_element_suffix}) &&
     ($o->{empty_element_suffix} eq " />" || $o->{empty_element_suffix} eq ">")
 	or $o->{empty_element_suffix} = " />";
@@ -936,8 +948,8 @@ sub _StripLinkDefinitions {
 
 my ($block_tags_a, $block_tags_b);
 BEGIN {
-    $block_tags_a = qr/p|div|h[1-6]|blockquote|pre|table|dl|ol|ul|script|noscript|form|fieldset|iframe|math|ins|del/io;
-    $block_tags_b = qr/p|div|h[1-6]|blockquote|pre|table|dl|ol|ul|script|noscript|form|fieldset|iframe|math/io;
+    $block_tags_a = qr/\020|p|div|h[1-6]|blockquote|pre|table|dl|ol|ul|script|noscript|form|fieldset|iframe|math|ins|del/io;
+    $block_tags_b = qr/\020|p|div|h[1-6]|blockquote|pre|table|dl|ol|ul|script|noscript|form|fieldset|iframe|math/io;
 }
 
 sub _HashHTMLBlocks {
@@ -970,7 +982,7 @@ sub _HashHTMLBlocks {
 		    <($block_tags_a)	# start tag = $3
 		    \b			# word break
 		    (?:.*\n)*?		# any number of lines, minimally matching
-		    \2</\3>		# the matching end tag
+		    \2</\3\s*>		# the matching end tag
 		    [ ]*		# trailing spaces
 		    (?=\n+|\Z) # followed by a newline or end of document
 		)
@@ -991,7 +1003,7 @@ sub _HashHTMLBlocks {
 		    <($block_tags_b)	# start tag = $2
 		    \b			# word break
 		    (?:.*\n)*?		# any number of lines, minimally matching
-		    .*</\2>		# the matching end tag
+		    .*</\2\s*>		# the matching end tag
 		    [ ]*		# trailing spaces
 		    (?=\n+|\Z) # followed by a newline or end of document
 		)
@@ -2562,8 +2574,8 @@ sub _FormParagraphs {
     foreach (@grafs) {
 	unless (defined($g_html_blocks{$_}) || defined($g_code_blocks{$_})) {
 	    $_ = _RunSpanGamut($_);
-	    s/^([ ]*)/<p>/;
-	    $_ .= "</p>";
+	    s/^([ ]*)/$g_start_p/;
+	    $_ .= $g_close_p;
 	}
     }
 
@@ -2595,8 +2607,8 @@ my $g_possible_tag_name;
 my %ok_tag_name;
 BEGIN {
     # note: length("blockquote") == 10
-    $g_possible_tag_name = qr/(?i:[a-z]{1,10}|h[1-6])/o;
-    %ok_tag_name = map({$_ => 1} qw(
+    $g_possible_tag_name = qr/(?i:[a-z]{1,10}|h[1-6]|\020)/o;
+    %ok_tag_name = map({$_ => 1} "\20", qw(
 	a abbr acronym address area
 	b basefont bdo big blockquote br
 	caption center cite code col colgroup
@@ -2753,8 +2765,9 @@ sub _SanitizeTags {
     my $lastmt = "";
     $autoclose = sub {
 	my $s = $_[0] || "";
-	while (@stack && $stack[$#stack]->[0] ne $s &&
-		$tagocl{$stack[$#stack]->[0]}) {
+	while (@stack &&
+	       ($stack[$#stack]->[0] ne $s || $_[1] && !$stack[$#stack]->[2]) &&
+	       $tagocl{$stack[$#stack]->[0]}) {
 	    $ans .= "</" . $stack[$#stack]->[0] . ">";
 	    pop(@stack);
 	}
@@ -2767,7 +2780,11 @@ sub _SanitizeTags {
 	else {return}
 	while (@stack && $c->{$stack[$#stack]->[0]}) {
 	    $ans .= "</" . $stack[$#stack]->[0] . ">";
-	    pop(@stack);
+	    if ($stack[$#stack]->[2]) {
+		$stack[$#stack]->[0] = "\20";
+	    } else {
+		 pop(@stack);
+	    }
 	}
     } if $validate;
     while (pos($text) < $end) {
@@ -2795,23 +2812,32 @@ sub _SanitizeTags {
 		 $tag =~ m{^</($g_possible_tag_name)\s*>}) &&
 		$ok_tag_name{$tt=lc($1)})
 	    {
-		my ($stag, $styp) = _Sanitize($tag);
+		my ($stag, $styp, $autocloseflag) = _Sanitize($tag);
 		if ($styp == 2 && $lastmt eq $tt) {
 		    $lastmt = "";
 		    next;
 		}
-		$lastmt = $styp == 3 ? $tt : "";
+		$lastmt = $styp == -3 ? $tt : "";
+		$tt = "p" if $autocloseflag;
 		if ($validate && $styp) {
-		    &$autoclopen($tt) if $styp == 1 || $styp == 3;
+		    &$autoclopen($tt) if $styp != 2;
 		    if ($styp == 1) {
-			push(@stack,[$tt,$tstart]);
+			push(@stack,[$tt,$tstart,$autocloseflag]);
 		    } elsif ($styp == 2) {
-			&$autoclose($tt) unless $tt eq "p";
-			!@stack and _xmlfail("closing tag $tt without matching open at " .
-			    _linecol($tstart, $text));
-			if ($stack[$#stack]->[0] eq $tt) {
+			&$autoclose($tt, $autocloseflag);
+			my $mtstkchk = sub {
+			    !@stack and _xmlfail("closing tag $tt without matching open at " .
+				_linecol($tstart, $text));
+			};
+			&$mtstkchk;
+			if ($autocloseflag && $stack[$#stack]->[0] eq "\20") {
+			    pop(@stack);
+			    $stag = "";
+			} elsif ($stack[$#stack]->[0] eq $tt) {
 			    pop(@stack);
 			} else {
+			    pop(@stack) while @stack && $stack[$#stack]->[0] eq "\20";
+			    &$mtstkchk;
 			    my @i = @{$stack[$#stack]};
 			    _xmlfail("opening tag $i[0] at " . _linecol($i[1], $text) .
 				" mismatch with closing tag $tt at " . _linecol($tstart, $text));
@@ -2838,10 +2864,11 @@ sub _SanitizeTags {
 	my $j;
 	for ($j = 0; $j <= $#stack; ++$j) {
 		my @i = @{$stack[$j]};
+		next if $i[0] eq "\20";
 		unshift(@errs, "opening tag $i[0] without matching close at " .
 			    _linecol($i[1], $text));
 	}
-	_xmlfail(@errs);
+	_xmlfail(@errs) unless !@errs;
     }
     return $ans."\n";
 }
@@ -2866,11 +2893,14 @@ sub _Sanitize {
     my $tag = shift;
     my $seenatt = {};
     if ($tag =~ m{^</}) {
-	$tag =~ s/\s+>$/>/;
-	return (lc($tag),2);
+	my $autocloseflag = undef;
+	$autocloseflag = 1, $tag="</p>" if $tag eq "</\20>";
+	return (lc($tag),2,$autocloseflag);
     }
     if ($tag =~ /^<([^\s<\/>]+)\s+/gs) {
 	my $tt = lc($1);
+	my $autocloseflag = undef;
+	$autocloseflag = 1, $tt="p" if $tt eq "\20";
 	my $out = "<" . $tt . " ";
 	my $ok = $tagatt{$tt};
 	ref($ok) eq "HASH" or $ok = {};
@@ -2912,13 +2942,13 @@ sub _Sanitize {
 	$out =~ s/\s+$//;
 	my $typ = 1;
 	if ($tagmt{$tt}) {
-	    $typ = 3;
+	    $typ = ($tag =~ m,/>$,) ? 3 : -3;
 	    $out .= $opt{empty_element_suffix};
 	} else {
 	    $out .= ">";
 	    $out .= "</$tt>" and $typ = 3 if $tag =~ m,/>$,;
 	}
-	return ($out,$typ);
+	return ($out,$typ,$autocloseflag);
     } elsif ($tag =~ /^<([^\s<\/>]+)/s) {
 	my $tt = lc($1);
 	return ("&lt;" . substr($tag,1), 0) if $taga1p{$tt};
@@ -2927,7 +2957,8 @@ sub _Sanitize {
 	} elsif ($tag =~ m,/>$,) {
 	    return ("<" . $tt . "></" . $tt . ">", 3);
 	} else {
-	    return ("<" . $tt . ">", 1);
+	    return ("<" . $tt . ">", 1) unless $tt eq "\20";
+	    return ("<p>", 1, 1);
 	}
     }
     return (lc($tag),0);
@@ -3019,7 +3050,7 @@ sub _EncodeAmpsAndAngles {
     $text =~ s/&(?!#?[xX]?(?:[0-9a-fA-F]+|\w+);)/&amp;/g;
 
     # Encode naked <'s
-    $text =~ s{<(?![a-z/?\$!])}{&lt;}gi;
+    $text =~ s{<(?![\020a-z/?\$!])}{&lt;}gi;
     $text =~ s{<(?=[^>]*$)}{&lt;}g;
 
     # Encode <'s that cannot possibly be a start or end tag
