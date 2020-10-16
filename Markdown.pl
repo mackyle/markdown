@@ -1260,6 +1260,7 @@ sub _wxform {
     $w = uc($w) if $o->{u};
     $w = lc($w) if $o->{l};
     $w =~ s{/+}{%252F}gos if $o->{"%"};
+    $w =~ s/ +/%20/gos if $o->{b};
     $w =~ tr{/}{ } if $o->{f};
     $w =~ s{/+}{/}gos if !$o->{f} && !$o->{v};
     if ($o->{d}) {
@@ -3805,16 +3806,24 @@ I<wikipat> where the default I<wikipat> if none is given is C<%{s(:md)}.html>.
 If the given I<wikipat> does not contain a C<%{...}> placeholder sequence
 then it will automatically have C<%{s(:md)}.html> suffixed to it.
 
-The C<...> part of the C<%{...}> sequence specifies zero or more case-insensitive
-single-letter options with the following effects:
+The C<...> part of the C<%{...}> sequence specifies zero or more
+case-insensitive single-letter options with the following effects:
 
 =over
 
+=item B<b>
+
+Retain blanks (aka spaces) in the output.  They will become C<%20>
+in the final URL.  Because spaces are always trimmed before processing
+wiki links, runs of multiple spaces will be collapsed into a single
+space and any leading or trailing spaces will be removed.
+
 =item B<d>
 
-Convert spaces to dashes (ASCII 0x2D) instead of underscore (ASCII 0x5F).  Note
-that if this option is given then runs of multiple dashes will be converted to
-a single dash I<instead> but runs of multiple underscores will be left untouched.
+Convert spaces to dashes (ASCII 0x2D) instead of underscore (ASCII
+0x5F).  Note that if this option is given then runs of multiple
+dashes will be converted to a single dash I<instead> but runs of
+multiple underscores will be left untouched.
 
 =item B<f>
 
