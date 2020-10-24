@@ -660,8 +660,8 @@ sub ProcessRaw {
 #   wikiopt     => HASH ref of options affecting wiki links processing.
 #               best set with SetWikiOpts (see SetWikiOpts comments).
 #   wikifunc    => if set to a CODE ref, the function will be called with
-#               five arguments like so:
-#                 $result = &$wikifunc($iresult, \%options, $link, $wbase, $qf)
+#               six arguments like so:
+#                 $result = &$wikifunc($iresult, \%opts, $link, $wbase, $qf, $io)
 #               where on input $iresult is the result that would be produced
 #               if no wikifunc was provided and on output $result will be
 #               used as the wiki expansion.  $link is the original wiki
@@ -670,8 +670,18 @@ sub ProcessRaw {
 #               and then transforming that according to the wikiopt HASH ref.
 #               $qf contains either an empty string or the stripped off
 #               query string and/or fragment if one was originally present.
+#               If $io is a HASH ref (otherwise it will be undef), then it's
+#               a wiki image link and %$io contains the options (if any) where
+#               the keys that might be present include "width", "height", "align"
+#               and "alt".  If present, width and height are guaranteed to be
+#               positive integers and align is guaranteed to be "left", "right"
+#               or "center".  The value for "alt" may be the empty string.
+#               The "imgflag" key has a SCALAR ref value and if the value it
+#               refers to is changed to any false value the result will become
+#               an A tag rather than an IMG tag.
 #               The $iresult value is related to the other arguments like so:
-#                 $iresult = $options->{wikipat};
+#                 $iresult = $opts->{wikipat};
+#                 $iresult =~ s/%\{\}.+$/%{}/ if ref($io) eq "HASH";
 #                 $iresult = s/%\{\}/$wbase/;
 #                 $iresult .= $qf;
 #               Any provided wikifunc should treat the %options HASH as
@@ -1207,13 +1217,25 @@ sub _ProcessWikiLink {
     }
     if ($opt{wikipat}) {
 	my $o = $opt{wikiopt};
+	my $img_link = _strip($link_text);
+	my $img = 0;
 	my $qsfrag = "";
-	my $base = $link_loc;
-	if ($link_loc =~ /^(.*?)([?#].*)$/os) {
-	    ($base, $qsfrag) = ($1, $2);
+	my $base;
+	my $imgopts = undef;
+	if ($img_link =~ /^[^#?\s]+\.(?:png|gif|jpe?g|svgz?)$/i) {
+	    $base = _wxform($img_link, 1);
+	    $img = 1;
+	    $imgopts = _ParseWikiImgOpts($link_loc);
+	    $imgopts->{imgflag} = \$img;
+	} else {
+	    $base = $link_loc;
+	    if ($link_loc =~ /^(.*?)([?#].*)$/os) {
+		($base, $qsfrag) = ($1, $2);
+	    }
+	    $base = _wxform($base);
 	}
-	$base = _wxform($base);
 	my $result = $opt{wikipat};
+	$result =~ s/%\{\}.+$/%{}/os if $img;
 	$result =~ s/%\{\}/$base/;
 	if ($qsfrag =~ /^([^#]*)(#.+)$/os) {
 	    my ($q,$f) = ($1,$2);
@@ -1221,7 +1243,7 @@ sub _ProcessWikiLink {
 	    $qsfrag = $q . $f;
 	}
 	$result .= $qsfrag;
-	$result = &{$opt{wikifunc}}($result, \%opt, $link_loc, $base, $qsfrag)
+	$result = &{$opt{wikifunc}}($result, \%opt, ($img?$img_link:$link_loc), $base, $qsfrag, $imgopts)
 		if ref($opt{wikifunc}) eq 'CODE';
 	{
 	    use bytes;
@@ -1236,18 +1258,44 @@ sub _ProcessWikiLink {
 	    $result =~ s/(%(?![0-9A-F]{2})[0-9A-Fa-f]{2})/uc($1)/soge;
 	}
 	# Return the new link
-	return _MakeATag($result, $link_text);
+	return $img ? _MakeIMGTag($result, undef, undef, $imgopts) : _MakeATag($result, $link_text);
     }
     # leave it alone
     return undef;
 }
 
 
+sub _ParseWikiImgOpts {
+    my $alts = shift;
+    my %o = ();
+    # alt= consumes the rest of the line, do it first
+    if ($alts =~ /(?:^|,)\s*alt\s*=\s*(.*)$/ios) {
+	my $atext = $1;
+	$alts = substr($alts, 0, $-[0]);
+	$o{alt} = _strip($atext);
+    }
+    foreach my $kv (split(/\s*,\s*/, lc($alts))) {
+	if ($kv =~ /^\s*([^\s]+)\s*=\s*([^\s]+)\s*$/os) {
+	    my ($k, $v) = ($1, $2);
+	    if (($k eq "width" || $k eq "height") && $v =~ /^\d+$/) {
+		$o{$k} = 0+$v if $v > 0;
+		next;
+	    }
+	    if ($k eq "align" && ($v eq "left" || $v eq "right" || $v eq "center")) {
+		$o{$k} = $v;
+		next;
+            }
+	}
+    }
+    return \%o;
+}
+
+
 sub _wxform {
-    my $w = shift;
+    my ($w, $img) = @_;
     my $o = $opt{wikiopt};
     my $opt_s = $o->{s};
-    if ($opt_s) {
+    if (!$img && $opt_s) {
 	if (ref($opt_s)) {
 	    if ($w =~ m{^(.*)[.]([^./]*)$}) {
 		my ($base, $ext) = ($1, $2);
@@ -1495,10 +1543,11 @@ sub _FindFragmentMatch {
 # On input NONE of $url, $alt or $title should be xmlencoded
 # but $url should already be url-encoded if needed, but NOT g_escape_table'd
 sub _MakeIMGTag {
-    my ($url, $alt, $title) = @_;
+    my ($url, $alt, $title, $iopts) = @_;
     defined($url) or $url="";
     defined($alt) or $alt="";
     defined($title) or $title="";
+    ref($iopts) eq "HASH" or $iopts = {};
     return "" unless $url ne "";
 
     my ($w, $h, $lf, $rt) = (0, 0, '', '');
@@ -1512,20 +1561,28 @@ sub _MakeIMGTag {
     } elsif ($title =~ /^(.*)\((?!\))(<?)(>?)\)$/os) {
 	($title, $lf, $rt) = (_strip($1), $2, $3);
     }
+    $iopts->{align} = "center" if $lf && $rt;
+    $iopts->{align} = "left"   if $lf && !$rt;
+    $iopts->{align} = "right"  if !$lf && $rt;
+    $iopts->{width}  = $w if $w != 0;
+    $iopts->{height} = $h if $h != 0;
+    $iopts->{alt} = $alt if $alt ne "";
+    $iopts->{title} = $title if $title ne "";
+    my $iopt = sub { defined($iopts->{$_[0]}) ? $iopts->{$_[0]} : (@_ > 1 ? $_[1] : "") };
     my $result = '';
     $result .= $g_escape_table{'<'}."center".$g_escape_table{'>'}
-	if $lf && $rt;
+	if &$iopt("align") eq "center";
     $result .= $g_escape_table{'<'}."img src=\"" . _EncodeAttText($url) . "\"";
-    $result .= " align=\"left\"" if $lf && !$rt;
-    $result .= " align=\"right\"" if $rt && !$lf;
-    $result .= " alt=\"" . _EncodeAttText($alt) . "\"" if $alt ne "";
-    $result .= " width=\"$w\"" if $w != 0;
-    $result .= " height=\"$h\"" if $h != 0;
-    $result .= " title=\"" . _EncodeAttText($title) . "\"" if $title ne "";
+    $result .= " align=\"left\"" if &$iopt("align") eq "left";
+    $result .= " align=\"right\"" if &$iopt("align") eq "right";
+    $result .= " alt=\"" . _EncodeAttText($iopts->{alt}) . "\"" if &$iopt("alt") ne "";
+    $result .= " width=\"" . $iopts->{width} . "\"" if &$iopt("width",0) != 0;
+    $result .= " height=\"" . $iopts->{height} . "\"" if &$iopt("height",0) != 0;
+    $result .= " title=\"" . _EncodeAttText($iopts->{title}) . "\"" if &$iopt("title") ne "";
     $result .= " /" unless $opt{empty_element_suffix} eq ">";
     $result .= $g_escape_table{'>'};
     $result .= $g_escape_table{'<'}."/center".$g_escape_table{'>'}
-	if $lf && $rt;
+	if &$iopt("align") eq "center";
     return $result;
 }
 
@@ -3863,6 +3920,8 @@ followed by one of the case-insensitive I<< <ext> >> values.  As a special
 case, using the value C<:md> for one of the I<< <ext> >> values causes that
 value to be expanded to all known markdown extensions.
 
+When processing wiki image links, this option is ignored.
+
 =item B<u>
 
 Convert link target (excluding any query string and/or fragment) to UPPERCASE.
@@ -3888,6 +3947,10 @@ Finally, the I<wikipat> string gets its first placeholder (the C<%{...}>
 sequence) replaced with this computed value and the original query string
 and/or fragment is re-appended (if any were originally present) and
 URL-encoding is applied as needed to produce the actual final target URL.
+
+Note that when processing wiki image links, no extension stripping ever takes
+place (i.e. the "s" option is ignored) and anything after the placeholder (the
+C<%{...}> sequence) in the pattern is omitted from the result.
 
 See above option descriptions for possible available modifications.
 

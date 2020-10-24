@@ -823,7 +823,7 @@ Markdown supports two style of links: *inline* and *reference* by default.
 
 In both styles, the link text is delimited by [square brackets].
 
-Additionally, if enabled, Wiki Style Links are also supported, but
+Additionally, if enabled, [Wiki Style Links] are also supported, but
 they are delimited by doubled square brackets (e.g. `[[wiki link]]`)
 and have different semantics -- see the end of this section for that.
 
@@ -1064,8 +1064,41 @@ links above would generate these "a" tags:
       <a href="elsewhere.html#section">elsewhere#section</a>
       <a href="elsewhere.html#section">link here</a>
 
+If full wiki style links have been enabled (via the `--wiki` option),
+image links may be created using the wiki syntax like so:
+
+      [[some-image.png]]
+      [[other-image.jpg|alt=text for alt]]
+      [[image-left.svg|align=left]]
+      [[image-on-right.jpeg|align=right]]
+      [[in-a-div.gif|align=center]]
+      [[image-right.svg|align=left,alt=text for image]]
+      [[scaled.svg|width=200,height=100,alt=scaled image]]
+
+For a wiki style image link to be recognized, the "link" part (which
+is just the part to the left of the `|` if it's present), must:
+
+  * not have any embedded spaces (leading/trailing will be stripped)
+  * must end in a well-known image suffix (case insensitively)
+
+Currently only `.png`, `.gif`, `.jpg`, `.jpeg`, `.svg` and `.svgz`
+are recognized as "well-known image suffixes".
+
+If the optional "|..." part is present for a wiki image link, then
+the "alt=" part must be at the end as it will consume all the
+remaining text.  Currently only the "align=", "width=", "height="
+and "alt=" keywords are recognized.  Keywords are comma (",")
+separated (with optional surrounding whitespace).  Note that width
+and height are in pixels.
+
+Using either "left" or "right" for the "align=" keyword causes the
+image to be floated either left or right respectively.  Using
+"center" for the "align=" keyword causes the image to be placed in
+its own "div" with a "center" alignment.
+
 See the command line help (`Markdown.pl --help`) for more details
-on exactly how the wiki style links are transformed into "a" tags.
+on exactly how the wiki style links are transformed into "a"/"img"
+tags.
 
 
 ~~~~~~~~
