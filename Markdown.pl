@@ -327,11 +327,14 @@ sub _main {
 	'imageroot|i=s' => \$cli_opts{'imageroot'},
 	'wiki|w:s' => \$cli_opts{'wiki'},
 	'tabwidth|tab-width=s' => \$cli_opts{'tabwidth'},
-	'raw' => \$cli_opts{'raw'},
+	'raw' => sub { $cli_opts{'raw'} = 1 },
+	'raw-xml' => sub { $cli_opts{'raw'} = 1 },
+	'raw-html' => sub { $cli_opts{'raw'} = 2 },
 	'stylesheet|style-sheet' => \$cli_opts{'stylesheet'},
 	'no-stylesheet|no-style-sheet' => sub {$cli_opts{'stylesheet'} = 0},
 	'stub' => \$cli_opts{'stub'},
     );
+    defined($cli_opts{'raw'}) or $cli_opts{'raw'} = 0;
     my $stub = 0;
     if ($cli_opts{'stub'}) {
 	$stub = 1;
@@ -355,6 +358,8 @@ sub _main {
 	if !$options{'sanitize'} && $options{xmlcheck} == 2;
     die "--no-sanitize and --strip-comments are incompatible\n"
 	if !$options{'sanitize'} && $options{stripcomments};
+    die "--raw-html requires --validate-xml-internal\n"
+	if $cli_opts{'raw'} == 2 && $options{xmlcheck} != 2;
     if ($options{xmlcheck} == 1) {
 	eval { require XML::Simple; 1 } and $hasxml = 1 or $hasxml_err = $@;
 	eval { require XML::Parser; 1 } and $hasxmlp = 1 or $hasxmlp_err = $@ unless $hasxml;
@@ -391,6 +396,7 @@ sub _main {
     }
     if ($cli_opts{'raw'}) {
 	$raw = 1;
+	$options{htmlauto} = 1 if $cli_opts{'raw'} == 2;
     }
     $options{show_styles} = $cli_opts{'stylesheet'} if defined($cli_opts{'stylesheet'});
     $options{show_styles} = 1 if $stub && !defined($options{show_styles});
@@ -585,7 +591,7 @@ sub ProcessRaw {
     _SanitizeOpts(\%opt);
 
     # Sanitize all '<'...'>' tags if requested
-    $text = _SanitizeTags($text, $opt{xmlcheck} == 2) if $opt{sanitize};
+    $text = _SanitizeTags($text, $opt{xmlcheck} == 2, $opt{htmlauto}) if $opt{sanitize};
 
     utf8::encode($text);
     return $text;
@@ -617,6 +623,17 @@ sub ProcessRaw {
 #               in which case any line/column numbers refer to the text that
 #               would be produced by a sanitize=>0, xmlcheck=>0 call to
 #               either ProcessRaw or Markdown, NOT the original input text.
+#   htmlauto => any-false-value (no auto close), any-true-value (auto-close)
+#               only effective for ProcessRaw; always enabled for Markdown.
+#               when xmlcheck is set to 2 provide html automatic closing tag
+#               and optional closing tag semantics where closing tags are
+#               automatically inserted when encountering an opening tag that
+#               auto closes a currently open tag and tags with an optional
+#               closing tag that's missing have that inserted as appropriate.
+#               a true value may result in some texts being rejected that
+#               would be otherwise be accepted (e.g. "<p><pre></pre></p>"
+#               which gets turned into "<p></p><pre></pre></p>" which then
+#               no longer validates).
 #   stripcomments => any-false-value (no action), any-true-value (strip).
 #               since the strip comments mechanism is a function of the
 #               sanitizer, if stripcomments is set to any-true-value then
@@ -863,7 +880,7 @@ sub Markdown {
     $text .= "\n" unless $text eq "";
 
     # Sanitize all '<'...'>' tags if requested
-    $text = _SanitizeTags($text, $opt{xmlcheck} == 2) if $opt{sanitize};
+    $text = _SanitizeTags($text, $opt{xmlcheck} == 2, 1) if $opt{sanitize};
 
     utf8::encode($text);
     if (defined($opt{h1}) && $opt{h1} ne "" && ref($_[0]) eq "HASH") {
@@ -2812,7 +2829,7 @@ BEGIN {
 # $1 => text to process
 # <= sanitized text
 sub _SanitizeTags {
-    my ($text, $validate) = @_;
+    my ($text, $validate, $htmlauto) = @_;
     $text =~ s/\s+$//;
     $text ne "" or return "";
     my @stack = ();
@@ -2821,7 +2838,7 @@ sub _SanitizeTags {
     pos($text) = 0;
     my ($autoclose, $autoclopen);
     my $lastmt = "";
-    $autoclose = sub {
+    $autoclose = $htmlauto ? sub {
 	my $s = $_[0] || "";
 	while (@stack &&
 	       ($stack[$#stack]->[0] ne $s || $_[1] && !$stack[$#stack]->[2]) &&
@@ -2829,8 +2846,8 @@ sub _SanitizeTags {
 	    $ans .= "</" . $stack[$#stack]->[0] . ">";
 	    pop(@stack);
 	}
-    } if $validate;
-    $autoclopen = sub {
+    } : sub {} if $validate;
+    $autoclopen = $htmlauto ? sub {
 	my $s = $_[0] || "";
 	my $c;
 	if ($tagblk{$s}) {$c = {p=>1}}
@@ -2849,7 +2866,7 @@ sub _SanitizeTags {
 		 pop(@stack);
 	    }
 	}
-    } if $validate;
+    } : sub {} if $validate;
     while (pos($text) < $end) {
 	if ($text =~ /\G(\s+)/gc) {
 	    $ans .= $1;
@@ -3576,7 +3593,8 @@ B<Markdown.pl> [B<--help>] [B<--html4tags>] [B<--htmlroot>=I<prefix>]
    -V | --version                       show version, authors, license
                                         and copyright
    -s | --shortversion                  show just the version number
-   --raw                                input contains only raw html
+   --raw | --raw-xml                    input contains only raw xhtml
+   --raw-html                           input contains only raw html
    --stylesheet                         output the fancy style sheet
    --no-stylesheet                      do not output fancy style sheet
    --stub                               wrap output in stub document
@@ -3971,14 +3989,14 @@ Display Markdown's version number and copyright information.
 Display the short-form version number.
 
 
-=item B<--raw>
+=item B<--raw>, B<--raw-xml>
 
-Input contains only raw HTML/XHTML.  All options other than
+Input contains only raw XHTML.  All options other than
 B<--html4tags>, B<--deprecated>, B<--sanitize> (on by default),
 B<--strip-comments>, B<--validate-xml> and B<--validate-xml-internal>
 (and their B<--no-...> variants) are ignored.
 
-With this option, arbitrary HTML/XHTML input can be passed through
+With this option, arbitrary XHTML input can be passed through
 the sanitizer and/or validator.  If sanitation is requested (the
 default), input must only contain the contents of the "<body>"
 section (i.e. no "<head>" or "<html>").  Output I<will> be converted
@@ -3988,6 +4006,45 @@ ISO-8859-1 or US-ASCII will end up mangled.
 
 Remember that any B<--stub> and/or B<--stylesheet> options are
 I<completely ignored> when B<--raw> is given.
+
+
+=item B<--raw-html>
+
+Input contains only raw HTML.  All options other than
+B<--html4tags>, B<--deprecated>, B<--sanitize> (on by default),
+B<--strip-comments>, and B<--validate-xml-internal>
+(and their B<--no-...> variants) are ignored.
+
+Requires the (possibly implicit) B<--validate-xml-internal> option.
+
+Works just like B<--raw-xml> except that HTML auto closing and
+optional closing tag semantics are activated during the validation
+causing missing closing tags to be inserted where required by the
+standard.  Non-raw mode always enables these semantics.
+
+This will transform HTML into valid XHTML fail with an error message.
+
+Unfortunately, it will also fail to accept some documents that
+the plain B<--raw-xml> option will.
+
+For example, this document:
+
+ <p><pre></pre></p>
+
+Will be rejected because upon encountering the C<< <pre> >> open
+tag a closing C<< </p> >> will automatically be inserted resulting
+in this document:
+
+ <p></p><pre></pre></p>
+
+Which, of course, no longer validates.  Since C<pre> blocks cannot
+actually be nested within C<p> blocks (according to the standard),
+the input document is not strictly correct.  In this case, an
+opening C<< <p> >> ought to be inserted before the final C<< </p> >>
+but that is currently beyond the capability of B<--raw-html>.
+
+Remember that any B<--stub> and/or B<--stylesheet> options are
+I<completely ignored> when B<--raw-html> is given.
 
 
 =item B<--stylesheet>
