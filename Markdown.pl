@@ -285,6 +285,27 @@ sub _strip {
 	$str;
 }
 
+my %_yamlmode;
+BEGIN {%_yamlmode = (
+    disable => 0,
+    reveal => 1,
+    enable => 1,
+    conceal => 1,
+    show => -1,
+    unknown => -1,
+    strip => -1
+)}
+my %_yamlvis;
+BEGIN {%_yamlvis = (
+    disable => 0,
+    reveal => 1,
+    enable => -1,
+    conceal => 0,
+    show => 1,
+    unknown => -1,
+    strip => 0
+)}
+
 #### BBEdit/command-line text filter interface ##########################
 sub _main {
     local *ARGV = \@_;
@@ -333,6 +354,7 @@ sub _main {
 	'stylesheet|style-sheet' => \$cli_opts{'stylesheet'},
 	'no-stylesheet|no-style-sheet' => sub {$cli_opts{'stylesheet'} = 0},
 	'stub' => \$cli_opts{'stub'},
+	'yaml:s' => \$cli_opts{'yaml'},
     );
     defined($cli_opts{'raw'}) or $cli_opts{'raw'} = 0;
     my $stub = 0;
@@ -401,6 +423,12 @@ sub _main {
     $options{show_styles} = $cli_opts{'stylesheet'} if defined($cli_opts{'stylesheet'});
     $options{show_styles} = 1 if $stub && !defined($options{show_styles});
     $options{tab_width} = 8 unless defined($options{tab_width});
+    my $ym = $cli_opts{'yaml'};
+    defined($ym) && $ym ne "" or $ym = "enable";
+    my $lcym = lc($ym);
+    exists($_yamlmode{$lcym}) or die "invalid --yaml= value '$ym'\n";
+    $options{yamlmode} = $_yamlmode{$lcym};
+    $options{yamlvis} = $_yamlvis{$lcym};
 
     my $hdrf = sub {
 	my $out = "";
@@ -551,7 +579,7 @@ sub _trimerr {
 
 
 sub _PrepareInput {
-    my $input = shift;
+    my ($input,$parseyaml) = @_;
     defined $input or $input = "";
     {
 	use bytes;
@@ -566,7 +594,43 @@ sub _PrepareInput {
     # Standardize line endings:
     $output =~ s{\r\n}{\n}g;  # DOS to Unix
     $output =~ s{\r}{\n}g;    # Mac to Unix
-    return $output;
+
+    # Extract YAML front matter if requested
+    my $yaml = undef;
+    if ($parseyaml) {
+	$yaml = {};
+	if ($output =~ /^---[ \t]*(?:\n|\z)/g) {
+	    until ($output =~ /\G(?:(?:(?:---)|(?:\.\.\.))[ \t]*(?:\n|\z)|\z)/gc) {
+		next if $output =~ m"\G[ \t]*(?:#[^\n]*)?\n"gc; # skip comment lines
+		next if $output =~ m"\G[ \t]*(?:#[^\n]*)\z"gc; # skip final no EOL comment
+		last unless $output =~ /\G([^\n]+)(?:\n|\z)/gc;
+		my $yl = $1;
+		if ($yl =~ /^([A-Za-z_][A-Za-z_0-9.-]*):[ \t]+(.*)$/os) {
+			my ($k, $v) = ($1, $2);
+			$yaml->{lc($k)} = _YAMLvalue($2);
+		}
+	    }
+	    $output = substr($output, pos($output));
+	}
+    }
+    return wantarray ? ($output, $yaml) : $output;
+}
+
+
+sub _YAMLvalue {
+	my $v = shift;
+	$v =~ s/^\s+//;
+	if (substr($v, 0, 1) eq '"') {
+		# only $ and/or @ present issues, map them
+		$v =~ tr/\@\$/\036\037/;
+		eval '{$v='.$v."\n}1" or $v = undef;
+		$v =~ tr/\036\037/\@\$/ if defined($v);
+	} else {
+		$v =~ s"#.*$""os;
+		$v =~ s/\s+$//os;
+		$v ne "" or $v = undef;
+	}
+	return $v;
 }
 
 
@@ -656,6 +720,22 @@ sub ProcessRaw {
 #               note that _main actually adds the style sheet (when
 #               requested); use GenerateStyleSheet to retrieve the
 #               fancy style sheet when calling Markdown directly.
+#   yamlmode   => 0 (no YAML processing), > 0 (YAML on), < 0 (YAML ignore)
+#               if 0, the YAML front matter processor is completely
+#               disabled and any YAML front matter that might be present
+#               will be treated as markup.  if > 0 any YAML front matter
+#               will be processed and any recognized options applied.
+#               if < 0 any YAML front matter will be parsed but no
+#               options will be applied at all.  When != 0 the parsed
+#               YAML front matter can be retrieved via the 'yaml' key.
+#   yamlvis    => 0 (invisible), > 0 (visible), < 0 (vis if unknown)
+#               if yamlmode == 0 then yamlvis has no effect.  if > 0
+#               then any parsed YAML front matter options will be shown
+#               in the formatted output.  if 0 then NO YAML front
+#               matter options will be shown in the formatted output.
+#               if < 0 then YAML front matter options will be shown in
+#               the formatted output only if there are any unrecognized
+#               options present.
 #   keepabs    => any-false-value (no action), any-true-value (keep)
 #               if true, any absolute path URLs remaining after applying
 #               any abs_prefix value will be kept and not be subject
@@ -721,7 +801,17 @@ sub ProcessRaw {
 #               note that literal <h1>...</h1> values are NOT picked up.
 #               will be left unchanged if no Markdown-style H1 detected.
 #               note that the value is NOT xml escaped but should be
-#               before embedding in an XHTML document.
+#               before embedding in an XHTML document.  If yamlmode > 0
+#               and a 'title' value has been encountered, then this
+#               will be set to that 'title' value instead (and the
+#               'title' key and value will still be present in %$yaml).
+#
+#   yaml       => if yamlmode is != 0 then this will be set to a HASH
+#               ref containing any parsed YAML front matter or left
+#               unchanged if no YAML front matter was found.  If the
+#               parsed YAML front matter contains only whitespace and/or
+#               comments then this will be set to a HASH ref that has
+#               no keys or values.
 #
 sub _SanitizeOpts {
     my $o = shift; # hashref
@@ -775,6 +865,43 @@ sub _SanitizeOpts {
     # picked up and stored (which will not happen if the key
     # already exists).
     delete $o->{h1};
+
+    # Default is to silently strip any YAML front matter
+    # Same comment about "yaml" key as above for "h1" key
+    $o->{yamlmode} = -1 unless looks_like_number($o->{yamlmode});
+    $o->{yamlvis} = 0 unless looks_like_number($o->{yamlvis});
+    delete $o->{yaml};
+}
+
+my %_yamlopts;
+BEGIN {%_yamlopts = map({$_ => 1} qw(
+	display_metadata
+	header_enum
+	title
+))}
+
+
+sub _HasUnknownYAMLOptions {
+    do { return 1 unless exists($_yamlopts{$_}) } foreach keys(%{$_[0]});
+    return 0;
+}
+
+
+sub _ApplyYAMLOpts {
+    my ($yaml, $opt) = @_;
+    if (defined($yaml->{display_metadata}) && $opt->{yamlvis} < 0) {
+	# ignore display_metadata except in --yaml=enable mode
+	$opt->{yamlvis} = _YAMLTrueValue($yaml->{display_metadata}) ? 1 : 0;
+    }
+    $opt->{h1} = $yaml->{title} if defined($yaml->{title});
+}
+
+
+sub _YAMLTrueValue {
+    my $v = shift;
+    defined($v) or $v = "";
+    $v = lc($v);
+    return !($v eq "" || $v eq "0" || $v eq "false" || $v eq "disable" || $v eq "off" || $v eq "no");
 }
 
 
@@ -806,7 +933,7 @@ sub Markdown {
 # _EscapeSpecialChars(), so that any *'s or _'s in the <a>
 # and <img> tags get encoded.
 #
-    my $text = _PrepareInput(shift);
+    my $text = shift;
 
     # Any remaining arguments after the first are options; either a single
     # hashref or a list of name, value pairs.  See _SanitizeOpts comments.
@@ -831,6 +958,10 @@ sub Markdown {
 	$opt{$k} = $v;
     }
     _SanitizeOpts(\%opt);
+
+    my $yaml;
+    ($text, $yaml) = _PrepareInput($text, $opt{yamlmode});
+    _ApplyYAMLOpts($yaml, \%opt) if ref($yaml) eq "HASH" && $opt{yamlmode} > 0;
 
     # Clear the globals. If we don't clear these, you get conflicts
     # from other articles when generating a page which contains more than
@@ -883,11 +1014,35 @@ sub Markdown {
     $text = _SanitizeTags($text, $opt{xmlcheck} == 2, 1) if $opt{sanitize};
 
     utf8::encode($text);
-    if (defined($opt{h1}) && $opt{h1} ne "" && ref($_[0]) eq "HASH") {
-	utf8::encode($opt{h1});
-	${$_[0]}{h1} = $opt{h1};
+    if (ref($_[0]) eq "HASH") {
+	if (defined($opt{h1}) && $opt{h1}) {
+	    utf8::encode($opt{h1});
+	    ${$_[0]}{h1} = $opt{h1};
+	}
+	${$_[0]}{yaml} = $yaml if ref($yaml) eq "HASH";
     }
-    return $text;
+    my $yamltable = "";
+    if (ref($yaml) eq "HASH" && %$yaml && $opt{yamlmode} && $opt{yamlvis}) {
+	if ($opt{yamlvis} > 0 || _HasUnknownYAMLOptions($yaml)) {
+	    my ($hrows, $drows) = ("", "");
+	    foreach (sort(keys(%$yaml))) {
+		my $v = $yaml->{$_};
+		my $rspn = '';
+		if (defined($v)) {
+		    $v =~ s/&/&amp;/g;
+		    $v =~ s/</&lt;/g;
+		    utf8::encode($v);
+		    $drows .= "<td>" . $v . "</td>\n";
+		} else {
+		    $rspn = " class=\"$opt{style_prefix}yaml-undef-value\" rowspan=\"2\" valign=\"top\"";
+		}
+		$hrows .= "<th$rspn>" . $_ . "</th>\n";
+	    }
+	    $yamltable = "<table class=\"$opt{style_prefix}yaml-table\" border=\"1\">\n" .
+		"<tr>\n$hrows</tr>\n<tr>\n$drows</tr>\n</table>\n";
+	}
+    }
+    return $yamltable.$text;
 }
 
 
@@ -3429,6 +3584,19 @@ table.%(base)table, table.%(base)table th, table.%(base)table td {
 	border-spacing: 0;
 	border: thin solid;
 }
+table.%(base)yaml-table {
+	border-collapse: collapse;
+}
+table.%(base)yaml-table * {
+	border: thin solid;
+}
+table.%(base)yaml-table th {
+	text-align: center;
+}
+table.%(base)yaml-table th, table.%(base)yaml-table td {
+	padding-left: 0.5ex;
+	padding-right: 0.5ex;
+}
 
 ol.%(base)ol {
 	counter-reset: %(base)item;
@@ -3590,6 +3758,7 @@ B<Markdown.pl> [B<--help>] [B<--html4tags>] [B<--htmlroot>=I<prefix>]
    -r prefix | --htmlroot=prefix        append relative non-img URLs to prefix
    -i prefix | --imageroot=prefix       append relative img URLs to prefix
    -w [wikipat] | --wiki[=wikipat]      activate wiki links using wikipat
+   --yaml[=(enable|disable|strip|...)]  select YAML front matter processing
    -V | --version                       show version, authors, license
                                         and copyright
    -s | --shortversion                  show just the version number
@@ -3977,6 +4146,103 @@ to using C<%{dfv}> as the placeholder.
 
 One of the commonly used wiki platforms does something similar to using C<%{%}>
 as the placeholder.
+
+
+=item B<--yaml>[=I<yamlmode>]
+
+Select YAML front matter processing.  The optional I<yamlmode> value
+must be one of the following:
+
+=over
+
+=item B<enable>
+
+Recognize any YAML front matter and apply any options specified
+therein.  If any unrecognized options are present, the options will
+also be shown in the formatted output.
+
+This is the default I<yamlmode> if omitted.
+
+=item B<disable>
+
+No YAML front matter processing at all takes place.  If YAML front
+matter is present, it will be treated as regular non-YAML markup
+text to be processed.
+
+=item B<strip>
+
+If YAML front matter is present, it will be stripped and completely
+ignored before beginning to process the rest of the input.
+
+In this mode, any options in the YAML front matter that would have
+otherwise been recognized will I<not have any effect!>
+
+=item B<show>
+
+If YAML front matter is present and contains anything other than
+comments, the non-comments parts will be shown in the formatted
+output.
+
+In this mode, any options in the YAML front matter that would have
+otherwise been recognized will I<not have any effect!>
+
+This is a show-only mode.
+
+=item B<reveal>
+
+This mode works just like the B<enable> mode except that if the
+YAML front matter contains anything other than comments, then
+I<all> of the non-comments parts will be shown in the formatted
+output.
+
+In this mode, any recognized options in the YAML front matter I<are>
+processed the same way they would be in the B<enable> mode except
+that any option to suppress the B<reveal> mode is ignored.
+
+=item B<conceal>
+
+This mode works just like the B<enable> mode except that no options
+are ever shown in the formatted output regardless of whether or not
+there are any unrecognized options present.
+
+In this mode, any recognized options in the YAML front matter I<are>
+processed the same way they would be in the B<enable> mode except
+that any option to suppress the B<conceal> mode is ignored.
+
+=item B<unknown>
+
+This mode works just like the B<show> mode if any unrecognized
+YAML front matter options are present.  Otherwise it works like
+the B<strip> mode.
+
+In this mode, any options in the YAML front matter that would have
+otherwise been recognized will I<not have any effect!>
+
+=back
+
+If B<--raw>, B<--raw-xml> or B<--raw-html> has been specified then
+the default if no B<--yaml> option has been given is B<--yaml=disable>.
+
+Otherwise the default if no B<--yaml> option has been given is
+B<--yaml=enable>.
+
+Note that only a limited subset of YAML is recognized.  Specifically
+only comments, and top-level single-line S<C<key: value>> items
+where key must be plain (i.e. non-quoted), start with a letter or
+underscore and contain only letters, underscores, hyphens (C<->),
+periods (C<.>) and digits.  Keys are case-insensitive (i.e. converted
+to lowercase).  As with YAML, at least one whitespace is required
+between the ":" and the value (unless it's the empty value).
+
+Values may be either plain or double-quoted (single-quoted is not
+recognized).  The double-quoted style may use C-style character
+escape codes but may not extend past the end of the line.
+
+For YAML front matter to be recognized, the very first line of the
+document must be exactly three hyphens (C<--->).  The YAML terminates
+when a line of three hyphens (C<--->) or a line of three periods
+(C<...>) or the end of the file is encountered.  Of course the YAML
+mode must also be something I<other> than B<--yaml=disable>.
 
 
 =item B<-V>, B<--version>
