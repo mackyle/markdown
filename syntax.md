@@ -30,6 +30,7 @@ Markdown: Syntax
     *   [Automatic Links]
     *   [Backslash Escapes]
     *   [XML Comments]
+    *   [YAML Front Matter]
 
 
 **Note:** This document is itself written using Markdown; you
@@ -1443,3 +1444,110 @@ comments from the final output.
 
 [xml]: <https://www.w3.org/TR/xml/#sec-comments>
        "XML Comments Specification"
+
+
+~~~~~~~~~~~~~~~~~
+YAML Front Matter
+~~~~~~~~~~~~~~~~~
+
+Unless disabled (see `Markdown.pl --help`), by default any YAML
+front matter that may be present will be stripped and processed
+before handling the rest of the document.
+
+To add YAML front matter, the very first line of the document
+must be exactly three (3) hyphens (`---`).
+
+The YAML front matter continues until a line consisting of
+exactly three (3) hyphens (`---`) or dots (`...`) or the end
+of the document is encountered.
+
+For maximum compatibility with some other markdown processors,
+end the YAML front matter with three (3) hyphens (`---`).
+
+Only very basic YAML processing directives are recognized:
+
+  * Blank lines
+  * YAML comments
+  * `key: ` _<value>_
+
+The _<value>_ part may be either bare or inside double quotes
+(in which case standard escapes are recognized).
+
+For example this document:
+
+      ---
+      # This is a YAML comment
+      title: This Is The Title
+      ...
+      This is the first *markdown* format line.
+
+contains YAML front matter that specifies a "title" value of
+"This Is The Title".
+
+This document:
+
+      ---
+      title: "Yes, Quoted\tTitle"
+      header_enum: true # comments allowed here too
+
+      # If display_metadata is set to true, then
+      # all YAML front matter values will be shown in
+      # a table prefixed to the output document.
+      #
+      # If display_metadata is set to false, then
+      # no such table will ever be prefixed to the output.
+      #
+      # If display_metadata is not set, then a table will
+      # only be prefixed if any unknown settings are encountered.
+
+      display_metadata: true
+      ---
+      # Main Header
+      first paragraph
+
+      Sub Header
+      ----------
+
+      first sub paragraph
+
+      ## Another Sub
+
+      second sub paragraph
+
+      Second Header
+      =============
+
+      third sub
+      ---------
+
+      sub sub para
+      ~~~~~~~~~~~~
+
+      first sub sub paragraph
+
+will produce this output:
+
+      <table>
+      <tr><th>display_metadata</th><th>header_enum</th><th>title</th></tr>
+      <tr><td>true</td><td>true</td><td>Yes, Quoted	Title</td></tr>
+      </table>
+      <h1>1 Main Header</h1>
+      <p>first paragraph</p>
+      <h2>1.1 Sub Header</h2>
+      <p>first sub paragraph</p>
+      <h2>1.2 Another Sub</h2>
+      <p>second sub paragraph</p>
+      <h1>2 Second Header</h1>
+      <h2>2.1 third sub</h2>
+      <h3>2.1.1 sub sub para</h3>
+      <p>first sub sub paragraph</p>
+
+Notice that a table of metadata was prefixed because `header_enum`
+was set to `true` in the YAML front matter.
+
+Additionally, the headers were automatically numbered in a hierarchical
+fashion.
+
+If the output document was generated using `Markdown.pl --stub` then the
+title as shown in the prefixed table would have been used for the `<title>`
+of the document -- notice how the `\t` was expanded to a real tab character.
