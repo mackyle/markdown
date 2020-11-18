@@ -4337,6 +4337,11 @@ Wrap the output in a full document stub (i.e. has C<html>, C<head> and C<body>
 tags).  The style sheet I<will> be included in the C<head> section unless the
 B<--no-stylesheet> option is also used.
 
+The C<< <title> >> value for a document produced with the B<--stub> option
+comes from the first markdown markup C<h1> that's generated unless YAML
+processing has been enabled (the default) and a C<title> YAML value has
+been set in which case that always takes precedence.
+
 
 =item B<-h>, B<--help>
 
