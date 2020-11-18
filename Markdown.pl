@@ -91,6 +91,7 @@ my %g_html_blocks;
 my %g_code_blocks;
 my @g_xml_comments;
 my %opt;
+my @autonum;
 
 # Return a "block id" to use to identify the block that does not contain
 # any characters that could be misinterpreted by the rest of the code
@@ -348,6 +349,7 @@ sub _main {
 	'imageroot|i=s' => \$cli_opts{'imageroot'},
 	'wiki|w:s' => \$cli_opts{'wiki'},
 	'tabwidth|tab-width=s' => \$cli_opts{'tabwidth'},
+	'autonumber|auto-number' => \$cli_opts{'autonumber'},
 	'raw' => sub { $cli_opts{'raw'} = 1 },
 	'raw-xml' => sub { $cli_opts{'raw'} = 1 },
 	'raw-html' => sub { $cli_opts{'raw'} = 2 },
@@ -393,6 +395,7 @@ sub _main {
 	die "invalid tab width (must be >= 2 and <= 32)\n" unless $tw >= 2 && $tw <= 32;
 	$options{tab_width} = int(0+$tw);
     }
+    $options{auto_number} = 6 if $cli_opts{'autonumber'};
     $options{keepabs} = $cli_opts{'keepabs'};
     $options{abs_prefix} = "";  	# no abs prefix by default
     if ($cli_opts{'absroot'}) { 	# Use abs prefix for absolute path URLs
@@ -720,6 +723,8 @@ sub ProcessRaw {
 #               note that _main actually adds the style sheet (when
 #               requested); use GenerateStyleSheet to retrieve the
 #               fancy style sheet when calling Markdown directly.
+#   auto_number => <= 0 (default) no numbering, 1 number h1s,
+#               2 number h1s, h2s, 3 number h1-h3s, ... >= 6 number h1-h6s
 #   yamlmode   => 0 (no YAML processing), > 0 (YAML on), < 0 (YAML ignore)
 #               if 0, the YAML front matter processor is completely
 #               disabled and any YAML front matter that might be present
@@ -844,6 +849,15 @@ sub _SanitizeOpts {
 	1 <= $o->{indent_width} && $o->{indent_width} <= 32;
     $o->{indent_width} = int($o->{indent_width});
 
+    defined($o->{auto_number}) or $o->{auto_number} = '';
+    $o->{auto_number} eq '' || looks_like_number($o->{auto_number})
+	or $o->{auto_number} = 6;
+    if ($o->{auto_number} ne '') {
+	$o->{auto_number} = int(0+$o->{auto_number});
+	$o->{auto_number} >= 0 or $o->{auto_number} = 0;
+	$o->{auto_number} <= 6 or $o->{auto_number} = 6;
+    }
+
     defined($o->{style_prefix}) or $o->{style_prefix} = $g_style_prefix;
 
     $o->{abs_prefix} = _MakePrefixCODERef($o->{abs_prefix}, 1)
@@ -894,6 +908,9 @@ sub _ApplyYAMLOpts {
 	$opt->{yamlvis} = _YAMLTrueValue($yaml->{display_metadata}) ? 1 : 0;
     }
     $opt->{h1} = $yaml->{title} if defined($yaml->{title});
+    if (defined($yaml->{header_enum}) && $opt->{auto_number} eq '') {
+	$opt->{auto_number} = _YAMLTrueValue($yaml->{header_enum}) ? 6 : 0;
+    }
 }
 
 
@@ -948,6 +965,7 @@ sub Markdown {
 	img_prefix		=> "", # Prefixed to non-absolute image URLs
 	base_prefix		=> "", # Prefixed to fragment-only URLs
     );
+    @autonum = ();
     my %args = ();
     if (ref($_[0]) eq "HASH") {
 	%args = %{$_[0]};
@@ -1002,6 +1020,10 @@ sub Markdown {
 
     # Remove indentation markers
     $text =~ s/\027+//gs;
+
+    # Expand auto number flags
+    $text =~ s/\034([1-6])/_AutoHeaderNum(ord($1)&0x7)/gse
+	if $opt{auto_number} ne '' && $opt{auto_number} > 0;
 
     # Unhashify code blocks
     $text =~ s/(\025\d+\026)/$g_code_blocks{$1}/g;
@@ -1945,7 +1967,7 @@ sub _DoHeaders {
 	    $id = " id=\"$id\"" if $id ne "";
 	    my $rsg = _RunSpanGamut($h);
 	    &$geth1($rsg) if $h_level == 1 && $h ne "";
-	    "<h$h_level$id>" . $rsg . "</h$h_level>\n\n";
+	    "<h$h_level$id>" . _AutoHeaderFlag($h_level) . $rsg . "</h$h_level>\n\n";
 	}egmx;
 
     # Setext-style headers:
@@ -1964,25 +1986,44 @@ sub _DoHeaders {
 	$id = " id=\"$id\"" if $id ne "";
 	my $rsg = _RunSpanGamut($h);
 	&$geth1($rsg);
-	"<h1$id>" . $rsg . "</h1>\n\n";
+	"<h1$id>" . _AutoHeaderFlag(1) . $rsg . "</h1>\n\n";
     }egmx;
 
     $text =~ s{ ^(?:-+[ ]*\n)?[ ]*(.+?)[ ]*\n-+[ ]*\n+ }{
 	my $h = $1;
 	my $id = _GetNewAnchorId($h);
 	$id = " id=\"$id\"" if $id ne "";
-	"<h2$id>" . _RunSpanGamut($h) . "</h2>\n\n";
+	"<h2$id>" . _AutoHeaderFlag(2) . _RunSpanGamut($h) . "</h2>\n\n";
     }egmx;
 
     $text =~ s{ ^(?:~+[ ]*\n)?[ ]*(.+?)[ ]*\n~+[ ]*\n+ }{
 	my $h = $1;
 	my $id = _GetNewAnchorId($h);
 	$id = " id=\"$id\"" if $id ne "";
-	"<h3$id>" . _RunSpanGamut($h) . "</h3>\n\n";
+	"<h3$id>" . _AutoHeaderFlag(3) . _RunSpanGamut($h) . "</h3>\n\n";
     }egmx;
 
     $opt{h1} = $h1 if defined($h1) && $h1 ne "";
     return $text;
+}
+
+
+sub _AutoHeaderFlag {
+    my $level = shift;
+    my $auto = $opt{auto_number} || 0;
+    return '' unless 1 <= $level && $level <= $auto;
+    return "\34".chr(0x30+$level);
+}
+
+
+sub _AutoHeaderNum {
+    my $level = shift;
+    my $auto = $opt{auto_number} || 0;
+    return '' unless 1 <= $level && $level <= $auto;
+    pop(@autonum) while @autonum > $level;
+    push(@autonum, 1) while @autonum < $level - 1;
+    $autonum[$level - 1] += 1;
+    return join('.', @autonum).' ';
 }
 
 
@@ -3752,6 +3793,7 @@ B<Markdown.pl> [B<--help>] [B<--html4tags>] [B<--htmlroot>=I<prefix>]
    --strip-comments                     remove XML comments from output
    --no-strip-comments                  do not remove XML comments (default)
    --tabwidth=num                       expand tabs to num instead of 8
+   --auto-number                        automatically number h1-h6 headers
    -k | --keep-abs                      keep abspath URLs despite -r/-i
    -a prefix | --absroot=prefix         append abspath URLs to prefix
    -b prefix | --base=prefix            prepend prefix to fragment-only URLs
@@ -3978,6 +4020,14 @@ backticks-delimited code blocks will always be expanded to 8-character tab
 stop positions no matter what value is used for this option.
 
 The value must be S<2 <= I<num> <= 32>.
+
+
+=item B<--auto-number>
+
+Automatically number all h1-h6 headings generated from Markdown markup.
+Explicit C<< <h1> >> ... C<< <h6> >> tag content remains unmolested.
+
+If this option is given, any YAML C<header_enum> setting will be ignored.
 
 
 =item B<-k>, B<--keep-abs>
