@@ -556,7 +556,7 @@ sub GenerateStyleSheet {
     my $prefix = shift;
     defined($prefix) or $prefix = $g_style_prefix;
     my $stylesheet = $g_style_sheet;
-    $stylesheet =~ s/%\(base\)/$g_style_prefix/g;
+    $stylesheet =~ s/%\(base\)/$prefix/g;
     return $stylesheet;
 }
 
