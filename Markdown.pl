@@ -2996,9 +2996,9 @@ BEGIN {
     %tagocl = map({$_ => 1} qw(colgroup dd dt li p tbody td tfoot th thead tr));
     %tagacl = (
 	'colgroup' => \%tagocl,
-	'dd' => \%tagocl,
-	'dt' => \%tagocl,
-	'li' => \%tagocl,
+	'dd' => { map({$_ => 1} qw(colgroup dd dt li p)) },
+	'dt' => { map({$_ => 1} qw(colgroup dd dt li p)) },
+	'li' => { map({$_ => 1} qw(colgroup dd dt li p)) },
 	'tbody' => \%tagocl,
 	'td' => { map({$_ => 1} qw(colgroup dd dt li p td tfoot th thead)) },
 	'tfoot' => \%tagocl,
