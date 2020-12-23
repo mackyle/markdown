@@ -1152,8 +1152,8 @@ sub _StripLinkDefinitions {
 
 my ($block_tags_a, $block_tags_b);
 BEGIN {
-    $block_tags_a = qr/\020|p|div|h[1-6]|blockquote|pre|table|dl|ol|ul|script|noscript|form|fieldset|iframe|math|ins|del/io;
-    $block_tags_b = qr/\020|p|div|h[1-6]|blockquote|pre|table|dl|ol|ul|script|noscript|form|fieldset|iframe|math/io;
+    $block_tags_a = qr/\020|p|div|center|h[1-6]|blockquote|pre|table|dl|ol|ul|script|noscript|form|fieldset|iframe|math|ins|del/io;
+    $block_tags_b = qr/\020|p|div|center|h[1-6]|blockquote|pre|table|dl|ol|ul|script|noscript|form|fieldset|iframe|math/io;
 }
 
 sub _HashHTMLBlocks {
@@ -3006,7 +3006,7 @@ BEGIN {
 	'thead' => \%tagocl,
 	'tr' => { map({$_ => 1} qw(colgroup dd dt li p td tfoot th thead tr)) },
     );
-    %tagblk = map({$_ => 1} qw(address blockquote div dl h1 h2 h3 h4 h5 h6 hr ol p pre table));
+    %tagblk = map({$_ => 1} qw(address blockquote center div dl h1 h2 h3 h4 h5 h6 hr ol p pre table));
     %impatt = map({$_ => 1} qw(checked compact ismap nohref noshade nowrap));
     %lcattval = map({$_ => 1} qw(
 	align border cellpadding cellspacing checked clear color colspan
