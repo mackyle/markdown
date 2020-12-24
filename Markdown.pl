@@ -3006,7 +3006,7 @@ BEGIN {
 	'thead' => \%tagocl,
 	'tr' => { map({$_ => 1} qw(colgroup dd dt li p td tfoot th thead tr)) },
     );
-    %tagblk = map({$_ => 1} qw(address blockquote center div dl h1 h2 h3 h4 h5 h6 hr ol p pre table));
+    %tagblk = map({$_ => 1} qw(address blockquote center div dl h1 h2 h3 h4 h5 h6 hr ol p pre table ul));
     %impatt = map({$_ => 1} qw(checked compact ismap nohref noshade nowrap));
     %lcattval = map({$_ => 1} qw(
 	align border cellpadding cellspacing checked clear color colspan
