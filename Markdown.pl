@@ -1011,7 +1011,7 @@ sub Markdown {
     $text =~ s/^ +$//mg;
 
     # Turn block-level HTML blocks into hash entries
-    $text = _HashHTMLBlocks($text);
+    $text = _HashHTMLBlocks($text, 1);
 
     # Strip link definitions, store in hashes.
     $text = _StripLinkDefinitions($text);
@@ -1150,6 +1150,7 @@ sub _StripLinkDefinitions {
     return $text;
 }
 
+my %ok_tag_name; # initialized later
 my ($block_tags_a, $block_tags_b);
 BEGIN {
     $block_tags_a = qr/\020|p|div|center|h[1-6]|blockquote|pre|table|dl|ol|ul|script|noscript|form|fieldset|iframe|math|ins|del/io;
@@ -1157,9 +1158,12 @@ BEGIN {
 }
 
 sub _HashHTMLBlocks {
-    my $text = shift;
+    my ($text, $toplevel) = @_;
     my $less_than_indent = $opt{indent_width} - 1;
     my $idt = "\027" x $g_list_level;
+    my $blkprc = $toplevel ?
+	sub { return $ok_tag_name{$_[1]} ? _EncodeAmpsAndAngles($_[0]) : $_[0] } :
+	sub { return $_[0] };
 
     # Hashify HTML blocks:
     # We only want to do this for block-level HTML tags, such as headers,
@@ -1191,8 +1195,9 @@ sub _HashHTMLBlocks {
 		    (?=\n+|\Z) # followed by a newline or end of document
 		)
 	    }{
-		my $key = block_id($1);
-		$g_html_blocks{$key} = $1;
+		my $blk = &$blkprc($1, $3);
+		my $key = block_id($blk);
+		$g_html_blocks{$key} = $blk;
 		"\n\n" . $key . "\n\n";
 	    }eigmx;
 
@@ -1212,8 +1217,9 @@ sub _HashHTMLBlocks {
 		    (?=\n+|\Z) # followed by a newline or end of document
 		)
 	    }{
-		my $key = block_id($1);
-		$g_html_blocks{$key} = $1;
+		my $blk = &$blkprc($1, $2);
+		my $key = block_id($blk);
+		$g_html_blocks{$key} = $blk;
 		"\n\n" . $key . "\n\n";
 	    }eigmx;
 
@@ -2874,8 +2880,8 @@ sub _FormParagraphs {
 }
 
 
+# %ok_tag_name declared previously
 my $g_possible_tag_name;
-my %ok_tag_name;
 BEGIN {
     # note: length("blockquote") == 10
     $g_possible_tag_name = qr/(?i:[a-z]{1,10}|h[1-6]|\020)/o;
