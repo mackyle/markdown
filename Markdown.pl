@@ -3315,8 +3315,15 @@ sub _ProcessURLTag {
 }
 
 
+my $oops_entities;
+BEGIN { $oops_entities = qr/(?:lt|gt|amp|quot|apos|nbsp)/io; }
+
+
 sub _HTMLEncode {
     my $text = shift;
+
+    # Treat these accidents as though they had the needed ';'
+    $text =~ s/&($oops_entities)(?![A-Za-z0-9=;])/&$1;/go;
 
     # Ampersand-encoding based entirely on Nat Irons's Amputator MT plugin:
     #   http://bumppo.net/projects/amputator/
@@ -3335,6 +3342,9 @@ sub _HTMLEncode {
 sub _EncodeAmps {
     my $text = shift;
 
+    # Treat these accidents as though they had the needed ';'
+    $text =~ s/&($oops_entities)(?![A-Za-z0-9=;])/&$1;/go;
+
     # Ampersand-encoding based entirely on Nat Irons's Amputator MT plugin:
     #   http://bumppo.net/projects/amputator/
     $text =~ s/&(?!#?[xX]?(?:[0-9a-fA-F]+|\w+);)/&amp;/g;
@@ -3347,6 +3357,9 @@ sub _EncodeAmpsAndAngles {
 # Smart processing for ampersands and angle brackets that need to be encoded.
 
     my $text = shift;
+
+    # Treat these accidents as though they had the needed ';'
+    $text =~ s/&($oops_entities)(?![A-Za-z0-9=;])/&$1;/go;
 
     # Ampersand-encoding based entirely on Nat Irons's Amputator MT plugin:
     #   http://bumppo.net/projects/amputator/
