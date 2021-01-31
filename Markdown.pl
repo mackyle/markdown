@@ -3079,7 +3079,7 @@ sub _SanitizeTags {
 		push(@stack,["p",pos($text)-length($1)]);
 		$ans .= "<p>";
 	    }
-	    $ans .= $1;
+	    $ans .= _EncodeAmps($1);
 	    $lastmt = "";
 	    next;
 	}
@@ -3138,7 +3138,7 @@ sub _SanitizeTags {
 		next;
 	    } else {
 		$tag =~ s/^</&lt;/;
-		$ans .= $tag;
+		$ans .= _EncodeAmps($tag);
 		$lastmt = "";
 		next;
 	    }
@@ -3266,9 +3266,19 @@ sub _SanitizeAtt {
     $_[3]->{$att} = 1;
     $impatt{$att} and return $att."=".'"'.$att.'"';
     if ($lcattval{$att}) {
-	return $att."=".lc($_[1])." ";
+	return $att."="._SanitizeAttValue(lc($_[1]))." ";
     } else {
-	return $att."=".$_[1]." ";
+	return $att."="._SanitizeAttValue($_[1])." ";
+    }
+}
+
+
+sub _SanitizeAttValue {
+    my $v = shift;
+    if ($v =~ /^([\042\047])(.*?)\1$/) {
+	return $1._HTMLEncode($2).$1;
+    } else {
+	return '"'._HTMLEncode($v).'"';
     }
 }
 
@@ -3890,6 +3900,10 @@ C<< <p></p> >>.
 Combines adjacent (whitespace separated only) opening and closing tags for
 the same HTML empty element into a single minimized tag.  For example,
 C<< <br></br> >> will become C<< <br /> >>.
+
+Problematic C<&> characters are fixed up such as standalone C<&>s (or those not
+part of a valid entity reference) are turned into C<&amp;>.  Within attribute
+values, single and double quotes are turned into C<&> entity refs.
 
 This is enabled by default.
 
