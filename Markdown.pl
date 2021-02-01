@@ -3197,6 +3197,7 @@ sub _Sanitize {
 	my $out = "<" . $tt . " ";
 	my $ok = $tagatt{$tt};
 	ref($ok) eq "HASH" or $ok = {};
+	my $atc = 0;
 	while ($tag =~ /\G\s*([^\s\042\047<\/>=]+)((?>=)|\s*)/gcs) {
 	    my ($a,$s) = ($1, $2);
 	    if ($s eq "" && substr($tag, pos($tag), 1) =~ /^[\042\047]/) {
@@ -3207,10 +3208,12 @@ sub _Sanitize {
 		# it's one of "those" attributes (e.g. compact) or not
 		# _SanitizeAtt will fix it up if it is
 		$out .= _SanitizeAtt($a, '""', $ok, $seenatt);
+		++$atc;
 		next;
 	    }
 	    if ($tag =~ /\G([\042\047])((?:(?!\1)(?!<).)*)\1\s*/gcs) {
 		$out .= _SanitizeAtt($a, $1.$2.$1, $ok, $seenatt);
+		++$atc;
 		next;
 	    }
 	    if ($tag =~ /\G([\042\047])((?:(?!\1)(?![<>])(?![\/][>]).)*)/gcs) {
@@ -3219,6 +3222,7 @@ sub _Sanitize {
 		my ($q, $v) = ($1, $2);
 		$v =~ s/\s+$//;
 		$out .= _SanitizeAtt($a, $q.$v.$q, $ok, $seenatt);
+		++$atc;
 		next;
 	    }
 	    if ($tag =~ /\G([^\s<\/>]+)\s*/gcs) {
@@ -3226,10 +3230,12 @@ sub _Sanitize {
 		my $v = $1;
 		$v =~ s/\042/&quot;/go;
 		$out .= _SanitizeAtt($a, '"'.$v.'"', $ok, $seenatt);
+		++$atc;
 		next;
 	    }
 	    # give it an empty value
 	    $out .= _SanitizeAtt($a, '""', $ok, $seenatt);
+	    ++$atc;
         }
 	my $sfx = substr($tag, pos($tag));
 	$out =~ s/\s+$//;
@@ -3237,9 +3243,16 @@ sub _Sanitize {
 	if ($tagmt{$tt}) {
 	    $typ = ($tag =~ m,/>$,) ? 3 : -3;
 	    $out .= $opt{empty_element_suffix};
+	    return ("&lt;" . substr($tag,1), 0) if !$atc && $taga1p{$tt};
 	} else {
+	    if ($tag =~ m,/>$,) {
+		return ("&lt;" . substr($tag,1), 0) if !$atc && $taga1p{$tt};
+		$typ = 3;
+	    } else {
+		return ("&lt;" . substr($tag,1), 0) if !$atc && $taga1p{$tt};
+	    }
 	    $out .= ">";
-	    $out .= "</$tt>" and $typ = 3 if $tag =~ m,/>$,;
+	    $out .= "</$tt>" if $typ == 3;
 	}
 	return ($out,$typ,$autocloseflag);
     } elsif ($tag =~ /^<([^\s<\/>]+)/s) {
@@ -3913,6 +3926,22 @@ C<< <p></p> >>.
 Combines adjacent (whitespace separated only) opening and closing tags for
 the same HTML empty element into a single minimized tag.  For example,
 C<< <br></br> >> will become C<< <br /> >>.
+
+Tags that require at least one attribute to be present to be meaningful
+(e.g. C<a>, C<area>, C<img>, C<map>) but have none will be treated as non-tags
+potentially creating unexpected errors.  For example, the sequence
+C<< <a>text here</a> >> will be sanitized to C<< &lt;a>text here</a> >> since
+an C<a> tag without any attributes is meaningless, but then the trailing
+close tag C<< </a> >> will become an error because it has no matching open
+C<< <a ...> >> tag.
+
+The point of this check is not to cause undue frustration, but to allow
+such constructs to be used as text without the need for escaping since they
+are meaningless as tags.  For example, C<< <a><c><e> >> works just fine
+as plain text and so does C<< <A><C><E> >> because the
+C<< <a> >>/C<< <A> >> will be treated as a non-tag automatically.  In fact,
+they can even appear inside links too such as
+C<< <a href="#somewhere">Link to <a><c><e> article</a> >>.
 
 Problematic C<&> characters are fixed up such as standalone C<&>s (or those not
 part of a valid entity reference) are turned into C<&amp;>.  Within attribute
