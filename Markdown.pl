@@ -35,7 +35,8 @@ use Scalar::Util qw(refaddr looks_like_number);
 my ($hasxml, $hasxml_err); BEGIN { ($hasxml, $hasxml_err) = (0, "") }
 my ($hasxmlp, $hasxmlp_err); BEGIN { ($hasxmlp, $hasxmlp_err) = (0, "") }
 @ISA = qw(Exporter);
-@EXPORT_OK = qw(Markdown ProcessRaw GenerateStyleSheet SetWikiOpts);
+@EXPORT_OK = qw(Markdown ProcessRaw GenerateStyleSheet SetWikiOpts SplitURL
+		escapeXML unescapeXML);
 $INC{__PACKAGE__.'.pm'} = $INC{basename(__FILE__)} unless exists $INC{__PACKAGE__.'.pm'};
 
 close(DATA) if fileno(DATA);
@@ -669,7 +670,8 @@ sub ProcessRaw {
 #
 #   sanitize => any-false-value (no action), any-true-value (sanitize).
 #               note that an xmlcheck value of 2 or a true value of
-#               stripcomments always forces sanitize to activate.
+#               stripcomments or a urlfunc value that is a CODE ref
+#               always forces sanitize to activate.
 #               tag attributes are sanitized by removing all "questionable"
 #               attributes (such as script attributes, unknown attributes
 #               and so forth) and normalizing the remaining ones (i.e.
@@ -709,6 +711,30 @@ sub ProcessRaw {
 #   empty_element_suffix => " />" or ">"
 #               will be forced to " />" if not valid or defined.
 #               effective for both ProcessRaw and Markdown.
+#   urlfunc     => if set to a CODE ref, the function will be called with
+#               seven arguments like so:
+#                 $result = &$urlfunc($iresult, \%opts, $tag, $uhost, $uabs, $q, $f)
+#               where on input $iresult is the result that would be produced
+#               if no urlfunc was provided and on output $result will be
+#               used as url value.  $tag is either "img" or "a" to indicate the
+#               source of the url.  $uhost.$uabs is the result of stripping off
+#               any query string and/or fragment from $iresult.  $q contains either
+#               an empty string or the stripped off query string and $f contains
+#               an empty string or the stripped off fragment if they were originally
+#               present where a non-empty $q always starts with '?' and a non-empty
+#               $f always starts with '#'.  $uhost contains the scheme and
+#               host+port if present (it may be the empty string).  $uabs contains
+#               the path portion which may or may not start with a "/" depending on
+#               whether or not it's a relative path.  The $iresult value is related
+#               to the other arguments like so:
+#                 $iresult = $uhost . $uabs . $q . $f;
+#               All values passed to the urlfunc function have already been HTML
+#               unescaped and the returned value will be automatically HTML escaped.
+#               Any provided urlfunc should treat the %opts HASH as
+#               read-only.  Modifying the %opts HASH in urlfunc will
+#               likely result in unpredictable behavior!  Don't do it!
+#               If urlfunc is set to a CODE ref then tags will also always be
+#               sanitized.
 #
 #  The remaining key value pairs are ignored by ProcessRaw and are only
 #  effective when using Markdown or _main
@@ -786,8 +812,8 @@ sub ProcessRaw {
 #                 $iresult =~ s/%\{\}.+$/%{}/ if ref($io) eq "HASH";
 #                 $iresult = s/%\{\}/$wbase/;
 #                 $iresult .= $qf;
-#               Any provided wikifunc should treat the %options HASH as
-#               read-only.  Modifying the %options HASH in wikifunc will
+#               Any provided wikifunc should treat the %opts HASH as
+#               read-only.  Modifying the %opts HASH in wikifunc will
 #               likely result in unpredictable behavior!  Don't do it!
 #
 #  Special handling for abs_prefix, url_prefix, img_prefix and/or base_prefix
@@ -827,6 +853,7 @@ sub _SanitizeOpts {
     $o->{xmlcheck} = 2 if $o->{xmlcheck} > 2;
     $o->{sanitize} = 1 if $o->{stripcomments} && !$o->{sanitize};
     $o->{sanitize} = 1 if $o->{xmlcheck} == 2 && !$o->{sanitize};
+    $o->{sanitize} = 1 if ref($o->{urlfunc}) eq 'CODE' && !$o->{sanitize};
 
     # this is gross, but having the globals avoids unnecessary slowdown
     if ($o->{sanitize} && $o->{xmlcheck} == 2) {
@@ -1884,7 +1911,7 @@ sub _DoImages {
 sub _EncodeAttText {
     my $text = shift;
     defined($text) or return undef;
-    $text = _HTMLEncode(_strip($text));
+    $text = escapeXML(_strip($text));
     # We've got to encode these to avoid conflicting
     # with italics, bold and strike through.
     $text =~ s!([*_~:])!$g_escape_table{$1}!g;
@@ -3207,12 +3234,12 @@ sub _Sanitize {
 	    if (substr($s,0,1) ne "=") {
 		# it's one of "those" attributes (e.g. compact) or not
 		# _SanitizeAtt will fix it up if it is
-		$out .= _SanitizeAtt($a, '""', $ok, $seenatt);
+		$out .= _SanitizeAtt($a, '""', $ok, $seenatt, $tt);
 		++$atc;
 		next;
 	    }
 	    if ($tag =~ /\G([\042\047])((?:(?!\1)(?!<).)*)\1\s*/gcs) {
-		$out .= _SanitizeAtt($a, $1.$2.$1, $ok, $seenatt);
+		$out .= _SanitizeAtt($a, $1.$2.$1, $ok, $seenatt, $tt);
 		++$atc;
 		next;
 	    }
@@ -3221,7 +3248,7 @@ sub _Sanitize {
 		# trim trailing \s+ and magically add the missing quote
 		my ($q, $v) = ($1, $2);
 		$v =~ s/\s+$//;
-		$out .= _SanitizeAtt($a, $q.$v.$q, $ok, $seenatt);
+		$out .= _SanitizeAtt($a, $q.$v.$q, $ok, $seenatt, $tt);
 		++$atc;
 		next;
 	    }
@@ -3229,12 +3256,12 @@ sub _Sanitize {
 		# auto quote it
 		my $v = $1;
 		$v =~ s/\042/&quot;/go;
-		$out .= _SanitizeAtt($a, '"'.$v.'"', $ok, $seenatt);
+		$out .= _SanitizeAtt($a, '"'.$v.'"', $ok, $seenatt, $tt);
 		++$atc;
 		next;
 	    }
 	    # give it an empty value
-	    $out .= _SanitizeAtt($a, '""', $ok, $seenatt);
+	    $out .= _SanitizeAtt($a, '""', $ok, $seenatt, $tt);
 	    ++$atc;
         }
 	my $sfx = substr($tag, pos($tag));
@@ -3281,7 +3308,19 @@ sub _SanitizeAtt {
     if ($lcattval{$att}) {
 	return $att."="._SanitizeAttValue(lc($_[1]))." ";
     } else {
-	return $att."="._SanitizeAttValue($_[1])." ";
+	my $satt = _SanitizeAttValue($_[1]);
+	if (ref($opt{urlfunc}) eq 'CODE' &&
+	    (($_[4] eq "a" && $att eq "href") ||
+	     ($_[4] eq "img" && $att eq "src")) ) {
+		my ($lq,$v,$rq);
+		$lq = substr($satt, 0, 1);
+		$rq = substr($satt, -1, 1);
+		$v = unescapeXML(substr($satt, 1, length($satt)-2));
+		my ($uhost, $upath, $uq, $uf) = SplitURL($v);
+		$v = &{$opt{urlfunc}}($v, \%opt, $_[4], $uhost, $upath, $uq, $uf);
+		$satt = $lq . escapeXML($v) . $rq;
+	}
+	return $att."=".$satt." ";
     }
 }
 
@@ -3289,9 +3328,9 @@ sub _SanitizeAtt {
 sub _SanitizeAttValue {
     my $v = shift;
     if ($v =~ /^([\042\047])(.*?)\1$/) {
-	return $1._HTMLEncode($2).$1;
+	return $1.escapeXML($2).$1;
     } else {
-	return '"'._HTMLEncode($v).'"';
+	return '"'.escapeXML($v).'"';
     }
 }
 
@@ -3332,7 +3371,14 @@ my $oops_entities;
 BEGIN { $oops_entities = qr/(?:lt|gt|amp|quot|apos|nbsp)/io; }
 
 
-sub _HTMLEncode {
+# $_[0] => the value to XML escape
+# returns the XML escaped value
+# Encodes the five required entites (amp,lt,gt,quot,apos)
+# while preserving any pre-existing entities which means that
+# calling this repeatedly on already-escaped text should return
+# it unchanged (i.e. it's idempotent).
+#
+sub escapeXML {
     my $text = shift;
 
     # Treat these accidents as though they had the needed ';'
@@ -3349,6 +3395,72 @@ sub _HTMLEncode {
     $text =~ s/>/&gt;/g;
 
     return $text;
+}
+
+
+# $_[0] => value to be unescaped
+# returns unescaped value
+# The five required XML entities (amp,lt,gt,quot,apos) plus nbsp
+# are decoded as well as decimal (#d+) and hexadecimal (#xh+).
+#
+# While the escapeXML function tries to be idempotent when presented
+# with an already-escaped string, this function is NOT necessarily
+# idempotent when presented with an already decoded string unless it's
+# been decoded to the point there are no more recognizable entities left.
+# In other words given a string such as:
+#
+#   &amp;amp;amp;amp;
+#
+# Each call will only decode one layer of escaping and it will take four
+# successive calls to finally end up with just "&".
+#
+sub unescapeXML {
+    my $text = shift;
+
+    # Treat these accidents as though they had the needed ';'
+    $text =~ s/&($oops_entities)(?![A-Za-z0-9=;])/&$1;/go;
+
+    $text =~ s/&[qQ][uU][oO][tT];/\042/gso;
+    $text =~ s/&[aA][pP][oO][sS];/\047/gso;
+    $text =~ s/&[gG][tT];/>/gso;
+    $text =~ s/&[lL][tT];/</gso;
+    $text =~ s/&[nN][bB][sS][pP];/&#160;/gso;
+    $text =~ s{&([aA][mM][pP]|\#\d+|\#x[0-9a-fA-F]+);}{
+	local $_=$1;
+        lc($_) eq 'amp' ? '&' :
+	/^#(\d+)$/ ? chr($1) :
+	/^#[xX](.*)$/ ? chr(hex($1)) :
+	$_
+    }gsex;
+
+    return $text;
+}
+
+
+# $_[0] => the input URL to split
+# $_[1] => if a true value, call unescapeXML before splitting
+# returns array:
+#  [0] => scheme, name+password, host, port ("" if not present)
+#  [1] => path in url (starts with "/" if absolute otherwise relative)
+#  [2] => query string ("" if not present otherwise starts with "?")
+#  [3] => fragment ("" if not present otherwise starts with "#")
+# The returned value recovers the (possibly unescapeXML'd) input
+# string by simply concatenating the returned array elements.
+#
+sub SplitURL {
+	my ($url, $unesc) = @_;
+	$unesc and $url = unescapeXML($url);
+	my ($sh, $p, $q, $f) = ("", "", "", "");
+	if ($url =~ m{^([A-Za-z][A-Za-z0-9.+-]*:)(//.*)$}os) {
+		$sh = $1;
+		$url = $2;
+	}
+	if ($url =~ m{^(//[^/?#]*)((?:[/?#].*)?)$}os) {
+		$sh .= $1;
+		$url = $2;
+	}
+	($p, $q, $f) = $url =~ m{^([^?#]*)((?:[?][^#]*)?)((?:[#].*)?)$}os;
+	return ($sh, $p, $q, $f);
 }
 
 
@@ -4555,10 +4667,7 @@ This rudimentary example approximates running
 S<C<Markdown.pl --stub --wiki>>
 on the input (files if given, standard input if not).
 
- use Markdown qw(Markdown SetWikiOpts GenerateStyleSheet);
-
- # just enough XML escaping
- sub escxml {local $_ = shift; s/&/&amp;/g; s/</&lt;/g; return $_}
+ use Markdown qw(Markdown SetWikiOpts GenerateStyleSheet escapeXML);
 
  my $string;
  {local $/; $string = <>;}
@@ -4566,7 +4675,7 @@ on the input (files if given, standard input if not).
  SetWikiOpts(\%opts, ""); # enable default --wiki processing
  my $xhtml = Markdown($string, \%opts);
  print "<html xmlns=\"http://www.w3.org/1999/xhtml\">\n",
-   "<head>\n<title>".escxml($opts{h1})."</title>\n",
+   "<head>\n<title>".escapeXML($opts{h1})."</title>\n",
    GenerateStyleSheet(),"</head>\n",
    "<body style=\"text-align:center\">\n",
    "<div style=\"".
