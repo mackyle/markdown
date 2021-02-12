@@ -12,7 +12,7 @@
 
 package Markdown;
 
-require 5.008;
+use 5.008;
 use strict;
 use warnings;
 
@@ -28,16 +28,18 @@ All rights reserved.
 *VERSION = \"1.1.11-PRE"
 }
 
-require Exporter;
+use Exporter ();
 use Digest::MD5 qw(md5 md5_hex);
 use File::Basename qw(basename);
 use Scalar::Util qw(refaddr looks_like_number);
 my ($hasxml, $hasxml_err); BEGIN { ($hasxml, $hasxml_err) = (0, "") }
 my ($hasxmlp, $hasxmlp_err); BEGIN { ($hasxmlp, $hasxmlp_err) = (0, "") }
+BEGIN {
 @ISA = qw(Exporter);
 @EXPORT_OK = qw(Markdown ProcessRaw GenerateStyleSheet SetWikiOpts SplitURL
 		escapeXML unescapeXML ResolveFragment);
 $INC{__PACKAGE__.'.pm'} = $INC{basename(__FILE__)} unless exists $INC{__PACKAGE__.'.pm'};
+}
 
 close(DATA) if fileno(DATA);
 exit(&_main(@ARGV)||0) unless caller;
