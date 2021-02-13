@@ -61,13 +61,12 @@ BEGIN {
 #
 # Global default settings:
 #
-my ($g_style_prefix, $g_empty_element_suffix, $g_indent_width, $g_tab_width,
+my ($g_style_prefix, $g_empty_element_suffix, $g_indent_width,
     $g_start_p, $g_close_p);
 BEGIN {
     $g_style_prefix = "_markdown-";	# Prefix for markdown css class styles
     $g_empty_element_suffix = " />";	# Change to ">" for HTML output
     $g_indent_width = 4;		# Number of spaces considered new level
-    $g_tab_width = 4;			# Legacy even though it's wrong
     $g_start_p = "<p>";			# _FormParagraphs open paragraph tag
     $g_close_p = "</p>";		# _FormParagraphs close paragraph tag
 }
@@ -278,6 +277,10 @@ if ($_haveMT) {
 	    },
 	});
     }
+}
+
+sub _tabDefault {
+	return $_haveBX || $_haveMT ? 4 : 8;
 }
 
 sub _strip {
@@ -1005,7 +1008,7 @@ sub Markdown {
 	# set initial defaults
 	style_prefix		=> $g_style_prefix,
 	empty_element_suffix	=> $g_empty_element_suffix,
-	tab_width		=> $g_tab_width,
+	tab_width		=> _tabDefault,
 	indent_width		=> $g_indent_width,
 	abs_prefix		=> "", # Prefixed to absolute path URLs
 	url_prefix		=> "", # Prefixed to non-absolute URLs
