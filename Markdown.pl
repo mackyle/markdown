@@ -1040,6 +1040,7 @@ sub Markdown {
     %g_urls = ();
     %g_titles = ();
     %g_anchors = ();
+    %g_anchors_id = ();
     %g_block_ids = ();
     %g_code_block_ids = ();
     %g_html_blocks = ();
