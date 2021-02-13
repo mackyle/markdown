@@ -765,6 +765,7 @@ sub ProcessRaw {
 #               if < 0 any YAML front matter will be parsed but no
 #               options will be applied at all.  When != 0 the parsed
 #               YAML front matter can be retrieved via the 'yaml' key.
+#               defaults to 1 if not defined or not a number.
 #   yamlvis    => 0 (invisible), > 0 (visible), < 0 (vis if unknown)
 #               if yamlmode == 0 then yamlvis has no effect.  if > 0
 #               then any parsed YAML front matter options will be shown
@@ -773,6 +774,7 @@ sub ProcessRaw {
 #               if < 0 then YAML front matter options will be shown in
 #               the formatted output only if there are any unrecognized
 #               options present.
+#               defaults to -1 if not defined or not a number.
 #   keepabs    => any-false-value (no action), any-true-value (keep)
 #               if true, any absolute path URLs remaining after applying
 #               any abs_prefix value will be kept and not be subject
@@ -925,10 +927,10 @@ sub _SanitizeOpts {
     # already exists).
     delete $o->{h1};
 
-    # Default is to silently strip any YAML front matter
+    # Default is to silently strip any known YAML front matter
     # Same comment about "yaml" key as above for "h1" key
-    $o->{yamlmode} = -1 unless looks_like_number($o->{yamlmode});
-    $o->{yamlvis} = 0 unless looks_like_number($o->{yamlvis});
+    $o->{yamlmode} = 1 unless looks_like_number($o->{yamlmode});
+    $o->{yamlvis} = -1 unless looks_like_number($o->{yamlvis});
     delete $o->{yaml};
 
     # The anchors hash will only be returned if the key exists
