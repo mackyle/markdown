@@ -3053,6 +3053,7 @@ my %tagmt;	# empty element tags
 my %tagocl;	# non-empty elements with optional closing tag
 my %tagacl;	# which %tagocl an opening %tagocl will close
 my %tagblk;	# block elements
+my %taginl;	# inline markup tags which trigger an auto <p> reopen
 my %taga1p;	# open tags which require at least one attribute
 my %lcattval;	# names of attribute values to lowercase
 my %impatt;	# names of "implied" attributes
@@ -3109,6 +3110,8 @@ BEGIN {
 	'tr' => { map({$_ => 1} qw(colgroup dd dt li p td tfoot th thead tr)) },
     );
     %tagblk = map({$_ => 1} qw(address blockquote center div dl h1 h2 h3 h4 h5 h6 hr ol p pre table ul));
+    %taginl = map({$_ => 1} qw(a abbr acronym b basefont bdo big br cite code dfn em font i
+			       img kbd map q s samp small span strike strong sub sup tt u var));
     %impatt = map({$_ => 1} qw(checked compact ismap nohref noshade nowrap));
     %lcattval = map({$_ => 1} qw(
 	align border cellpadding cellspacing checked clear color colspan
@@ -3136,6 +3139,7 @@ sub _SanitizeTags {
     pos($text) = 0;
     my ($autoclose, $autoclopen);
     my $lastmt = "";
+    my $reopenp = 0;
     $autoclose = $htmlauto ? sub {
 	my $s = $_[0] || "";
 	while (@stack &&
@@ -3151,7 +3155,9 @@ sub _SanitizeTags {
 	if ($tagblk{$s}) {$c = {p=>1}}
 	elsif ($tagocl{$s}) {$c = $tagacl{$s}}
 	else {return}
+	my $clp = 0;
 	while (@stack && $c->{$stack[$#stack]->[0]}) {
+	    $clp = 0;
 	    if ($stack[$#stack]->[2] &&
 		$stack[$#stack]->[1]+3 eq $_[1]) {
 		$ans .= "</\20>";
@@ -3161,9 +3167,11 @@ sub _SanitizeTags {
 	    if ($stack[$#stack]->[2]) {
 		$stack[$#stack]->[0] = "\20";
 	    } else {
-		 pop(@stack);
+		$clp = $s ne "p" && $stack[$#stack]->[0] eq "p";
+		pop(@stack);
 	    }
 	}
+	$clp;
     } : sub {} if $validate;
     while (pos($text) < $end) {
 	if ($text =~ /\G(\s+)/gc) {
@@ -3173,8 +3181,14 @@ sub _SanitizeTags {
 	if ($text =~ /\G([^<]+)/gc) {
 	    if ($validate && @stack && $stack[$#stack]->[0] eq "\20") {
 		push(@stack,["p",pos($text)-length($1)]);
+		$reopenp = 0;
 		$ans .= "<p>";
 	    }
+	    $reopenp && do {
+		push(@stack,["p",pos($text)-length($1)]);
+		$reopenp = 0;
+		$ans .= "<p>";
+	    };
 	    $ans .= _EncodeAmps($1);
 	    $lastmt = "";
 	    next;
@@ -3206,10 +3220,19 @@ sub _SanitizeTags {
 		$lastmt = $styp == -3 ? $tt : "";
 		$tt = "p" if $autocloseflag;
 		if ($validate && $styp) {
-		    &$autoclopen($tt, $tstart) if $styp != 2;
+		    my $clp = &$autoclopen($tt, $tstart) if $styp != 2;
 		    if ($styp == 1) {
-			push(@stack,[$tt,$tstart,$autocloseflag]);
+			$reopenp && $taginl{$tt} and do {
+			    push(@stack,["p",$tstart]);
+			    $ans .= "<p>";
+			};
+			push(@stack,[$tt,$tstart,$autocloseflag,$clp]);
+			$reopenp = 0;
 		    } elsif ($styp == 2) {
+			$reopenp && ($tt eq "p" || $tt eq "\20") and do {
+			    $reopenp = 0;
+			    next;
+			};
 			&$autoclose($tt, $autocloseflag);
 			my $mtstkchk = sub {
 			    !@stack and _xmlfail("closing tag $tt without matching open at " .
@@ -3220,6 +3243,7 @@ sub _SanitizeTags {
 			    pop(@stack);
 			    $stag = "";
 			} elsif ($stack[$#stack]->[0] eq $tt) {
+			    $stack[$#stack]->[3] and $reopenp = 1;
 			    pop(@stack);
 			} else {
 			    pop(@stack) while @stack && $stack[$#stack]->[0] eq "\20";
