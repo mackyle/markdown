@@ -3103,11 +3103,11 @@ BEGIN {
 	'dt' => { map({$_ => 1} qw(colgroup dd dt li p)) },
 	'li' => { map({$_ => 1} qw(colgroup dd dt li p)) },
 	'tbody' => \%tagocl,
-	'td' => { map({$_ => 1} qw(colgroup dd dt li p td tfoot th thead)) },
+	'td' => { map({$_ => 1} qw(colgroup dd dt li p td th)) },
 	'tfoot' => \%tagocl,
-	'th' => { map({$_ => 1} qw(colgroup dd dt li p td tfoot th thead)) },
+	'th' => { map({$_ => 1} qw(colgroup dd dt li p td th)) },
 	'thead' => \%tagocl,
-	'tr' => { map({$_ => 1} qw(colgroup dd dt li p td tfoot th thead tr)) },
+	'tr' => { map({$_ => 1} qw(colgroup dd dt li p td th tr)) },
     );
     %tagblk = map({$_ => 1} qw(address blockquote center div dl h1 h2 h3 h4 h5 h6 hr ol p pre table ul));
     %taginl = map({$_ => 1} qw(a abbr acronym b basefont bdo big br cite code dfn em font i
