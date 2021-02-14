@@ -3118,7 +3118,7 @@ BEGIN {
 	compact coords height hspace ismap nohref noshade nowrap rowspan size
 	span shape valign vspace width
     ));
-    %taga1p = map({$_ => 1} qw(a area img map));
+    %taga1p = map({$_ => 1} qw(a area bdo img map));
 }
 
 
