@@ -1205,10 +1205,11 @@ sub _StripLinkDefinitions {
 }
 
 my %ok_tag_name; # initialized later
-my ($block_tags_a, $block_tags_b);
+my ($block_tags_a, $block_tags_b, $block_tags_c);
 BEGIN {
     $block_tags_a = qr/\020|p|div|center|h[1-6]|blockquote|pre|table|dl|ol|ul|script|noscript|form|fieldset|iframe|math|ins|del/io;
     $block_tags_b = qr/\020|p|div|center|h[1-6]|blockquote|pre|table|dl|ol|ul|script|noscript|form|fieldset|iframe|math/io;
+    $block_tags_c = qr/div|center|h[1-6]|blockquote|pre|table|dl|ol|ul|script|noscript|form|fieldset|iframe|math/io;
 }
 
 sub _HashHTMLBlocks {
@@ -1284,7 +1285,7 @@ sub _HashHTMLBlocks {
 		(			# save in $1
 		    ^			# start of line (with /m)
 		    (?:\Q$idt\E)?	# optional lead in
-		    <(?:$block_tags_b)	# start tag = $2
+		    <($block_tags_c)	# start tag = $2
 		    \b			# word break
 		    (?:[^<>])*?		#
 		    /?>			# the matching end tag
