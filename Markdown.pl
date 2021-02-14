@@ -1131,7 +1131,7 @@ sub _HashBTCodeBlocks {
 
     $text =~ s{
 	    (?:(?<=\n)|\A)
-		([ ]{0,$less_than_indent})``(`+)[ \t]*(?:([\w.+-]+[#]?)[ \t]*)?\n
+		([ ]{0,$less_than_indent})``(`+)[ \t]*(?:([\w.+-]+[#]?)(?:[ \t][ \t\w.+-]*)?)?\n
 	     ( # $4 = the code block -- one or more lines, starting with ```
 	      (?:
 		.*\n+
