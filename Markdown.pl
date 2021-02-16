@@ -1460,10 +1460,12 @@ sub _ProcessWikiLink {
 	# Return the new link
 	return _MakeATag(_FindFragmentMatch($link_loc), $link_text);
     }
-    if (!defined($link_loc) &&
-	($link_loc = _strip($link_text)) =~ m{^(?:http|ftp)s?://\S+$}i) {
-	# Return the new link
-	return _MakeATag($link_loc, $link_text);
+    if (!defined($link_loc)) {
+	$link_loc = _RunSpanGamut($link_text);
+	$link_loc = _strip(unescapeXML(_StripTags(_UnescapeSpecialChars($link_loc))));
+	$link_loc =~ m{^(?:http|ftp)s?://\S+$}i and
+	    # Return the new link
+	    return _MakeATag($link_loc, $link_text);
     }
     return undef if $link_loc eq "" || $link_text eq "";
     if ($link_loc =~ /^[A-Za-z][A-Za-z0-9+.-]*:/os) {
@@ -1653,7 +1655,11 @@ sub _DoAnchors {
 	my $link_text	= $2;
 	my $link_id	= $3;
 
-	$link_id ne "" or $link_id = $link_text; # for shortcut links like [this][].
+	if ($link_id eq "") {
+	    # for shortcut links like [this][].
+	    $link_id = _RunSpanGamut($link_text);
+	    $link_id = unescapeXML(_StripTags(_UnescapeSpecialChars($link_id)));
+	}
 	$link_id = _strip(lc $link_id);
 
 	if (defined($g_urls{$link_id}) || defined($g_anchors{$link_id})) {
@@ -1710,7 +1716,8 @@ sub _DoAnchors {
 	my $result;
 	my $whole_match = $1;
 	my $link_text	= $2;
-	my $link_id	= _strip(lc $2);
+	my $link_id	= _RunSpanGamut($2);
+	$link_id	= _strip(lc(unescapeXML(_StripTags(_UnescapeSpecialChars($link_id)))));
 
 	if (defined($g_urls{$link_id}) || defined($g_anchors{$link_id})) {
 	    my $url = $g_urls{$link_id};
@@ -2040,11 +2047,6 @@ sub _DoHeaders {
     my $geth1 = $anchors && !defined($opt{h1}) ? sub {
 	return unless !defined($h1);
 	my $h = shift;
-	return unless defined($h) && $h !~ /^\s*$/;
-	$h = _StripTags(_UnescapeSpecialChars($h));
-	$h =~ s/^\s+//;
-	$h =~ s/\s+$//;
-	$h =~ s/\s+/ /g;
 	$h1 = $h if $h ne "";
     } : sub {};
 
@@ -2066,10 +2068,11 @@ sub _DoHeaders {
 	    my $h = $2;
 	    $h =~ s/#+$//;
 	    $h =~ s/\s+$//;
+	    my $rsg = _RunSpanGamut($h);
+	    $h = _strip(unescapeXML(_StripTags(_UnescapeSpecialChars($rsg))));
 	    my $id = $h eq "" ? "" : _GetNewAnchorId($h);
 	    $id = " id=\"$id\"" if $id ne "";
-	    my $rsg = _RunSpanGamut($h);
-	    &$geth1($rsg) if $h_level == 1 && $h ne "";
+	    &$geth1($h) if $h_level == 1;
 	    "<h$h_level$id>" . _AutoHeaderFlag($h_level) . $rsg . "</h$h_level>\n\n";
 	}egmx;
 
@@ -2085,25 +2088,30 @@ sub _DoHeaders {
     #
     $text =~ s{ ^(?:=+[ ]*\n)?[ ]*(.+?)[ ]*\n=+[ ]*\n+ }{
 	my $h = $1;
-	my $id = _GetNewAnchorId($h);
-	$id = " id=\"$id\"" if $id ne "";
 	my $rsg = _RunSpanGamut($h);
-	&$geth1($rsg);
+	$h = _strip(unescapeXML(_StripTags(_UnescapeSpecialChars($rsg))));
+	my $id = $h eq "" ? "" : _GetNewAnchorId($h);
+	$id = " id=\"$id\"" if $id ne "";
+	&$geth1($h);
 	"<h1$id>" . _AutoHeaderFlag(1) . $rsg . "</h1>\n\n";
     }egmx;
 
     $text =~ s{ ^(?:-+[ ]*\n)?[ ]*(.+?)[ ]*\n-+[ ]*\n+ }{
 	my $h = $1;
-	my $id = _GetNewAnchorId($h);
+	my $rsg = _RunSpanGamut($h);
+	$h = _strip(unescapeXML(_StripTags(_UnescapeSpecialChars($rsg))));
+	my $id = $h eq "" ? "" : _GetNewAnchorId($h);
 	$id = " id=\"$id\"" if $id ne "";
-	"<h2$id>" . _AutoHeaderFlag(2) . _RunSpanGamut($h) . "</h2>\n\n";
+	"<h2$id>" . _AutoHeaderFlag(2) . $rsg . "</h2>\n\n";
     }egmx;
 
     $text =~ s{ ^(?:~+[ ]*\n)?[ ]*(.+?)[ ]*\n~+[ ]*\n+ }{
 	my $h = $1;
-	my $id = _GetNewAnchorId($h);
+	my $rsg = _RunSpanGamut($h);
+	$h = _strip(unescapeXML(_StripTags(_UnescapeSpecialChars($rsg))));
+	my $id = $h eq "" ? "" : _GetNewAnchorId($h);
 	$id = " id=\"$id\"" if $id ne "";
-	"<h3$id>" . _AutoHeaderFlag(3) . _RunSpanGamut($h) . "</h3>\n\n";
+	"<h3$id>" . _AutoHeaderFlag(3) . $rsg . "</h3>\n\n";
     }egmx;
 
     $opt{h1} = $h1 if defined($h1) && $h1 ne "";
