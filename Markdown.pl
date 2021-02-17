@@ -4614,26 +4614,24 @@ optional closing tag semantics are activated during the validation
 causing missing closing tags to be inserted where required by the
 standard.  Non-raw mode always enables these semantics.
 
-This will transform HTML into valid XHTML fail with an error message.
+This will transform HTML into valid XHTML or fail with an error message.
 
 Unfortunately, it will also fail to accept some documents that
 the plain B<--raw-xml> option will.
 
 For example, this document:
 
- <p><pre></pre></p>
+ <dt><li>a</li></dt>
 
-Will be rejected because upon encountering the C<< <pre> >> open
-tag a closing C<< </p> >> will automatically be inserted resulting
+Will be rejected because upon encountering the C<< <li> >> open
+tag a closing C<< </dt> >> will automatically be inserted resulting
 in this document:
 
- <p></p><pre></pre></p>
+ <dt></dt><li>a</li></dt>
 
-Which, of course, no longer validates.  Since C<pre> blocks cannot
-actually be nested within C<p> blocks (according to the standard),
-the input document is not strictly correct.  In this case, an
-opening C<< <p> >> ought to be inserted before the final C<< </p> >>
-but that is currently beyond the capability of B<--raw-html>.
+Which, of course, no longer validates.  Since C<li> blocks cannot
+directly be nested within C<dt> blocks (according to the standard),
+the input document is not strictly correct.
 
 Remember that any B<--stub> and/or B<--stylesheet> options are
 I<completely ignored> when B<--raw-html> is given.
