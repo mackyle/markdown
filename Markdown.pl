@@ -1418,8 +1418,9 @@ sub _RunSpanGamut {
     $text = _DoItalicsAndBoldAndStrike($text);
 
     # Do hard breaks:
-    $text =~ s/ {3,}\n/<br clear=\"all\"$opt{empty_element_suffix}\n/g;
+    $text =~ s/ {3,}(\n|\z)/<br clear=\"all\"$opt{empty_element_suffix}$1/g;
     $text =~ s/ {2,}\n/<br$opt{empty_element_suffix}\n/g;
+    $text =~ s/ {2,}\z//g;
 
     return $text;
 }
