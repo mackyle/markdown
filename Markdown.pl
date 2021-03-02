@@ -383,20 +383,21 @@ sub _main {
 	_SetAllowedTag("dir");
 	_SetAllowedTag("menu");
     }
+    my $xmlcheck;
     $options{sanitize} = 1; # sanitize by default
     $options{sanitize} = $cli_opts{'sanitize'} if defined($cli_opts{'sanitize'});
-    $options{xmlcheck} = $options{sanitize} ? 2 : 0;
-    $options{xmlcheck} = $cli_opts{'validate-xml'} if defined($cli_opts{'validate-xml'});
+    $xmlcheck = $options{sanitize} ? 2 : 0;
+    $xmlcheck = $cli_opts{'validate-xml'} if defined($cli_opts{'validate-xml'});
     $options{stripcomments} = $cli_opts{'stripcomments'} if defined($cli_opts{'stripcomments'});
     die "--html4tags and --validate-xml are incompatible\n"
-	if $cli_opts{'html4tags'} && $options{xmlcheck} == 1;
+	if $cli_opts{'html4tags'} && $xmlcheck == 1;
     die "--no-sanitize and --validate-xml-internal are incompatible\n"
-	if !$options{'sanitize'} && $options{xmlcheck} == 2;
+	if !$options{'sanitize'} && $xmlcheck == 2;
     die "--no-sanitize and --strip-comments are incompatible\n"
 	if !$options{'sanitize'} && $options{stripcomments};
     die "--raw-html requires --validate-xml-internal\n"
-	if $cli_opts{'raw'} == 2 && $options{xmlcheck} != 2;
-    if ($options{xmlcheck} == 1) {
+	if $cli_opts{'raw'} == 2 && $xmlcheck != 2;
+    if ($xmlcheck == 1) {
 	eval { require XML::Simple; 1 } and $hasxml = 1 or $hasxml_err = $@;
 	eval { require XML::Parser; 1 } and $hasxmlp = 1 or $hasxmlp_err = $@ unless $hasxml;
 	die "$hasxml_err$hasxmlp_err" unless $hasxml || $hasxmlp;
@@ -493,6 +494,7 @@ HTML4
 	}
 	defined($contents) or fauxdie "could not read \"$_\": $!\n";
 	$_ eq "-" or close($fh);
+	$options{xmlcheck} = ($xmlcheck == 2) ? 2 : 0;
 	$oneresult = $raw ? ProcessRaw($contents, \%options) : Markdown($contents, \%options);
 	$oneresult =~ s/\s+$//os;
 	if ($oneresult ne "") {
@@ -505,7 +507,7 @@ HTML4
     }
     $hdr = &$hdrf() unless $didhdr || $raw;
     $ftr = "</div>\n</body>\n</html>\n" if $stub && !$raw;
-    if ($options{xmlcheck} == 1) {
+    if ($xmlcheck == 1) {
 	my ($good, $errs);
 	if ($stub && !$raw) {
 	    ($good, $errs) = _xmlcheck($hdr.$result.$ftr);
@@ -670,7 +672,7 @@ sub ProcessRaw {
     _SanitizeOpts(\%opt);
 
     # Sanitize all '<'...'>' tags if requested
-    $text = _SanitizeTags($text, $opt{xmlcheck} == 2, $opt{htmlauto}) if $opt{sanitize};
+    $text = _SanitizeTags($text, $opt{xmlcheck}, $opt{htmlauto}) if $opt{sanitize};
 
     utf8::encode($text);
     return $text;
@@ -680,7 +682,7 @@ sub ProcessRaw {
 # $1: HASH ref with the following key value semantics
 #
 #   sanitize => any-false-value (no action), any-true-value (sanitize).
-#               note that an xmlcheck value of 2 or a true value of
+#               note that a true value of xmlcheck or a true value of
 #               stripcomments or a urlfunc value that is a CODE ref
 #               always forces sanitize to activate.
 #               tag attributes are sanitized by removing all "questionable"
@@ -688,17 +690,16 @@ sub ProcessRaw {
 #               and so forth) and normalizing the remaining ones (i.e.
 #               adding missing quotes and/or values etc.).
 #               effective for both ProcessRaw and Markdown.
-#   xmlcheck => 0 (no check), 1 (external check), 2 (internal check).
+#   xmlcheck => 0 (no check), any-true-value (internal check).
 #               note that the default if xmlcheck is not set/valid is 2.
-#               note that a value of 2 is effective for both ProcessRaw
-#               and Markdown, but a value of 1 is only effective for _main.
-#               note that a value of 2 automatically inserts the closing tag
-#               for auto-closing tags and converts empty tags to the correct
-#               format converting empty tags that shouldn't be to an open
-#               and close pair; since xmlcheck == 2 is a function of the
+#               note that a true value is effective for both ProcessRaw
+#               and Markdown.  note that a true value automatically inserts
+#               the closing tag for auto-closing tags and converts empty tags
+#               to the correct format converting empty tags that shouldn't be
+#               to an open and close pair; since xmlcheck is a function of the
 #               sanitizer, tag attributes are also always sanitized whenever
-#               xmlcheck has a value of 2.
-#               note that an xmlcheck value of 2 WILL call "die" with a
+#               xmlcheck has a true value.
+#               note that a true xmlcheck value WILL call "die" with a
 #               detailed indication of the error(s) if xml validation fails
 #               in which case any line/column numbers refer to the text that
 #               would be produced by a sanitize=>0, xmlcheck=>0 call to
@@ -874,15 +875,13 @@ sub _SanitizeOpts {
     my $o = shift; # hashref
     ref($o) eq "HASH" or return;
 
-    $o->{xmlcheck} = 2 unless looks_like_number($o->{xmlcheck}) && $o->{xmlcheck} >= 0;
-    $o->{xmlcheck} = int($o->{xmlcheck});
-    $o->{xmlcheck} = 2 if $o->{xmlcheck} > 2;
+    $o->{xmlcheck} = looks_like_number($o->{xmlcheck}) && $o->{xmlcheck} == 0 ? 0 : 2;
     $o->{sanitize} = 1 if $o->{stripcomments} && !$o->{sanitize};
-    $o->{sanitize} = 1 if $o->{xmlcheck} == 2 && !$o->{sanitize};
+    $o->{sanitize} = 1 if $o->{xmlcheck} && !$o->{sanitize};
     $o->{sanitize} = 1 if ref($o->{urlfunc}) eq 'CODE' && !$o->{sanitize};
 
     # this is gross, but having the globals avoids unnecessary slowdown
-    if ($o->{sanitize} && $o->{xmlcheck} == 2) {
+    if ($o->{sanitize} && $o->{xmlcheck}) {
 	$g_start_p = "<\20>";
 	$g_close_p = "</\20>";
     } else {
@@ -1092,7 +1091,7 @@ sub Markdown {
     $text .= "\n" unless $text eq "";
 
     # Sanitize all '<'...'>' tags if requested
-    $text = _SanitizeTags($text, $opt{xmlcheck} == 2, 1) if $opt{sanitize};
+    $text = _SanitizeTags($text, $opt{xmlcheck}, 1) if $opt{sanitize};
 
     utf8::encode($text);
     if (ref($_[0]) eq "HASH") {
