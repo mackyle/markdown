@@ -313,6 +313,12 @@ BEGIN {%_yamlvis = (
     strip => 0
 )}
 
+sub _require_pod_usage() {
+	require Pod::Usage;
+	eval 'require Pod::Text::Termcap; 1;' and
+		@Pod::Usage::ISA = (qw( Pod::Text::Termcap ));
+}
+
 #### BBEdit/command-line text filter interface ##########################
 sub _main {
     local *ARGV = \@_;
@@ -326,10 +332,10 @@ sub _main {
     Getopt::Long::Configure(qw(bundling require_order pass_through));
     GetOptions(
 	'help' => sub {
-			require Pod::Usage;
+			_require_pod_usage;
 			Pod::Usage::pod2usage(-verbose => 2, -exitval => 0)},
 	'h' => sub {
-			require Pod::Usage;
+			_require_pod_usage;
 			Pod::Usage::pod2usage(-verbose => 0, -exitval => 0)},
 	'version|V' => sub { # Version info
 			print "\nThis is Markdown, version $VERSION.\n", $COPYRIGHT;
