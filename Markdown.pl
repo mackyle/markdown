@@ -359,6 +359,7 @@ sub _main {
 	'base|b=s' => \$cli_opts{'base'},
 	'htmlroot|r=s' => \$cli_opts{'htmlroot'},
 	'imageroot|i=s' => \$cli_opts{'imageroot'},
+	'div:s' => \$cli_opts{'divname'},
 	'wiki|w:s' => \$cli_opts{'wiki'},
 	'tabwidth|tab-width=s' => \$cli_opts{'tabwidth'},
 	'autonumber|auto-number' => \$cli_opts{'autonumber'},
@@ -384,6 +385,8 @@ sub _main {
 	_SetAllowedTag("menu");
     }
     my $xmlcheck;
+    $options{divwrap} = defined($cli_opts{'divname'});
+    $options{divname} = defined($cli_opts{'divname'}) ? $cli_opts{'divname'} : "";
     $options{sanitize} = 1; # sanitize by default
     $options{sanitize} = $cli_opts{'sanitize'} if defined($cli_opts{'sanitize'});
     $xmlcheck = $options{sanitize} ? 2 : 0;
@@ -675,6 +678,13 @@ sub ProcessRaw {
     $text = _SanitizeTags($text, $opt{xmlcheck}, $opt{htmlauto}) if $opt{sanitize};
 
     utf8::encode($text);
+    if ($opt{divwrap}) {
+	my $id = $opt{divname};
+	defined($id) or $id = "";
+	$id eq "" or $id = ' id="'.escapeXML($id).'"';
+	chomp($text);
+	return "<div$id>\n".$text."\n</div>\n";
+    }
     return $text;
 }
 
@@ -723,6 +733,8 @@ sub ProcessRaw {
 #   empty_element_suffix => " />" or ">"
 #               will be forced to " />" if not valid or defined.
 #               effective for both ProcessRaw and Markdown.
+#   divwrap     => if true, wrap output contents in <div>...</div>
+#   divname     => if defined and non-empty will be id of divwrap div tag
 #   urlfunc     => if set to a CODE ref, the function will be called with
 #               seven arguments like so:
 #                 $result = &$urlfunc($iresult, \%opts, $tag, $uhost, $uabs, $q, $f)
@@ -1122,6 +1134,13 @@ sub Markdown {
 	    $yamltable = "<table class=\"$opt{style_prefix}yaml-table\" border=\"1\">\n" .
 		"<tr>\n$hrows</tr>\n<tr>\n$drows</tr>\n</table>\n";
 	}
+    }
+    if ($opt{divwrap}) {
+	my $id = $opt{divname};
+	defined($id) or $id = "";
+	$id eq "" or $id = ' id="'.escapeXML($id).'"';
+	chomp($text);
+	return "<div$id>\n".$yamltable.$text."\n</div>\n";
     }
     return $yamltable.$text;
 }
@@ -4068,6 +4087,7 @@ B<Markdown.pl> [B<--help>] [B<--html4tags>] [B<--htmlroot>=I<prefix>]
    -s | --shortversion                  show just the version number
    --raw | --raw-xml                    input contains only raw xhtml
    --raw-html                           input contains only raw html
+   --div[=id]                           wrap body in div with given id
    --stylesheet                         output the fancy style sheet
    --no-stylesheet                      do not output fancy style sheet
    --stub                               wrap output in stub document
@@ -4589,10 +4609,10 @@ Display the short-form version number.
 
 =item B<--raw>, B<--raw-xml>
 
-Input contains only raw XHTML.  All options other than
-B<--html4tags>, B<--deprecated>, B<--sanitize> (on by default),
-B<--strip-comments>, B<--validate-xml> and B<--validate-xml-internal>
-(and their B<--no-...> variants) are ignored.
+Input contains only raw XHTML.  All options other than B<--html4tags>,
+B<--deprecated>, B<--sanitize> (on by default), B<--strip-comments>,
+B<--div>, B<--validate-xml> and B<--validate-xml-internal> (and
+their B<--no-...> variants) are ignored.
 
 With this option, arbitrary XHTML input can be passed through
 the sanitizer and/or validator.  If sanitation is requested (the
@@ -4641,6 +4661,18 @@ the input document is not strictly correct.
 
 Remember that any B<--stub> and/or B<--stylesheet> options are
 I<completely ignored> when B<--raw-html> is given.
+
+
+=item B<--div>[=I<divname>]
+
+Wrap the output contents in a C<div> tag.  If I<divname> is given the
+tag will have that C<id> attribute value.  If the B<--stub> option and/or
+the B<--stylesheet> option are active, they are applied I<after> wrapping
+the output contents in the C<div>.  Note that if a YAML table ends up
+being generated, it I<will> be included I<inside> the C<div> wrapper.
+
+In contrast to the B<--stylesheet> and B<--stub> options, this option
+I<is> allowed with the B<--raw-xml> and B<--raw-html> options.
 
 
 =item B<--stylesheet>
