@@ -1153,6 +1153,7 @@ sub _SanitizeOpts {
     my $o = shift; # hashref
     ref($o) eq "HASH" or return;
 
+    $o->{firstline} = 0;
     $o->{keep_named_character_entities} = 0 unless
 	defined($o->{keep_named_character_entities}) && $o->{keep_named_character_entities} eq "1";
     $o->{xmlcheck} = looks_like_number($o->{xmlcheck}) && $o->{xmlcheck} == 0 ? 0 : 2;
@@ -1317,6 +1318,28 @@ sub Markdown {
     my $yaml;
     ($text, $yaml) = _PrepareInput($text, $opt{yamlmode});
     _ApplyYAMLOpts($yaml, \%opt) if ref($yaml) eq "HASH" && $opt{yamlmode} > 0;
+    my $yamltable = "";
+    if (ref($yaml) eq "HASH" && %$yaml && $opt{yamlmode} && $opt{yamlvis}) {
+	if ($opt{yamlvis} > 0 || _HasUnknownYAMLOptions($yaml)) {
+	    my ($hrows, $drows) = ("", "");
+	    foreach (sort(keys(%$yaml))) {
+		my $v = $yaml->{$_};
+		my $rspn = '';
+		if (defined($v)) {
+		    $v =~ s/&/&amp;/g;
+		    $v =~ s/</&lt;/g;
+		    utf8::encode($v);
+		    $drows .= "<td>" . $v . "</td>\n";
+		} else {
+		    $rspn = " class=\"$opt{style_prefix}yaml-undef-value\" rowspan=\"2\" valign=\"top\"";
+		}
+		$hrows .= "<th$rspn>" . $_ . "</th>\n";
+	    }
+	    $yamltable = "<table class=\"$opt{style_prefix}yaml-table\" border=\"1\">\n" .
+		"<tr>\n$hrows</tr>\n<tr>\n$drows</tr>\n</table>\n";
+	    $opt{firstline} = scalar(@{[$yamltable =~ /\n/g]});
+	}
+    }
 
     # Clear the globals. If we don't clear these, you get conflicts
     # from other articles when generating a page which contains more than
@@ -1382,27 +1405,7 @@ sub Markdown {
 	}
 	${$_[0]}{yaml} = $yaml if ref($yaml) eq "HASH";
     }
-    my $yamltable = "";
-    if (ref($yaml) eq "HASH" && %$yaml && $opt{yamlmode} && $opt{yamlvis}) {
-	if ($opt{yamlvis} > 0 || _HasUnknownYAMLOptions($yaml)) {
-	    my ($hrows, $drows) = ("", "");
-	    foreach (sort(keys(%$yaml))) {
-		my $v = $yaml->{$_};
-		my $rspn = '';
-		if (defined($v)) {
-		    $v =~ s/&/&amp;/g;
-		    $v =~ s/</&lt;/g;
-		    utf8::encode($v);
-		    $drows .= "<td>" . $v . "</td>\n";
-		} else {
-		    $rspn = " class=\"$opt{style_prefix}yaml-undef-value\" rowspan=\"2\" valign=\"top\"";
-		}
-		$hrows .= "<th$rspn>" . $_ . "</th>\n";
-	    }
-	    $yamltable = "<table class=\"$opt{style_prefix}yaml-table\" border=\"1\">\n" .
-		"<tr>\n$hrows</tr>\n<tr>\n$drows</tr>\n</table>\n";
-	}
-    }
+
     # Eliminate known named character entities
     $opt{keep_named_character_entities} or do {
 	$yamltable = ConvertNamedCharacterEntities($yamltable);
@@ -3599,7 +3602,7 @@ sub _linecol {
 	my ($pos, $txt) = @_;
 	pos($txt) = 0;
 	my ($l, $p);
-	$l = 1;
+	$l = 1 + $opt{firstline};
 	++$l while ($p = pos($txt)), $txt =~ /\G[^\n]*\n/gc && pos($txt) <= $pos;
 	return "line $l col " . (1 + ($pos - $p));
 }
