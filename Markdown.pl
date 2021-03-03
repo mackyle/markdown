@@ -5030,6 +5030,34 @@ the usage and options are shown.
 =back
 
 
+=head1 HTML CONTENT
+
+Markdown format documents are intended to be human readable without the use
+of XML-like markup.
+
+Nevertheless, html content can be included verbatim provided that the tags
+used are limited to those of the HTML 4 specification and only those tags
+that represent body content -- scripting tags and attributes are not allowed.
+
+The final version of the HTML specification (including a DTD) can be found
+here:
+
+=over
+
+=over
+
+=item L<https://www.w3.org/TR/1999/REC-html401-19991224/>
+
+=back
+
+=back
+
+Note that attempts to use any of the new tags from the "HTML Living Standard"
+will simply result in them being escaped into literal text.
+
+Stick to markdown-format text or HTML 4 tags to avoid unexpected output.
+
+
 =head1 PERL MODULE
 
 Markdown can be used as a Perl module and can be "use"d like so:
