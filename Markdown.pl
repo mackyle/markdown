@@ -37,7 +37,7 @@ my ($hasxmlp, $hasxmlp_err); BEGIN { ($hasxmlp, $hasxmlp_err) = (0, "") }
 BEGIN {
 @ISA = qw(Exporter);
 @EXPORT_OK = qw(Markdown ProcessRaw GenerateStyleSheet SetWikiOpts SplitURL
-		escapeXML unescapeXML ResolveFragment);
+		escapeXML unescapeXML ResolveFragment ConvertNamedCharacterEntities);
 $INC{__PACKAGE__.'.pm'} = $INC{basename(__FILE__)} unless exists $INC{__PACKAGE__.'.pm'};
 }
 
@@ -154,6 +154,260 @@ my $g_list_level;
 BEGIN {
     $g_list_level = 0;
 }
+
+# Entity conversion table
+my %named_character_entity;
+BEGIN { %named_character_entity = (
+    'Aacute'   =>   '193',
+    'aacute'   =>   '225',
+    'Acirc'    =>   '194',
+    'acirc'    =>   '226',
+    'acute'    =>   '180',
+    'AElig'    =>   '198',
+    'aelig'    =>   '230',
+    'Agrave'   =>   '192',
+    'agrave'   =>   '224',
+    'alefsym'  => 'x2135',
+    'Alpha'    =>   '913',
+    'alpha'    =>   '945',
+    'and'      => 'x2227',
+    'ang'      => 'x2220',
+    'apos'     =>    '39',
+    'Aring'    =>   '197',
+    'aring'    =>   '229',
+    'asymp'    => 'x2248',
+    'Atilde'   =>   '195',
+    'atilde'   =>   '227',
+    'Auml'     =>   '196',
+    'auml'     =>   '228',
+    'bdquo'    => 'x201e',
+    'Beta'     =>   '914',
+    'beta'     =>   '946',
+    'brvbar'   =>   '166',
+    'bull'     => 'x2022',
+    'cap'      => 'x2229',
+    'Ccedil'   =>   '199',
+    'ccedil'   =>   '231',
+    'cedil'    =>   '184',
+    'cent'     =>   '162',
+    'Chi'      =>   '935',
+    'chi'      =>   '967',
+    'circ'     =>   '710',
+    'clubs'    => 'x2663',
+    'cong'     => 'x2245',
+    'copy'     =>   '169',
+    'crarr'    => 'x21b5',
+    'cup'      => 'x222a',
+    'curren'   =>   '164',
+    'Dagger'   => 'x2021',
+    'dagger'   => 'x2020',
+    'dArr'     => 'x21d3',
+    'darr'     => 'x2193',
+    'deg'      =>   '176',
+    'Delta'    =>   '916',
+    'delta'    =>   '948',
+    'diams'    => 'x2666',
+    'divide'   =>   '247',
+    'Eacute'   =>   '201',
+    'eacute'   =>   '233',
+    'Ecirc'    =>   '202',
+    'ecirc'    =>   '234',
+    'Egrave'   =>   '200',
+    'egrave'   =>   '232',
+    'empty'    => 'x2205',
+    'emsp'     => 'x2003',
+    'ensp'     => 'x2002',
+    'Epsilon'  =>   '917',
+    'epsilon'  =>   '949',
+    'equiv'    => 'x2261',
+    'Eta'      =>   '919',
+    'eta'      =>   '951',
+    'ETH'      =>   '208',
+    'eth'      =>   '240',
+    'Euml'     =>   '203',
+    'euml'     =>   '235',
+    'euro'     => 'x20ac',
+    'exist'    => 'x2203',
+    'fnof'     =>   '402',
+    'forall'   => 'x2200',
+    'frac12'   =>   '189',
+    'frac14'   =>   '188',
+    'frac34'   =>   '190',
+    'frasl'    => 'x2044',
+    'Gamma'    =>   '915',
+    'gamma'    =>   '947',
+    'ge'       => 'x2265',
+    'hArr'     => 'x21d4',
+    'harr'     => 'x2194',
+    'hearts'   => 'x2665',
+    'hellip'   => 'x2026',
+    'Iacute'   =>   '205',
+    'iacute'   =>   '237',
+    'Icirc'    =>   '206',
+    'icirc'    =>   '238',
+    'iexcl'    =>   '161',
+    'Igrave'   =>   '204',
+    'igrave'   =>   '236',
+    'image'    => 'x2111',
+    'infin'    => 'x221e',
+    'int'      => 'x222b',
+    'Iota'     =>   '921',
+    'iota'     =>   '953',
+    'iquest'   =>   '191',
+    'isin'     => 'x2208',
+    'Iuml'     =>   '207',
+    'iuml'     =>   '239',
+    'Kappa'    =>   '922',
+    'kappa'    =>   '954',
+    'Lambda'   =>   '923',
+    'lambda'   =>   '955',
+    'lang'     => 'x2329',
+    'laquo'    =>   '171',
+    'lArr'     => 'x21d0',
+    'larr'     => 'x2190',
+    'lceil'    => 'x2308',
+    'ldquo'    => 'x201c',
+    'le'       => 'x2264',
+    'lfloor'   => 'x230a',
+    'lowast'   => 'x2217',
+    'loz'      => 'x25ca',
+    'lrm'      => 'x200e',
+    'lsaquo'   => 'x2039',
+    'lsquo'    => 'x2018',
+    'macr'     =>   '175',
+    'mdash'    => 'x2014',
+    'micro'    =>   '181',
+    'middot'   =>   '183',
+    'minus'    => 'x2212',
+    'Mu'       =>   '924',
+    'mu'       =>   '956',
+    'nabla'    => 'x2207',
+    'nbsp'     =>   '160',
+    'ndash'    => 'x2013',
+    'ne'       => 'x2260',
+    'ni'       => 'x220b',
+    'not'      =>   '172',
+    'notin'    => 'x2209',
+    'nsub'     => 'x2284',
+    'Ntilde'   =>   '209',
+    'ntilde'   =>   '241',
+    'Nu'       =>   '925',
+    'nu'       =>   '957',
+    'Oacute'   =>   '211',
+    'oacute'   =>   '243',
+    'Ocirc'    =>   '212',
+    'ocirc'    =>   '244',
+    'OElig'    =>   '338',
+    'oelig'    =>   '339',
+    'Ograve'   =>   '210',
+    'ograve'   =>   '242',
+    'oline'    => 'x203e',
+    'Omega'    =>   '937',
+    'omega'    =>   '969',
+    'Omicron'  =>   '927',
+    'omicron'  =>   '959',
+    'oplus'    => 'x2295',
+    'or'       => 'x2228',
+    'ordf'     =>   '170',
+    'ordm'     =>   '186',
+    'Oslash'   =>   '216',
+    'oslash'   =>   '248',
+    'Otilde'   =>   '213',
+    'otilde'   =>   '245',
+    'otimes'   => 'x2297',
+    'Ouml'     =>   '214',
+    'ouml'     =>   '246',
+    'para'     =>   '182',
+    'part'     => 'x2202',
+    'permil'   => 'x2030',
+    'perp'     => 'x22a5',
+    'Phi'      =>   '934',
+    'phi'      =>   '966',
+    'Pi'       =>   '928',
+    'pi'       =>   '960',
+    'piv'      =>   '982',
+    'plusmn'   =>   '177',
+    'pound'    =>   '163',
+    'Prime'    => 'x2033',
+    'prime'    => 'x2032',
+    'prod'     => 'x220f',
+    'prop'     => 'x221d',
+    'Psi'      =>   '936',
+    'psi'      =>   '968',
+    'radic'    => 'x221a',
+    'rang'     => 'x232a',
+    'raquo'    =>   '187',
+    'rArr'     => 'x21d2',
+    'rarr'     => 'x2192',
+    'rceil'    => 'x2309',
+    'rdquo'    => 'x201d',
+    'real'     => 'x211c',
+    'reg'      =>   '174',
+    'rfloor'   => 'x230b',
+    'Rho'      =>   '929',
+    'rho'      =>   '961',
+    'rlm'      => 'x200f',
+    'rsaquo'   => 'x203a',
+    'rsquo'    => 'x2019',
+    'sbquo'    => 'x201a',
+    'Scaron'   =>   '352',
+    'scaron'   =>   '353',
+    'sdot'     => 'x22c5',
+    'sect'     =>   '167',
+    'shy'      =>   '173',
+    'Sigma'    =>   '931',
+    'sigma'    =>   '963',
+    'sigmaf'   =>   '962',
+    'sim'      => 'x223c',
+    'spades'   => 'x2660',
+    'sub'      => 'x2282',
+    'sube'     => 'x2286',
+    'sum'      => 'x2211',
+    'sup'      => 'x2283',
+    'sup1'     =>   '185',
+    'sup2'     =>   '178',
+    'sup3'     =>   '179',
+    'supe'     => 'x2287',
+    'szlig'    =>   '223',
+    'Tau'      =>   '932',
+    'tau'      =>   '964',
+    'there4'   => 'x2234',
+    'Theta'    =>   '920',
+    'theta'    =>   '952',
+    'thetasym' =>   '977',
+    'thinsp'   => 'x2009',
+    'THORN'    =>   '222',
+    'thorn'    =>   '254',
+    'tilde'    =>   '732',
+    'times'    =>   '215',
+    'trade'    => 'x2122',
+    'Uacute'   =>   '218',
+    'uacute'   =>   '250',
+    'uArr'     => 'x21d1',
+    'uarr'     => 'x2191',
+    'Ucirc'    =>   '219',
+    'ucirc'    =>   '251',
+    'Ugrave'   =>   '217',
+    'ugrave'   =>   '249',
+    'uml'      =>   '168',
+    'upsih'    =>   '978',
+    'Upsilon'  =>   '933',
+    'upsilon'  =>   '965',
+    'Uuml'     =>   '220',
+    'uuml'     =>   '252',
+    'weierp'   => 'x2118',
+    'Xi'       =>   '926',
+    'xi'       =>   '958',
+    'Yacute'   =>   '221',
+    'yacute'   =>   '253',
+    'yen'      =>   '165',
+    'Yuml'     =>   '376',
+    'yuml'     =>   '255',
+    'Zeta'     =>   '918',
+    'zeta'     =>   '950',
+    'zwj'      => 'x200d',
+    'zwnj'     => 'x200c'
+) }
 
 
 #### Blosxom plug-in interface ##########################################
@@ -368,6 +622,8 @@ sub _main {
 	'raw-html' => sub { $cli_opts{'raw'} = 2 },
 	'stylesheet|style-sheet' => \$cli_opts{'stylesheet'},
 	'no-stylesheet|no-style-sheet' => sub {$cli_opts{'stylesheet'} = 0},
+	'keep-named-character-entities' => \$cli_opts{'keepcharents'},
+	'no-keep-named-character-entities' => sub {$cli_opts{'keepcharents'} = 0},
 	'stub' => \$cli_opts{'stub'},
 	'yaml:s' => \$cli_opts{'yaml'},
     );
@@ -385,6 +641,7 @@ sub _main {
 	_SetAllowedTag("menu");
     }
     my $xmlcheck;
+    $options{'keep_named_character_entities'} = $cli_opts{'keepcharents'} ? "1" : 0;
     $options{divwrap} = defined($cli_opts{'divname'});
     $options{divname} = defined($cli_opts{'divname'}) ? $cli_opts{'divname'} : "";
     $options{sanitize} = 1; # sanitize by default
@@ -677,6 +934,10 @@ sub ProcessRaw {
     # Sanitize all '<'...'>' tags if requested
     $text = _SanitizeTags($text, $opt{xmlcheck}, $opt{htmlauto}) if $opt{sanitize};
 
+    # Eliminate known named character entities
+    $opt{keep_named_character_entities} or
+	$text = ConvertNamedCharacterEntities($text);
+
     utf8::encode($text);
     if ($opt{divwrap}) {
 	my $id = $opt{divname};
@@ -733,6 +994,11 @@ sub ProcessRaw {
 #   empty_element_suffix => " />" or ">"
 #               will be forced to " />" if not valid or defined.
 #               effective for both ProcessRaw and Markdown.
+#   keep_named_character_entities => "1" (keep them), any-other-value (convert).
+#               unless this option is present and has exactly the value "1"
+#               then known named character entities will be converted to
+#               their equivalent numerical entity.  Use of this option is
+#               strongly discouraged to avoid strict XML validation failures.
 #   divwrap     => if true, wrap output contents in <div>...</div>
 #   divname     => if defined and non-empty will be id of divwrap div tag
 #   urlfunc     => if set to a CODE ref, the function will be called with
@@ -887,6 +1153,8 @@ sub _SanitizeOpts {
     my $o = shift; # hashref
     ref($o) eq "HASH" or return;
 
+    $o->{keep_named_character_entities} = 0 unless
+	defined($o->{keep_named_character_entities}) && $o->{keep_named_character_entities} eq "1";
     $o->{xmlcheck} = looks_like_number($o->{xmlcheck}) && $o->{xmlcheck} == 0 ? 0 : 2;
     $o->{sanitize} = 1 if $o->{stripcomments} && !$o->{sanitize};
     $o->{sanitize} = 1 if $o->{xmlcheck} && !$o->{sanitize};
@@ -1135,6 +1403,12 @@ sub Markdown {
 		"<tr>\n$hrows</tr>\n<tr>\n$drows</tr>\n</table>\n";
 	}
     }
+    # Eliminate known named character entities
+    $opt{keep_named_character_entities} or do {
+	$yamltable = ConvertNamedCharacterEntities($yamltable);
+	$text = ConvertNamedCharacterEntities($text);
+    };
+
     if ($opt{divwrap}) {
 	my $id = $opt{divname};
 	defined($id) or $id = "";
@@ -3591,6 +3865,25 @@ sub SplitURL {
 }
 
 
+my $_replacesub;
+BEGIN { $_replacesub = sub {
+    my $x = $named_character_entity{$_[1]};
+    $x ? '&#'.$x.';' : $_[0];
+} }
+
+
+# $_[0] => the input text to process
+# returns text with all known named character entities replaced
+# with their equivalent numerical entity
+sub ConvertNamedCharacterEntities {
+    use bytes;
+    my $text = shift;
+    defined($text) or return undef;
+    $text =~ s/(&([A-Za-z]{3,8}[1-4]{0,2});)/&$_replacesub($1,$2)/goes;
+    return $text;
+}
+
+
 sub _EncodeAmps {
     my $text = shift;
 
@@ -4090,6 +4383,7 @@ B<Markdown.pl> [B<--help>] [B<--html4tags>] [B<--htmlroot>=I<prefix>]
    --div[=id]                           wrap body in div with given id
    --stylesheet                         output the fancy style sheet
    --no-stylesheet                      do not output fancy style sheet
+   --keep-named-character-entities      do not convert named character entities
    --stub                               wrap output in stub document
                                         implies --stylesheet
    --                                   end options and treat next
@@ -4611,8 +4905,9 @@ Display the short-form version number.
 
 Input contains only raw XHTML.  All options other than B<--html4tags>,
 B<--deprecated>, B<--sanitize> (on by default), B<--strip-comments>,
-B<--div>, B<--validate-xml> and B<--validate-xml-internal> (and
-their B<--no-...> variants) are ignored.
+B<--div>, B<--keep-named-character-entities>, B<--validate-xml> and
+B<--validate-xml-internal> (and their B<--no-...> variants) are
+ignored.
 
 With this option, arbitrary XHTML input can be passed through
 the sanitizer and/or validator.  If sanitation is requested (the
@@ -4691,6 +4986,24 @@ Use this option with no other arguments and redirect standard input to
 
 Overrides a previous B<--stylesheet> and disables implicit inclusion
 of the style sheet by the B<--stub> option.
+
+
+=item B<--keep-named-character-entities>
+
+Do not convert named character entities to their equivalent numerical character
+entity.  Normally any occurrence of a named character entity such as
+C<&hellip;> would be converted to its equivalent character entity such as
+C<&#x2026;>.  If this option is given, that conversion is suppressed.
+
+The only always-valid named entities as far as XML is concerned are the five
+entities C<&amp;>, C<&lt;>, C<&gt;>, C<&quot;> and C<&apos;>.  Even that last
+one (C<&apos;>) may not be universally supported in XHTML user agents (and it
+is converted to C<&#39;> for that reason unless this option is given).
+
+Regardless of this option, C<&amp;>, C<&lt;>, C<&gt;> and C<&quot;> are always
+left alone since they are universally supported.
+
+Use of this option is I<NOT RECOMMENDED>.
 
 
 =item B<--stub>
