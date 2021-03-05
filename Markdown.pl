@@ -571,6 +571,8 @@ sub _require_pod_usage() {
 	require Pod::Usage;
 	eval 'require Pod::Text::Termcap; 1;' and
 		@Pod::Usage::ISA = (qw( Pod::Text::Termcap ));
+	defined($ENV{PERLDOC}) && $ENV{PERLDOC} ne "" or
+		$ENV{PERLDOC} = "-oterm -oman";
 }
 
 #### BBEdit/command-line text filter interface ##########################
