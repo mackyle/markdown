@@ -2,7 +2,7 @@
 Markdown
 ========
 
-Version 1.1.10
+Version 1.1.11
 
 John Gruber  
 Kyle J. McKay
@@ -163,15 +163,57 @@ Command-Line
 Use the `--html4tags` command-line switch to produce HTML output from a
 Unix-style command line. E.g.:
 
-    % perl Markdown.pl --html4tags foo.txt
+    $ perl Markdown.pl --html4tags foo.txt
 
 Type `perldoc Markdown.pl`, or read the POD documentation within the
 Markdown.pl source code for more information.
 
 
+Viewing with w3m
+~~~~~~~~~~~~~~~~
+
+If w3m is available, a Markdown-formatted text file can be viewed like so
+(change `README` to the actual name of the Markdown-formatted file to view):
+
+    $ perl Markdown.pl --stub README | w3m -T text/html
+
+
 ---------------
 Version History
 ---------------
+
+1.1.11 (05 Mar 2021):
+
+* new --strip-comments option
+
+* new --keep-abs option
+
+* new --raw-xml and --raw-html options
+
+* new --auto-number option for headers
+
+* new --div option to wrap output in `<div>...</div>`
+
+* convert named character entities to numeric by default
+
+* add XML comments section to syntax.md
+
+* detail API and ability to "use" Markdown module
+
+* support floating images and `<br clear=all>`
+
+* recognize wiki style image links
+
+* YAML front matter support
+
+* make -i/-r work on top-level raw html blocks
+
+* avoid accidentally creating nested `<a>` elements
+
+* ignore junk on end of backticks-delimited code block start line
+
+* strip markup out of implicit anchors
+
 
 1.1.10 (08 Jul 2020):
 

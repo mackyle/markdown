@@ -18,14 +18,15 @@ use warnings;
 
 use Encode;
 
-use vars qw($COPYRIGHT $VERSION @ISA @EXPORT_OK);
+use vars qw($COPYRIGHT $DATE $VERSION @ISA @EXPORT_OK);
 
 BEGIN {*COPYRIGHT =
 \"Copyright (C) 2004 John Gruber
 Copyright (C) 2015,2016,2017,2018,2019,2020,2021 Kyle J. McKay
 All rights reserved.
 ";
-*VERSION = \"1.1.11-PRE"
+*VERSION = \"1.1.11";
+*DATE = \"2021-03-05";
 }
 
 use Exporter ();
@@ -594,7 +595,7 @@ sub _main {
 			_require_pod_usage;
 			Pod::Usage::pod2usage(-verbose => 0, -exitval => 0)},
 	'version|V' => sub { # Version info
-			print "\nThis is Markdown, version $VERSION.\n", $COPYRIGHT;
+			print "\nThis is Markdown, version $VERSION $DATE.\n", $COPYRIGHT;
 			print "License is Modified BSD (aka 3-clause BSD) License\n";
 			print "<https://opensource.org/licenses/BSD-3-Clause>\n";
 			exit 0},
@@ -5173,6 +5174,8 @@ Z<> See the F<README> file for detailed release notes for this version.
 
 =over
 
+=item Z<> 1.1.11 - 05 Mar 2021
+
 =item Z<> 1.1.10 - 08 Jul 2020
 
 =item Z<> 1.1.9 - 15 Dec 2019
@@ -5236,6 +5239,8 @@ Z<> See the F<README> file for detailed release notes for this version.
 =item Additional enhancements and tweaks by Kyle J. McKay
 
 =item mackyle<at>gmail.com
+
+=item L<https://repo.or.cz/markdown.git>
 
 =back
 
