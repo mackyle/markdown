@@ -3712,6 +3712,13 @@ sub _SanitizeAtt {
     return "" if $_[3]->{$att}; # no repeats
     $_[3]->{$att} = 1;
     $impatt{$att} and return $att."=".'"'.$att.'"';
+    (($_[4] eq "a" && $att eq "href") ||
+     ($_[4] eq "img" && $att eq "src")) &&
+    $_[1] =~ /^\s*[\047\042]\s*javascript:/io and do {
+	$_[1] = '"#"';
+	ref($opt{base_prefix}) eq 'CODE' and
+	    $_[1] = '"' . escapeXML(&{$opt{base_prefix}}("#")) . '"';
+    };
     if ($lcattval{$att}) {
 	return $att."="._SanitizeAttValue(lc($_[1]))." ";
     } else {
