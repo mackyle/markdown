@@ -3734,7 +3734,7 @@ sub _SanitizeAtt {
 
 sub _SanitizeAttValue {
     my $v = shift;
-    if ($v =~ /^([\042\047])(.*?)\1$/) {
+    if ($v =~ /^([\042\047])(.*?)\1$/s) {
 	return $1.escapeXML($2).$1;
     } else {
 	return '"'.escapeXML($v).'"';
