@@ -609,7 +609,12 @@ sub _main {
 	'validate-xml' => sub {$cli_opts{'validate-xml'} = 1},
 	'validate-xml-internal' => sub {$cli_opts{'validate-xml'} = 2},
 	'no-validate-xml' => sub {$cli_opts{'validate-xml'} = 0},
-	'stripcomments|strip-comments' => \$cli_opts{'stripcomments'},
+	'stripcomments|strip-comments' => sub
+		{!$cli_opts{'stripcomments'} and $cli_opts{'stripcomments'} = 1},
+	'stripcommentslax|stripcomments-lax|strip-comments-lax' =>
+		sub {$cli_opts{'stripcomments'} = 2},
+	'stripcommentslaxonly|stripcomments-laxonly|stripcomments-lax-only|strip-comments-lax-only' =>
+		sub {$cli_opts{'stripcomments'} = 3},
 	'no-stripcomments|no-strip-comments' => sub {$cli_opts{'stripcomments'} = 0},
 	'keepabs|keep-abs|k' => \$cli_opts{'keepabs'},
 	'absroot|a=s' => \$cli_opts{'absroot'},
@@ -990,6 +995,13 @@ sub ProcessRaw {
 #               which gets turned into "<p></p><pre></pre></p>" which then
 #               no longer validates).
 #   stripcomments => any-false-value (no action), any-true-value (strip).
+#                 => 1 (strip), 2 (strip-lax), 3 (strip-lax-only)
+#               a non-integer true value will be forced to 1.
+#               an integer value < 0 will be forced to 1.
+#               an integer value > 3 will be forced to 3.
+#               1, 2, and 3 correspond to the command line options
+#               --strip-comments, --strip-comments-lax and
+#               --strip-comments-lax-only respectively.
 #               since the strip comments mechanism is a function of the
 #               sanitizer, if stripcomments is set to any-true-value then
 #               tag attributes will also always be sanitized.
@@ -1160,6 +1172,10 @@ sub _SanitizeOpts {
     $o->{keep_named_character_entities} = 0 unless
 	defined($o->{keep_named_character_entities}) && $o->{keep_named_character_entities} eq "1";
     $o->{xmlcheck} = looks_like_number($o->{xmlcheck}) && $o->{xmlcheck} == 0 ? 0 : 2;
+    !looks_like_number($o->{stripcomments}) and $o->{stripcomments} = $o->{stripcomments} ? 1 : 0;
+    $o->{stripcomments} && $o->{stripcomments} < 2 and $o->{stripcomments} = 1;
+    $o->{stripcomments} = int($o->{stripcomments});
+    $o->{stripcomments} > 3 and $o->{stripcomments} = 3;
     $o->{sanitize} = 1 if $o->{stripcomments} && !$o->{sanitize};
     $o->{sanitize} = 1 if $o->{xmlcheck} && !$o->{sanitize};
     $o->{sanitize} = 1 if ref($o->{urlfunc}) eq 'CODE' && !$o->{sanitize};
@@ -1626,6 +1642,7 @@ sub _HashHTMLBlocks {
 	    }eigx;
 
     # Special case for standalone XML comments:
+    $opt{stripcomments} != 2 &&
     $text =~ s{
 		(?:
 		    (?<=\n\n)	    # Starting after a blank line
@@ -1651,7 +1668,39 @@ sub _HashHTMLBlocks {
 	    }{
 		my $key = block_id($1);
 		push(@g_xml_comments, $key)
-			if $opt{stripcomments} && !exists($g_html_blocks{$key});
+			if $opt{stripcomments} && $opt{stripcomments} < 3 &&
+			   !exists($g_html_blocks{$key});
+		$g_html_blocks{$key} = $1;
+		"\n\n" . $key . "\n\n";
+	    }egx;
+
+    # Special case for standalone XML-like comments:
+    $opt{stripcomments} >= 2 &&
+    $text =~ s{
+		(?:
+		    (?<=\n\n)	    # Starting after a blank line
+		    |		    # or
+		    \A\n?	    # the beginning of the doc
+		)
+		(		    # save in $1
+		    [ ]{0,$less_than_indent}
+		    (?s:
+			<!--
+			(?:[^-]|(?:-(?!->)))*
+			-->
+			(?:
+			    (?:[ \t]*\n[ \t]*)?
+			    <!--
+			    (?:[^-]|(?:-(?!->)))*
+			    -->
+			)*
+		    )
+		    [ ]*
+		    (?=\n{1,}|\Z)   # followed by end of line or end of document
+		)
+	    }{
+		my $key = block_id($1);
+		push(@g_xml_comments, $key) unless exists($g_html_blocks{$key});
 		$g_html_blocks{$key} = $1;
 		"\n\n" . $key . "\n\n";
 	    }egx;
@@ -3508,15 +3557,22 @@ sub _SanitizeTags {
 	    next;
 	}
 	my $tstart = pos($text);
-	if ($text =~ /\G(<!--(?:[^-]|(?:-(?!-)))*-->)/gc) {
+	if ($opt{stripcomments} != 2 &&
+	    $text =~ /\G(<!--(?:[^-]|(?:-(?!-)))*-->)/gc) {
 	    # pass "comments" through unless stripping them
-	    if ($opt{stripcomments}) {
+	    if ($opt{stripcomments} && $opt{stripcomments} < 3) {
 		# strip any trailing whitespace + \n after comment if present
 		$text =~ /\G[ \t]*\n/gc;
 	    } else {
 		# pass the "comment" on through
 		$ans .= $1;
 	    }
+	    next;
+	}
+	if ($opt{stripcomments} >= 2 &&
+	    $text =~ /\G(<!--(?:[^-]|(?:-(?!->)))*-->)/gc) {
+	    # strip any trailing whitespace + \n after lax comment if present
+	    $text =~ /\G[ \t]*\n/gc;
 	    next;
 	}
 	if ($text =~ /\G(<[^>]*>)/gc) {
@@ -4378,6 +4434,8 @@ B<Markdown.pl> [B<--help>] [B<--html4tags>] [B<--htmlroot>=I<prefix>]
    --validate-xml-internal              fast basic check if output is valid XML
    --no-validate-xml                    do not check output for valid XML
    --strip-comments                     remove XML comments from output
+   --strip-comments-lax                 remove XML-like comments from output
+   --strip-comments-lax-only            remove only invalid XML-like comments
    --no-strip-comments                  do not remove XML comments (default)
    --tabwidth=num                       expand tabs to num instead of 8
    --auto-number                        automatically number h1-h6 headers
@@ -4611,6 +4669,49 @@ invalid XML comments.
 
 What this means is that the B<--strip-comments> option I<will not> remove
 invalid XML comments (such as S<C<< <!-----> >>>)!
+
+But see the B<--strip-comments-lax> option for a solution.
+
+
+=item B<--strip-comments-lax>
+
+Strip XML-like comments from the output.  Any XML-like comments encountered
+will be omitted from the output if this option is given.  Supersedes the
+B<--strip-comments> option if both are given.
+
+While the syntax of XML comments cannot be relaxed (that would require
+altering the XML standard), if they are being stripped out anyway, then the
+standard isn't quite so relevant since they will not be present in the output.
+
+The B<--strip-comments-lax> option acts just like the B<--strip-comments>
+option EXCEPT that the content between the starting comment tag S<C<< <!-- >>>
+and then ending comment tag S<C<< --> >>> is I<NOT> restricted since it will be
+stripped out of the final result which will therefore remain XML compliant.
+
+The only restriction, of course, is that the content between the XML comment
+start tag and the XML comment end tag cannot contain the XML comment end tag
+itself.
+
+With the B<--strip-comments-lax> option, strictly invalid XML comments
+(such as S<C<< <!-- -- -- -- --> >>>) I<WILL> be stripped as well as all
+strictly valid XML comments.
+
+
+=item B<--strip-comments-lax-only>
+
+This is a compromise option.  It works just like B<--strip-comments-lax>, but
+I<ONLY> on strictly invalid XML-like comments.  Supersedes the
+B<--strip-comments> option if both are given.
+
+In other words, if a strictly valid XML comment is present, it will be retained
+in the output.  If a strictly invalid XML comment is present which would have
+been stripped by B<--strip-comments-lax> but would have had its leading C<< < >>
+escaped automatically by the default B<--no-strip-comments> mode (because it's
+not a strictly valid XML comment), then it will be stripped by this mode.
+
+This option avoids ugly invalid XML comments from slipping through into the
+output as escaped plain text while still passing through valid XML comments
+without stripping them.
 
 
 =item B<--no-strip-comments>
