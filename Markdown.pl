@@ -3678,6 +3678,7 @@ sub _Sanitize {
     if ($tag =~ m{^</}) {
 	my $autocloseflag = undef;
 	$autocloseflag = 1, $tag="</p>" if $tag eq "</\20>";
+	$tag =~ tr/\t\n\f\r //d; # remove whitespace
 	return (lc($tag),2,$autocloseflag);
     }
     if ($tag =~ /^<([^\s<\/>]+)\s+/gs) {
