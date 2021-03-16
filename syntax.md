@@ -241,8 +241,12 @@ headers). For example:
       This is an H3
       ~~~~~~~~~~~~~
 
-Any number of underlining `=`'s, `-`'s or `~`'s will work.  An optional
-matching "overline" may precede the header like so:
+Any number of underlining `=`'s will work.  Any number of underlining
+`-`'s will work but be careful it's not mistaken for a horizontal rule.
+For `~`'s, try to use at least four to avoid being mistaken for
+strike through text or a `~~~`-delimited code block.
+
+An optional matching "overline" may precede the header like so:
 
       =============
       This is an H1
@@ -766,6 +770,11 @@ element), the indentation technique must be used.
 
 Also note that within a backticks-delimited code block, tab characters
 are always expanded with the tab stop locations 8 characters apart.
+
+As an alternative to using backticks, limited recognition is available
+for tilde-delimited code blocks.  Instead of backtick quotes, exactly 3
+tildes (`~~~`) may be used to introduce the code block in which case
+it must also be closed by tildes instead of backtick quotes.
 
 Within a code block, ampersands (`&`) and angle brackets (`<` and `>`)
 are automatically converted into HTML entities. This makes it very
