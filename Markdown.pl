@@ -3797,7 +3797,7 @@ sub _SanitizeAtt {
     return "" unless $univatt{$att} || $_[2]->{$att};
     return "" if $_[3]->{$att}; # no repeats
     $_[3]->{$att} = 1;
-    $impatt{$att} and return $att."=".'"'.$att.'"';
+    $impatt{$att} and return $att."=".'"'.$att.'" ';
     (($_[4] eq "a" && $att eq "href") ||
      ($_[4] eq "img" && $att eq "src")) &&
     $_[1] =~ /^\s*[\047\042]\s*javascript:/io and do {
