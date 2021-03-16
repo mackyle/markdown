@@ -3451,7 +3451,7 @@ my %impatt;	# names of "implied" attributes
 BEGIN {
     %univatt = map({$_ => 1} qw(class dir id lang style title xml:lang));
     %tagatt = (
-	'a' => { map({$_ => 1} qw(href name)) },
+	'a' => { map({$_ => 1} qw(href name rel target)) },
 	'area' => { map({$_ => 1} qw(alt coords href nohref shape)) },
 	'basefont' => { map({$_ => 1} qw(color face size)) },
 	'br' => { map({$_ => 1} qw(clear)) },
@@ -3805,6 +3805,12 @@ sub _SanitizeAtt {
 	ref($opt{base_prefix}) eq 'CODE' and
 	    $_[1] = '"' . escapeXML(&{$opt{base_prefix}}("#")) . '"';
     };
+    if ($_[4] eq "a") {
+	$att eq "target" and
+	    return $_[1] =~ /^([\042\047])\s*_blank\s*\1$/io ? 'target="_blank" ' : "";
+	$att eq "rel" and
+	    return $_[1] =~ /^([\042\047])\s*nofollow\s*\1$/io ? 'rel="nofollow" ' : "";
+    }
     if ($lcattval{$att}) {
 	return $att."="._SanitizeAttValue(lc($_[1]))." ";
     } else {
