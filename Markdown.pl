@@ -3750,7 +3750,8 @@ sub _Sanitize {
 	my $tt = lc($1);
 	return ("&lt;" . substr($tag,1), 0) if $taga1p{$tt};
 	if ($tagmt{$tt}) {
-	    return ("<" . $tt . $opt{empty_element_suffix}, 3);
+	    my $typ = ($tag =~ m,/>$,) ? 3 : -3;
+	    return ("<" . $tt . $opt{empty_element_suffix}, $typ);
 	} elsif ($tag =~ m,/>$,) {
 	    return ("<" . $tt . "></" . $tt . ">", 3);
 	} else {
