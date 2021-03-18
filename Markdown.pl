@@ -25,8 +25,8 @@ BEGIN {*COPYRIGHT =
 Copyright (C) 2015,2016,2017,2018,2019,2020,2021 Kyle J. McKay
 All rights reserved.
 ";
-*VERSION = \"1.1.12-PRE";
-*DATE = \"beta";
+*VERSION = \"1.1.12";
+*DATE = \"2021-03-17";
 }
 
 use Exporter ();
@@ -5317,6 +5317,8 @@ on the input (files if given, standard input if not).
 Z<> See the F<README> file for detailed release notes for this version.
 
 =over
+
+=item Z<> 1.1.12 - 17 Mar 2021
 
 =item Z<> 1.1.11 - 05 Mar 2021
 

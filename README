@@ -2,7 +2,7 @@
 Markdown
 ========
 
-Version 1.1.11
+Version 1.1.12
 
 John Gruber  
 Kyle J. McKay
@@ -181,6 +181,27 @@ If w3m is available, a Markdown-formatted text file can be viewed like so
 ---------------
 Version History
 ---------------
+
+1.1.12 (17 Mar 2021):
+
+* allow some overlooked table attributes
+
+* do not choke on \n inside attribute values
+
+* better sanitization of href and src attributes
+
+* add more comment stripping options
+
+* clean up closing tag whitespace
+
+* do not choke on <br></br> etc.
+
+* add limited tilde-delimited code block support
+
+* allow target="_blank" rel="nofollow"
+
+* add missing space to implied attributes
+
 
 1.1.11 (05 Mar 2021):
 
