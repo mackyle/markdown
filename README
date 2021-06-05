@@ -194,7 +194,7 @@ Version History
 
 * clean up closing tag whitespace
 
-* do not choke on <br></br> etc.
+* do not choke on `<br></br>` etc.
 
 * add limited tilde-delimited code block support
 
