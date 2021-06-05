@@ -4773,7 +4773,7 @@ been stripped by B<--strip-comments-lax> but would have had its leading C<< < >>
 escaped automatically by the default B<--no-strip-comments> mode (because it's
 not a strictly valid XML comment), then it will be stripped by this mode.
 
-This option avoids ugly invalid XML comments from slipping through into the
+This option prevents ugly invalid XML comments from slipping through into the
 output as escaped plain text while still passing through valid XML comments
 without stripping them.
 
