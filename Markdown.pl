@@ -3015,16 +3015,20 @@ sub _DoCodeBlocks {
     my $less_than_indent = $opt{indent_width} - 1;
 
     $text =~ s{
-	    (?:\n\n|\A\n?)
-	    (		# $1 = the code block -- one or more lines, starting with indent_width spaces
+	    (\n\n|\A\n?)
+	    (		# $2 = the code block -- one or more lines, starting with indent_width spaces
 	      (?:
 		(?:[ ]{$opt{indent_width}})  # Lines must start with indent_width of spaces
 		.*\n+
 	      )+
 	    )
-	    (?:(?=^[ ]{0,$less_than_indent}\S)|\Z) # Lookahead for non-space at line-start, or end of doc
-	}{
-	    my $codeblock = $1;
+	    (?:(?=(^[ ]{0,$less_than_indent}\S.*))|\Z) # Lookahead for non-space at line-start, or end of doc
+	}{&{sub{
+	    my ($prefix, $codeblock, $n) = ($1, $2, $3);
+
+	    if (defined($n) && length($n) && (()=($codeblock =~ /\n/g)) == 1 && _IsTableStart($codeblock.$n."\n")) {
+		return $prefix.$codeblock;
+	    }
 
 	    $codeblock =~ s/\n\n\n/\n\n/g; # undo "paragraph for last list item" change
 	    $codeblock = _EncodeCode(_Outdent($codeblock));
@@ -3036,7 +3040,7 @@ sub _DoCodeBlocks {
 	    my $key = block_id($result, 2);
 	    $g_code_blocks{$key} = $result;
 	    "\n\n" . $key . "\n\n";
-	}egmx;
+	}}}egmx;
 
     return $text;
 }
@@ -3190,6 +3194,29 @@ BEGIN {
     $LEADSP = qr/(?>[ ]*)/o;
     $COLPL = qr/(?:[^\n|\\]|\\(?:(?>[^\n])|(?=\n|$)))+/o;
     $SEP = qr/[ ]*:?-+:?[ ]*/o;
+}
+
+sub _IsTableStart {
+    my $text = shift;
+    my $ans = 0;
+
+    if ($text =~ m{
+	 ^(				# Header line
+	    $LEADBAR \| [^\n]* |
+	    $LEADBAR $COLPL [^\n]* |
+	    $LEADSP $COLPL \| [^\n]*
+	  )\n
+	  (				# Separator line
+	    $LEADBAR $SEP (?: \| $SEP )* (?: \| [ ]*)? |
+	    $SEP (?: \| $SEP )+ (?: \| [ ]*)? |
+	    $SEP \| [ ]*
+	  )\n
+			}mx) {
+	my ($h, $s) = ($1, $2);
+	_SplitTableRow($h) == _SplitTableRow($s) and $ans = 1;
+    }
+
+    return $ans;
 }
 
 sub _DoTables {
