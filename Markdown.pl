@@ -3012,6 +3012,7 @@ sub _DoCodeBlocks {
 #
 
     my $text = shift;
+    my $less_than_indent = $opt{indent_width} - 1;
 
     $text =~ s{
 	    (?:\n\n|\A\n?)
@@ -3021,7 +3022,7 @@ sub _DoCodeBlocks {
 		.*\n+
 	      )+
 	    )
-	    ((?=^[ ]{0,$opt{indent_width}}\S)|\Z) # Lookahead for non-space at line-start, or end of doc
+	    (?:(?=^[ ]{0,$less_than_indent}\S)|\Z) # Lookahead for non-space at line-start, or end of doc
 	}{
 	    my $codeblock = $1;
 
