@@ -817,6 +817,12 @@ following lines will produce a horizontal rule:
 
       ---------------------------------------
 
+Note that when using a line of three or more solid hyphens, if the
+preceding line is not empty, then it will be treated as part of one of
+the H2 Setext-style [headers].  Add at least one space between the
+hyphens to prevent that (or use asterisks or make sure the preceding
+line is blank).
+
 
 - - - - -
 
