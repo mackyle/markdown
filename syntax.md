@@ -210,6 +210,11 @@ character in a paragraph into a `<br />` tag.
 When you *do* want to insert a `<br />` break tag using Markdown, you
 end a line with two or more spaces, then type return.
 
+Alternatively, a line ending with a backslash `\` that's at the very end
+of the line (that's not inside a table or code block) will also translate
+into a `<br />` tag (the `\` is replaced).  To keep a literal `\` at the
+end of a line (that's not inside a table or code block), double it.
+
 If you end a line with three or more spaces then a `<br clear="all" />`
 tag will be generated instead of the plain `<br />` tag.
 
