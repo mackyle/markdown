@@ -2,7 +2,7 @@
 Markdown
 ========
 
-Version 1.1.12
+Version 1.1.13
 
 John Gruber  
 Kyle J. McKay
@@ -181,6 +181,17 @@ If w3m is available, a Markdown-formatted text file can be viewed like so
 ---------------
 Version History
 ---------------
+
+1.1.13 (13 Jun 2021):
+
+* Markdown.pl: adjust strip-comments options and defaults
+
+* Markdown: allow backticks-delimited code blocks in lists
+
+* Markdown: support `\` EOL to generate a `<br />`
+
+* Markdown.pl: do not mistake table for code block
+
 
 1.1.12 (17 Mar 2021):
 
