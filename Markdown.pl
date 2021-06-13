@@ -1472,8 +1472,8 @@ sub _HashBTCodeBlocks {
 	    $codeblock = "<div class=\"$opt{style_prefix}code-bt\"><pre style=\"display:none\"></pre><pre><code>"
 		. $codeblock . "\n</code></pre></div>";
 
-	    my $key = block_id($codeblock);
-	    $g_html_blocks{$key} = $codeblock;
+	    my $key = block_id($codeblock, 2);
+	    $g_code_blocks{$key} = $codeblock;
 	    "\n\n" . $key . "\n\n";
 	}egmx;
 
@@ -1765,6 +1765,11 @@ sub _RunBlockGamut {
     $text = _FormParagraphs($text, $anchors);
 
     return $text;
+}
+
+
+sub _DoBTListBlocks {
+    return _DoBlockQuotes(_DoCodeBlocks(_HashBTCodeBlocks($_[0]))) if $_[0] ne "";
 }
 
 
@@ -2776,11 +2781,11 @@ sub _DoListsAndBlocks {
 	while ($parse =~ /\G(?s:.)*?^$whole_list/gmc) {
 	    my @captures = ($1, $2, $3, $4);
 	    if ($-[1] > $-[0]) {
-		$text .= _DoListBlocks(substr($parse, $-[0], $-[1] - $-[0]));
+		$text .= _DoBTListBlocks(substr($parse, $-[0], $-[1] - $-[0]));
 	    }
 	    $text .= &$list_item_sub(@captures);
 	}
-	$text .= _DoListBlocks(substr($parse, pos($parse))) if pos($parse) < length($parse);
+	$text .= _DoBTListBlocks(substr($parse, pos($parse))) if pos($parse) < length($parse);
     }
     else {
 	my $parse = $text;

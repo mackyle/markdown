@@ -769,10 +769,6 @@ A code block continues until it reaches a line that is not indented
 until a line consisting of the same number of backtick quotes is found
 when using the 3 backtick quotes technique.
 
-Note that the 3 backtick quotes (or more) must appear at the beginning
-of the line.  To include a code block within a list (or other indented
-element), the indentation technique must be used.
-
 Also note that within a backticks-delimited code block, tab characters
 are always expanded with the tab stop locations 8 characters apart.
 
