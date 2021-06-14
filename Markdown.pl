@@ -1835,7 +1835,7 @@ sub _EscapeSpecialChars {
 	    # corresponding block id value; this is likely
 	    # overkill, but it should prevent us from colliding
 	    # with the escape values by accident.
-	    $cur_token->[1] =~ s!([*_~])!$g_escape_table{$1}!g;
+	    $cur_token->[1] =~ s!([*_~])!$g_escape_table{$1}!go;
 	    $text .= $cur_token->[1];
 	} else {
 	    my $t = $cur_token->[1];
@@ -1989,7 +1989,7 @@ sub _MakeATag {
     $text = _DoItalicsAndBoldAndStrike($text);
     # We've got to encode any of these remaining to avoid
     # conflicting with other italics, bold and strike through and links.
-    $text =~ s!([]*_~[])!$g_escape_table{$1}!g;
+    $text =~ s!([]*_~[])!$g_escape_table{$1}!go;
     $result .= " title=\"" . _EncodeAttText($title) . "\"" if $title ne "";
     return $result . $g_escape_table{'>'} .
 	$text . $g_escape_table{'<'}."/a".$g_escape_table{'>'};
@@ -2385,7 +2385,7 @@ sub _EncodeAttText {
     $text = escapeXML(_strip($text));
     # We've got to encode these to avoid conflicting
     # with italics, bold and strike through.
-    $text =~ s!([*_~:])!$g_escape_table{$1}!g;
+    $text =~ s!([*_~:])!$g_escape_table{$1}!go;
     return $text;
 }
 
@@ -3125,7 +3125,7 @@ sub _EncodeCode {
     s! >  !&gt;!gx;
 
     # Now, escape characters that are magic in Markdown:
-    s!([*_~{}\[\]\\])!$g_escape_table{$1}!g;
+    s!([*_~{}\[\]\\])!$g_escape_table{$1}!go;
 
     return $_;
 }
@@ -3140,7 +3140,7 @@ sub _DoItalicsAndBoldAndStrike {
 	    {<em>$1</em>}gsx;
 	# We've got to encode any of these remaining to
 	# avoid conflicting with other italics and bold.
-	$text =~ s!([*])!$g_escape_table{$1}!g;
+	$text =~ s!([*])!$g_escape_table{$1}!go;
 	$text;
     };
     my $doital2 = sub {
@@ -3149,7 +3149,7 @@ sub _DoItalicsAndBoldAndStrike {
 	    {<em>$1</em>}gsx;
 	# We've got to encode any of these remaining to
 	# avoid conflicting with other italics and bold.
-	$text =~ s!([_])!$g_escape_table{$1}!g;
+	$text =~ s!([_])!$g_escape_table{$1}!go;
 	$text;
     };
 
@@ -4074,7 +4074,7 @@ sub _EncodeBackslashEscapes {
     local $_ = shift;
 
     s!\\\\!$g_escape_table{'\\'}!go; # Must process escaped backslashes first.
-    s{\\([`*_~{}\[\]()>#+\-.!`])}{$g_escape_table{$1}}g;
+    s{\\([`*_~{}\[\]()>#+\-.!`])}{$g_escape_table{$1}}go;
 
     return $_;
 }
