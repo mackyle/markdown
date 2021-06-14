@@ -2972,6 +2972,13 @@ sub _ProcessListItems {
 	}
 	$last_marker = $list_marker;
 
+	if ($item =~ /^(.+)/) {
+	    my $ml_text = $1;
+	    my $ml_len = length($1);
+	    my $ml_sub = sub {my $ml_mk = shift; $ml_mk =~ s!([-+*.\)])!$g_escape_table{$1}!go; $ml_mk};
+	    $ml_text =~ s/(?:(?<= )|\A)(${marker_any})(?= )/&$ml_sub($1)/ge;
+	    $item = $ml_text . substr($item, $ml_len);
+	}
 	if ($leading_line or ($item =~ m/\n{2,}/)) {
 	    $item = _RunBlockGamut(_Outdent($item));
 	    $item =~ s{(</[OUou][Ll]>)\s*\z}{$1} and $item .= "\n$idt<span style=\"display:none\">&#160;</span>";
