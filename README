@@ -2,7 +2,7 @@
 Markdown
 ========
 
-Version 1.1.13
+Version 1.1.14
 
 John Gruber  
 Kyle J. McKay
@@ -181,6 +181,11 @@ If w3m is available, a Markdown-formatted text file can be viewed like so
 ---------------
 Version History
 ---------------
+
+1.1.14 (14 Jun 2021):
+
+* Markdown.pl: do not start sublist in list marker line
+
 
 1.1.13 (13 Jun 2021):
 
