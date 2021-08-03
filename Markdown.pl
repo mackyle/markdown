@@ -3791,7 +3791,7 @@ sub _Sanitize {
 		++$atc;
 		next;
 	    }
-	    if ($tag =~ /\G([^\s<\/>]+)\s*/gcs) {
+	    if ($tag =~ m{\G([^\s<>]+)\s*}gcs) {
 		# auto quote it
 		my $v = $1;
 		$v =~ s/\042/&quot;/go;
@@ -3807,11 +3807,11 @@ sub _Sanitize {
 	$out =~ s/\s+$//;
 	my $typ = 1;
 	if ($tagmt{$tt}) {
-	    $typ = ($tag =~ m,/>$,) ? 3 : -3;
+	    $typ = ($sfx =~ m,/>$,) ? 3 : -3;
 	    $out .= $opt{empty_element_suffix};
 	    return ("&lt;" . substr($tag,1), 0) if !$atc && $taga1p{$tt};
 	} else {
-	    if ($tag =~ m,/>$,) {
+	    if ($sfx =~ m,/>$,) {
 		return ("&lt;" . substr($tag,1), 0) if !$atc && $taga1p{$tt};
 		$typ = 3;
 	    } else {
