@@ -3756,7 +3756,7 @@ sub _Sanitize {
 	$tag =~ tr/\t\n\f\r //d; # remove whitespace
 	return (lc($tag),2,$autocloseflag);
     }
-    if ($tag =~ /^<([^\s<\/>]+)\s+/gs) {
+    if ($tag =~ m{^<([^\s</>]+)\s+}gs) {
 	my $tt = lc($1);
 	my $autocloseflag = undef;
 	$autocloseflag = 1, $tt="p" if $tt eq "\20";
@@ -3764,7 +3764,7 @@ sub _Sanitize {
 	my $ok = $tagatt{$tt};
 	ref($ok) eq "HASH" or $ok = {};
 	my $atc = 0;
-	while ($tag =~ /\G\s*([^\s\042\047<\/>=]+)((?>=)|\s*)/gcs) {
+	while ($tag =~ m{\G\s*([^\s\042\047</>=]+)((?>=)|\s*)}gcs) {
 	    my ($a,$s) = ($1, $2);
 	    if ($s eq "" && substr($tag, pos($tag), 1) =~ /^[\042\047]/) {
 		# pretend the "=" sign wasn't overlooked
@@ -3782,7 +3782,7 @@ sub _Sanitize {
 		++$atc;
 		next;
 	    }
-	    if ($tag =~ /\G([\042\047])((?:(?!\1)(?![<>])(?![\/][>]).)*)/gcs) {
+	    if ($tag =~ m{\G([\042\047])((?:(?!\1)(?![<>])(?!/>).)*)}gcs) {
 		# what to do what to do what to do
 		# trim trailing \s+ and magically add the missing quote
 		my ($q, $v) = ($1, $2);
