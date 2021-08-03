@@ -25,8 +25,8 @@ BEGIN {*COPYRIGHT =
 Copyright (C) 2015,2016,2017,2018,2019,2020,2021 Kyle J. McKay
 All rights reserved.
 ";
-*VERSION = \"1.1.14";
-*DATE = \"2021-06-14";
+*VERSION = \"1.1.15-PRE";
+*DATE = \"beta";
 }
 
 use Exporter ();
