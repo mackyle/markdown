@@ -632,6 +632,8 @@ sub _main {
 	'no-stylesheet|no-style-sheet' => sub {$cli_opts{'stylesheet'} = 0},
 	'keep-named-character-entities' => \$cli_opts{'keepcharents'},
 	'no-keep-named-character-entities' => sub {$cli_opts{'keepcharents'} = 0},
+	'us-ascii|ascii' => \$cli_opts{'us_ascii'},
+	'no-us-ascii|no-ascii' => sub {$cli_opts{'us_ascii'} = 0},
 	'stub' => \$cli_opts{'stub'},
 	'yaml:s' => \$cli_opts{'yaml'},
     );
@@ -650,6 +652,7 @@ sub _main {
     }
     my $xmlcheck;
     $options{'keep_named_character_entities'} = $cli_opts{'keepcharents'} ? "1" : 0;
+    $options{'us_ascii'} = $cli_opts{'us_ascii'} ? "1" : 0;
     $options{divwrap} = defined($cli_opts{'divname'});
     $options{divname} = defined($cli_opts{'divname'}) ? $cli_opts{'divname'} : "";
     $options{sanitize} = 1; # sanitize by default
@@ -946,6 +949,10 @@ sub ProcessRaw {
     $opt{keep_named_character_entities} or
 	$text = ConvertNamedCharacterEntities($text);
 
+    # Convert to US-ASCII only if requested
+    $opt{us_ascii} and
+	$text = ConvertToASCII($text);
+
     utf8::encode($text);
     if ($opt{divwrap}) {
 	my $id = $opt{divname};
@@ -1018,6 +1025,8 @@ sub ProcessRaw {
 #               then known named character entities will be converted to
 #               their equivalent numerical entity.  Use of this option is
 #               strongly discouraged to avoid strict XML validation failures.
+#   us_ascii    => if true, non-US-ASCII characters will be converted to
+#               numerical character entities making the output US-ASCII only.
 #   divwrap     => if true, wrap output contents in <div>...</div>
 #   divname     => if defined and non-empty will be id of divwrap div tag
 #   urlfunc     => if set to a CODE ref, the function will be called with
@@ -1421,6 +1430,20 @@ sub Markdown {
     # Sanitize all '<'...'>' tags if requested
     $text = _SanitizeTags($text, $opt{xmlcheck}, 1) if $opt{sanitize};
 
+    # Eliminate known named character entities
+    $opt{keep_named_character_entities} or do {
+	$yamltable = ConvertNamedCharacterEntities($yamltable);
+	$text = ConvertNamedCharacterEntities($text);
+    };
+
+    # Convert to US-ASCII only if requested
+    $opt{us_ascii} and do {
+	utf8::decode($yamltable);
+	$yamltable = ConvertToASCII($yamltable);
+	utf8::encode($yamltable);
+	$text = ConvertToASCII($text);
+    };
+
     utf8::encode($text);
     if (ref($_[0]) eq "HASH") {
 	${$_[0]}{anchors} = {%g_anchors_id} if exists(${$_[0]}{anchors});
@@ -1430,12 +1453,6 @@ sub Markdown {
 	}
 	${$_[0]}{yaml} = $yaml if ref($yaml) eq "HASH";
     }
-
-    # Eliminate known named character entities
-    $opt{keep_named_character_entities} or do {
-	$yamltable = ConvertNamedCharacterEntities($yamltable);
-	$text = ConvertNamedCharacterEntities($text);
-    };
 
     if ($opt{divwrap}) {
 	my $id = $opt{divname};
@@ -4036,6 +4053,26 @@ sub ConvertNamedCharacterEntities {
 }
 
 
+my $_usasciisub;
+BEGIN { $_usasciisub = sub {
+    my $c = $_[0];
+    my $o = ord($c);
+    return ($o <= 999) ? (($o < 128) ? $c : "&#$o;") : sprintf("&#x%x;", $o);
+} }
+
+
+# $_[0] => the input text to process
+# returns text with non-US-ASCII characters replaced
+# with their equivalent numerical character entities,
+# but only if the input text has already been utf8::decode'd
+sub ConvertToASCII {
+    my $text = shift;
+    defined($text) or return undef;
+    $text =~ s/([^\x00-\x7F])/&$_usasciisub($1)/goes;
+    return $text;
+}
+
+
 sub _EncodeAmps {
     my $text = shift;
 
@@ -4539,6 +4576,7 @@ B<Markdown.pl> [B<--help>] [B<--html4tags>] [B<--htmlroot>=I<prefix>]
    --stylesheet                         output the fancy style sheet
    --no-stylesheet                      do not output fancy style sheet
    --keep-named-character-entities      do not convert named character entities
+   --us-ascii                           convert non-ASCII to character entities
    --stub                               wrap output in stub document
                                         implies --stylesheet
    --                                   end options and treat next
@@ -5218,6 +5256,20 @@ Regardless of this option, C<&amp;>, C<&lt;>, C<&gt;> and C<&quot;> are always
 left alone since they are universally supported.
 
 Use of this option is I<NOT RECOMMENDED>.
+
+
+=item B<--us-ascii>/B<--ascii>
+
+(N.B. B<--ascii> is just a short form of B<--us-ascii>)
+
+Convert any non-US-ASCII characters to their equivalent numerical character
+entity.  Any characters with a code point value greater than or equal to
+128 will be converted.  Note that the output is still technically UTF-8 since
+the US-ASCII code points coincide with the same code points of UTF-8.
+
+Using this option will make the output strictly 7-bit and therefore it should
+survive just about any transport mechanism at the expense of an increase in
+size that depends on how many non-US-ASCII characters are present.
 
 
 =item B<--stub>
