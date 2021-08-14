@@ -4758,9 +4758,9 @@ used).  However, any raw tags in the input (that are on the "approved"
 list), could potentially result in invalid XML output (i.e. mismatched
 start and end tags, missing start or end tag etc.).
 
-Markdown.pl will I<NOT check> for these issues itself.  But with
-the B<--validate-xml> option will use C<XML::Simple> or C<XML::Parser>
-to do so.
+Markdown.pl can check for these issues itself using its own internal
+B<--validate-xml-internal> check or, with the B<--validate-xml>
+option, it can use C<XML::Simple> or C<XML::Parser> to do so.
 
 Note that B<--validate-xml-internal> is the default option unless
 B<--no-sanitize> is used in which case B<--no-validate-xml> is the
