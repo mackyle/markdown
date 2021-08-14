@@ -184,221 +184,221 @@ Version History
 
 1.1.14 (14 Jun 2021):
 
-* Markdown.pl: do not start sublist in list marker line
++ do not start sublist in list marker line
 
 
 1.1.13 (13 Jun 2021):
 
-* Markdown.pl: adjust strip-comments options and defaults
++ adjust strip-comments options and defaults
 
-* Markdown: allow backticks-delimited code blocks in lists
++ allow backticks-delimited code blocks in lists
 
-* Markdown: support `\` EOL to generate a `<br />`
++ support `\` EOL to generate a `<br />`
 
-* Markdown.pl: do not mistake table for code block
++ do not mistake table for code block
 
 
 1.1.12 (17 Mar 2021):
 
-* allow some overlooked table attributes
++ allow some overlooked table attributes
 
-* do not choke on \n inside attribute values
++ do not choke on \n inside attribute values
 
-* better sanitization of href and src attributes
++ better sanitization of href and src attributes
 
-* add more comment stripping options
++ add more comment stripping options
 
-* clean up closing tag whitespace
++ clean up closing tag whitespace
 
-* do not choke on `<br></br>` etc.
++ do not choke on `<br></br>` etc.
 
-* add limited tilde-delimited code block support
++ add limited tilde-delimited code block support
 
-* allow target="_blank" rel="nofollow"
++ allow target="_blank" rel="nofollow"
 
-* add missing space to implied attributes
++ add missing space to implied attributes
 
 
 1.1.11 (05 Mar 2021):
 
-* new --strip-comments option
++ new --strip-comments option
 
-* new --keep-abs option
++ new --keep-abs option
 
-* new --raw-xml and --raw-html options
++ new --raw-xml and --raw-html options
 
-* new --auto-number option for headers
++ new --auto-number option for headers
 
-* new --div option to wrap output in `<div>...</div>`
++ new --div option to wrap output in `<div>...</div>`
 
-* convert named character entities to numeric by default
++ convert named character entities to numeric by default
 
-* add XML comments section to syntax.md
++ add XML comments section to syntax.md
 
-* detail API and ability to "use" Markdown module
++ detail API and ability to "use" Markdown module
 
-* support floating images and `<br clear=all>`
++ support floating images and `<br clear=all>`
 
-* recognize wiki style image links
++ recognize wiki style image links
 
-* YAML front matter support
++ YAML front matter support
 
-* make -i/-r work on top-level raw html blocks
++ make -i/-r work on top-level raw html blocks
 
-* avoid accidentally creating nested `<a>` elements
++ avoid accidentally creating nested `<a>` elements
 
-* ignore junk on end of backticks-delimited code block start line
++ ignore junk on end of backticks-delimited code block start line
 
-* strip markup out of implicit anchors
++ strip markup out of implicit anchors
 
 
 1.1.10 (08 Jul 2020):
 
-* enhance --wiki "s" option operation
++ enhance --wiki "s" option operation
 
-* support new --absroot=prefix option
++ support new --absroot=prefix option
 
-* document ability to split link references
++ document ability to split link references
 
-* hook up fragment only link definitions
++ hook up fragment only link definitions
 
-* remove markup from <title> value
++ remove markup from <title> value
 
-* update links to https where possible
++ update links to https where possible
 
 
 1.1.9 (15 Dec 2019):
 
-* improve bare fragment URL link handling and add fragment `--base` option
++ improve bare fragment URL link handling and add fragment `--base` option
 
-* match block tags case-insensitively and relax `<hr>` matching rules
++ match block tags case-insensitively and relax `<hr>` matching rules
 
 
 1.1.8 (22 Nov 2019):
 
-* correct a number of issues with improperly nested markup involving
++ correct a number of issues with improperly nested markup involving
   links, blockquotes, strong and emphasis etc.
 
-* parse nested `[`...`]` and `(`...`)` properly when inside links
++ parse nested `[`...`]` and `(`...`)` properly when inside links
 
-* avoid getting confused by nested lists
++ avoid getting confused by nested lists
 
-* allow first blockquote line to be empty
++ allow first blockquote line to be empty
 
-* as-documented single-quote titles in link definitions now work
++ as-documented single-quote titles in link definitions now work
 
-* when escaping a single-quote use `&#39;` instead of `&apos;`
++ when escaping a single-quote use `&#39;` instead of `&apos;`
 
-* ignore control characters in input (other than whitespace)
++ ignore control characters in input (other than whitespace)
 
-* wiki links can be processed by providing a new `--wiki` option
++ wiki links can be processed by providing a new `--wiki` option
 
-* an empty table header row is omitted from the output
++ an empty table header row is omitted from the output
 
-* table rows can be joined with a trailing `\` (see syntax.md)
++ table rows can be joined with a trailing `\` (see syntax.md)
 
-* add several new XML validation options
++ add several new XML validation options
 
-* perform XML validation and tag sanitation by default (see help)
++ perform XML validation and tag sanitation by default (see help)
 
-* tab expansion in shifted backticks-delimited code blocks has
++ tab expansion in shifted backticks-delimited code blocks has
   been adjusted to better match expected behavior
 
-* all atx-style header levels now get anchors not just levels 1-3
++ all atx-style header levels now get anchors not just levels 1-3
 
-* internal document "fragment" links `[...](#section)` hook up to
++ internal document "fragment" links `[...](#section)` hook up to
   the target section much more reliably now
 
-* backticks-delimited code blocks can now specify a syntax language
++ backticks-delimited code blocks can now specify a syntax language
   name that ends with a `#` character
 
-* more lists that were not being recognized before because they did
++ more lists that were not being recognized before because they did
   not have a preceding blank line are now recognized
 
 
 1.1.7 (14 Feb 2018):
 
-* Markdown.pl: _PrefixURL more intelligently
++ _PrefixURL more intelligently
 
 
 1.1.6 (03 Jan 2018):
 
-* Markdown.pl: be more flexible parsing backticks-delimited code blocks
++ be more flexible parsing backticks-delimited code blocks
 
-* Markdown.pl: improve XML comment parsing
++ improve XML comment parsing
 
-* Markdown.pl: correct .svg extension matching rule
++ correct .svg extension matching rule
 
-* Markdown.pl: apply -i and -r options to a and img tags
++ apply -i and -r options to a and img tags
 
 
 1.1.5 (07 Dec 2017):
 
-* Markdown.pl: support tables
++ support tables
 
-* Markdown.pl: make sure all alt= and title= text is escaped
++ make sure all alt= and title= text is escaped
 
 
 1.1.4 (24 Jun 2017):
 
-+ Markdown.pl: disallow <dir> and <menu> without --deprecated
++ disallow <dir> and <menu> without --deprecated
 
 
 1.1.3 (13 Feb 2017):
 
-+ Markdown.pl: auto escape '<' of non-tags
++ auto escape '<' of non-tags
 
-+ Markdown.pl: do not overlook sibling list items
++ do not overlook sibling list items
 
 
 1.1.2 (19 Jan 2017):
 
-+ Markdown.pl: usually (i), (v) and (x) are roman
++ usually (i), (v) and (x) are roman
 
-+ Markdown.pl: retain square brackets around footnotes
++ retain square brackets around footnotes
 
-+ Markdown.pl: treat '*' in `<ol>` like last marker
++ treat '*' in `<ol>` like last marker
 
-+ Markdown.pl: normalize link white space
++ normalize link white space
 
-+ Markdown.pl: do not mishandle double list markers redux
++ do not mishandle double list markers redux
 
-+ Markdown.pl: recognize two ```-delimited blocks in a row
++ recognize two ```-delimited blocks in a row
 
-+ Markdown: allow trailing '[]' to be omitted
++ allow trailing '[]' to be omitted
 
-+ Markdown.pl: tweak code block output again
++ tweak code block output again
 
 
 1.1.1 (12 Jan 2017):
 
-+ Markdown.pl: support lower-greek ol lists
++ support lower-greek ol lists
 
-+ Markdown.pl: auto-detect latin-1/utf-8 input always output utf-8  
++ auto-detect latin-1/utf-8 input always output utf-8  
   The minimum version of Perl required is now 5.8.0.
 
 
 1.1.0 (11 Jan 2017):
 
-+ Markdown.pl: handle some limited [[wiki style links]]
++ handle some limited [[wiki style links]]
 
-+ Markdown.pl: add --stub, --stylesheet and --tabwidth options
++ add --stub, --stylesheet and --tabwidth options
 
-+ Markdown.pl: support more list markers
++ support more list markers
 
-+ Markdown.pl: format fancy checkboxes
++ format fancy checkboxes
 
-+ Markdown.pl: add anchors and definitions for headers
++ add anchors and definitions for headers
 
-+ Markdown.pl: do not mishandle double list markers
++ do not mishandle double list markers
 
-+ Markdown.pl: handle non-backticks-delimited code blocks properly
++ handle non-backticks-delimited code blocks properly
 
-+ Markdown.pl: recognize top-level lists better
++ recognize top-level lists better
 
-+ Markdown.pl: output deterministic documents
++ output deterministic documents
 
-+ Markdown.pl: auto linkify without '<'...'>'
++ auto linkify without '<'...'>'
 
 
 1.0.4 (05 Jun 2016):
