@@ -2,7 +2,7 @@
 Markdown
 ========
 
-Version 1.1.14
+Version 1.1.15
 
 John Gruber  
 Kyle J. McKay
@@ -181,6 +181,13 @@ If w3m is available, a Markdown-formatted text file can be viewed like so
 ---------------
 Version History
 ---------------
+
+1.1.15 (15 Aug 2021):
+
++ allow '/' in auto-quoted attribute values
+
++ add new --us-ascii option for 7-bit output
+
 
 1.1.14 (14 Jun 2021):
 
